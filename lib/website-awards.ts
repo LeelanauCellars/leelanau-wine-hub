@@ -5,6 +5,42 @@ export type WebsiteAward = Award & { wineName: string };
 const AWARDS_URL = 'https://www.lwc.wine/awards/';
 const RESULTS = ['Best of Class', 'Best in Class', 'Double Gold', 'Gold', 'Silver', 'Bronze'];
 
+const awardGraphicUrl = (year: number, result: string) => {
+  const normalized = result.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const aliases: Record<string, string> = {
+    'best of class': 'best-of-class',
+    'best in class': 'best-of-class',
+    'double gold': 'double-gold',
+    'gold': 'gold',
+    'silver': 'silver',
+    'bronze': 'bronze',
+    'sparkling sweepstake': 'sparkling-sweepstake',
+    'sparkling sweepstakes': 'sparkling-sweepstake',
+    'rose sweepstake': 'rose-sweepstake',
+    'rose sweepstakes': 'rose-sweepstake',
+    'rosé sweepstake': 'rose-sweepstake',
+    'rosé sweepstakes': 'rose-sweepstake',
+    'packaging sweepstake': 'packaging-sweepstake',
+    'packaging sweepstakes': 'packaging-sweepstake',
+    'specialty sweepstake': 'specialty-sweepstake',
+    'specialty sweepstakes': 'specialty-sweepstake',
+    'red sweepstake': 'red-sweepstake',
+    'red sweepstakes': 'red-sweepstake',
+    'white sweepstake': 'white-sweepstake',
+    'white sweepstakes': 'white-sweepstake',
+  };
+  const slug = aliases[normalized];
+  if (!slug) return undefined;
+  const supported: Record<number, string[]> = {
+    2023: ['best-of-class', 'gold', 'silver', 'bronze'],
+    2024: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+    2025: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+    2026: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze', 'sparkling-sweepstake', 'rose-sweepstake', 'packaging-sweepstake', 'specialty-sweepstake', 'red-sweepstake', 'white-sweepstake'],
+  };
+  return supported[year]?.includes(slug) ? `/awards/${year}/${slug}.png` : undefined;
+};
+
+
 const FALLBACK_2026: Array<[string, string]> = [
   ['Cherries Galore', 'Double Gold'],
   ['2023 Late Harvest Riesling', 'Double Gold'],
@@ -37,6 +73,7 @@ const fallbackAwards = (year: number): WebsiteAward[] => year === 2026 ? FALLBAC
   year: 2026,
   competition: 'San Francisco Chronicle Wine Competition',
   result,
+  graphicUrl: awardGraphicUrl(2026, result),
 })) : [];
 
 const AWARD_ENTITIES: Record<string, string> = {
@@ -111,6 +148,7 @@ export async function loadCurrentWebsiteAwards(): Promise<WebsiteAward[]> {
         year,
         competition: 'San Francisco Chronicle Wine Competition',
         result,
+        graphicUrl: awardGraphicUrl(year, result),
       });
     }
     return awards.length ? awards : fallbackAwards(year);

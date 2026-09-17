@@ -85,3 +85,13 @@ Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, 
 - Country Crush, Zilly and Lakeshore Farms logos are rendered directly against the blue header without the white logo box.
 - The Tasting Room page now shows the current menu first. The full catalog is hidden behind **Add / change**, and a menu can be pasted or uploaded as TXT/CSV/Markdown/HTML to auto-select matching Commerce7 wines.
 - Printed tasting-room cards use the website/Commerce7 description and include blank staff-note lines for handwritten notes.
+
+
+## v4 layout updates
+
+- Official San Francisco Chronicle badge PNGs from the supplied 2023–2026 award packages are bundled under `public/awards/` and used directly on profiles and tech sheets.
+- Tech-sheet award badges no longer crop a larger website image. The clean badge asset is placed in its own right-side visual area so it does not cover tasting-note text.
+- The bottle-size control now runs from `0.50×` to `4.00×` and still starts at `2.20×`, allowing narrow bottle images to scale all the way to the top of the page.
+- When Case Packaging is enabled, the copy column moves upward and uses tighter section spacing. Packaging artwork can display up to roughly 320 × 155 px.
+- Wine Library bottle cards now use a padded `object-contain` image treatment rather than enlarging/cropping the Commerce7 image.
+- The Tasting Room printable guide now centers on **Sales Highlights** instead of the overview/short description, while keeping handwritten Staff Notes space.

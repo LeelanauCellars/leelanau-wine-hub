@@ -386,8 +386,8 @@ function WineCard({ wine, open, tech }: { wine: WineRecord; open: () => void; te
   const award = wine.awards[0];
   return <article className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
     <button onClick={open} className="block w-full text-left">
-      <div className="relative h-48 overflow-hidden bg-[#eef2f6]">
-        {wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full scale-[1.22] object-contain object-bottom transition duration-300 group-hover:scale-[1.27]" /> : <WinePlaceholder wine={wine} />}
+      <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
+        {wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}
         <div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
         {award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}
       </div>
@@ -449,7 +449,10 @@ function ProfileBlock({ title, badge, children }: { title: string; badge?: strin
 function QuickFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{value}</dd></div>; }
 function EditField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label><span className="field-label">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="field-input" /></label>; }
 function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} className="field-input resize-y leading-6" />; }
-function AwardRow({ award }: { award: Award }) { return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span><div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>; }
+function AwardRow({ award }: { award: Award }) {
+  const graphic = award.graphicUrl || awardGraphicFor(award);
+  return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>;
+}
 function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (patch: Partial<Award>) => void; onRemove: () => void }) { return <div className="rounded-xl border border-[#ead9b4] bg-[#fffaf0] p-3"><div className="grid gap-2 sm:grid-cols-[90px_1fr]"><label><span className="field-label">Year</span><input type="number" value={award.year} onChange={(event) => onChange({ year: Number(event.target.value) || new Date().getFullYear() })} className="field-input" /></label><EditField label="Result" value={award.result} onChange={(value) => onChange({ result: value })} /></div><div className="mt-2"><EditField label="Competition" value={award.competition} onChange={(value) => onChange({ competition: value })} /></div><div className="mt-2"><EditField label="Award graphic URL (optional)" value={award.graphicUrl || ''} onChange={(value) => onChange({ graphicUrl: value || undefined })} /></div><button onClick={onRemove} className="mt-3 text-[11px] font-black text-red-600 hover:text-red-700">Remove award</button></div>; }
 
 function menuCandidates(wine: WineRecord) {
@@ -517,10 +520,20 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
 function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (wine: WineRecord) => void }) {
   return <section className="tasting-guide overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
     <div className="flex items-center justify-between bg-[#5BA3F8] px-5 py-4"><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" /><div><p className="text-[9px] font-black uppercase tracking-[.22em] text-white/85">Leelanau Cellars</p><h2 className="text-2xl font-black text-white">Tasting Room Wine Guide</h2></div></div><p className="rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white">{chosen.length} wines</p></div>
-    <div className="bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Website descriptions + space for handwritten staff notes</div>
+    <div className="bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Sales highlights + space for handwritten staff notes</div>
     <div className="p-5 print:p-0">
     {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div>}
-    <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">{chosen.map((wine) => <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4"><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#3976b7]">{wine.sweetness ? `${wine.category} · ${wine.sweetness}` : wine.category}</p><h3 className="mt-1 text-lg font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3></div><div className="text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div><p className="text-xs leading-5 text-black/65">{wine.shortDescription || wine.tastingNotes}</p>{wine.awards[0] && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-[#9a6d17]"><AwardIcon className="h-3.5 w-3.5" /> {wine.awards[0].result} · {wine.awards[0].competition} {wine.awards[0].year}</p>}<div className="mt-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="mt-2 space-y-3"><div className="border-b border-black/20" /><div className="border-b border-black/20" /><div className="border-b border-black/20" /></div></div>{openWine && <button onClick={() => openWine(wine)} className="mt-4 text-[11px] font-black text-[#326eac]">Open full wine profile →</button>}</article>)}</div>
+    <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">{chosen.map((wine) => {
+      const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
+      return <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4">
+        <div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#3976b7]">{wine.sweetness ? `${wine.category} · ${wine.sweetness}` : wine.category}</p><h3 className="mt-1 text-lg font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3></div><div className="text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div>
+        <p className="mb-2 text-[9px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p>
+        <ul className="space-y-1.5 pl-4 text-xs leading-5 text-black/65">{salesHighlights.slice(0, 5).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>
+        {wine.awards[0] && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-[#9a6d17]"><AwardIcon className="h-3.5 w-3.5" /> {wine.awards[0].result} · {wine.awards[0].competition} {wine.awards[0].year}</p>}
+        <div className="mt-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="mt-2 space-y-3"><div className="border-b border-black/20" /><div className="border-b border-black/20" /><div className="border-b border-black/20" /></div></div>
+        {openWine && <button onClick={() => openWine(wine)} className="mt-4 text-[11px] font-black text-[#326eac]">Open wine profile →</button>}
+      </article>;
+    })}</div>
     </div>
   </section>;
 }
@@ -555,7 +568,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           <EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} />
           <EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} />
           <EditField label="Bottle / hero image URL" value={draft.bottleImage || ''} onChange={(value) => update('bottleImage', value)} />
-          <label><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="0.8" max="2.2" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /></label>
+          <label><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="0.5" max="4" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /><span className="mt-1 block text-[10px] leading-4 text-black/40">Starts at 2.20×. Move it up until the bottle reaches the top of the page, or shrink it for wider bottle shots.</span></label>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Award badge</p>
@@ -599,45 +612,90 @@ function BrandLogoMark({ wine }: { wine?: WineRecord }) {
   return <img src={logo.src} alt={logo.alt} className={`${logo.className || 'max-h-[104px] max-w-[230px]'} object-contain`} style={screenStyle} />;
 }
 
-const OFFICIAL_AWARD_SHEETS = {
-  lwc: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-LWC.png',
-  farmFresh: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-Farm-Fresh.png',
-  zilly: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-Zilly-1.png',
-};
+function awardGraphicFor(award: Award) {
+  if (!award.competition.toLowerCase().includes('san francisco chronicle')) return undefined;
+  const normalized = award.result
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 
-type AwardCrop = { url: string; left: number; top: number };
-function officialAwardCrop(wine: WineRecord | undefined, award: Award): AwardCrop | null {
-  if (award.year !== 2026 || !award.competition.toLowerCase().includes('san francisco chronicle')) return null;
-  const result = award.result.toLowerCase();
-  if (wine?.brand === 'Farm Fresh') {
-    const positions: Record<string, [number, number]> = { 'best of class': [-18, -130], 'double gold': [-140, -130], silver: [-266, -130] };
-    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.farmFresh, left: positions[result][0], top: positions[result][1] } : null;
-  }
-  if (wine?.brand === 'Zilly') {
-    const positions: Record<string, [number, number]> = { gold: [-94, -133], bronze: [-194, -133] };
-    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.zilly, left: positions[result][0], top: positions[result][1] } : null;
-  }
-  if (!wine || wine.brand === 'Leelanau Cellars') {
-    const positions: Record<string, [number, number]> = { 'double gold': [-140, -11], gold: [-33, -133], silver: [-248, -133], bronze: [-140, -240] };
-    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.lwc, left: positions[result][0], top: positions[result][1] } : null;
-  }
-  return null;
+  const standard: Record<string, string> = {
+    'best of class': 'best-of-class',
+    'best in class': 'best-of-class',
+    'double gold': 'double-gold',
+    gold: 'gold',
+    silver: 'silver',
+    bronze: 'bronze',
+  };
+  const sweepstakes: Record<number, Record<string, string>> = {
+    2025: {
+      'packaging sweepstake': 'sweepstake-packaging',
+      'packaging sweepstakes': 'sweepstake-packaging',
+      'red sweepstake': 'sweepstake-red',
+      'red sweepstakes': 'sweepstake-red',
+      'white sweepstake': 'sweepstake-white',
+      'white sweepstakes': 'sweepstake-white',
+      'rose sweepstake': 'sweepstake-rose',
+      'rose sweepstakes': 'sweepstake-rose',
+      'sparkling sweepstake': 'sweepstake-sparkling',
+      'sparkling sweepstakes': 'sweepstake-sparkling',
+      'specialty sweepstake': 'sweepstake-specialty',
+      'specialty sweepstakes': 'sweepstake-specialty',
+    },
+    2026: {
+      'sparkling sweepstake': 'sparkling-sweepstake',
+      'sparkling sweepstakes': 'sparkling-sweepstake',
+      'rose sweepstake': 'rose-sweepstake',
+      'rose sweepstakes': 'rose-sweepstake',
+      'packaging sweepstake': 'packaging-sweepstake',
+      'packaging sweepstakes': 'packaging-sweepstake',
+      'specialty sweepstake': 'specialty-sweepstake',
+      'specialty sweepstakes': 'specialty-sweepstake',
+      'red sweepstake': 'red-sweepstake',
+      'red sweepstakes': 'red-sweepstake',
+      'white sweepstake': 'white-sweepstake',
+      'white sweepstakes': 'white-sweepstake',
+    },
+  };
+
+  const slug = standard[normalized] || sweepstakes[award.year]?.[normalized];
+  if (!slug) return undefined;
+
+  const supported: Record<number, string[]> = {
+    2023: ['best-of-class', 'gold', 'silver', 'bronze'],
+    2024: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+    2025: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze', 'sweepstake-packaging', 'sweepstake-red', 'sweepstake-white', 'sweepstake-rose', 'sweepstake-sparkling', 'sweepstake-specialty'],
+    2026: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze', 'sparkling-sweepstake', 'rose-sweepstake', 'packaging-sweepstake', 'specialty-sweepstake', 'red-sweepstake', 'white-sweepstake'],
+  };
+
+  return supported[award.year]?.includes(slug) ? `/awards/${award.year}/${slug}.png` : undefined;
 }
 
 function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRecord }) {
   const firstAward = wine?.awards[0];
   const compositeColdDuck = draft.bottleImage?.includes('cold-duck-composite');
+  const awardGraphic = draft.awardGraphic || (firstAward ? awardGraphicFor(firstAward) : undefined);
+  const compact = draft.includeCasePackaging;
+
   return <article className="tech-sheet-paper relative flex shrink-0 flex-col overflow-hidden bg-white text-black shadow-2xl print:shadow-none">
     <div className="flex h-[132px] shrink-0 items-center justify-center" style={{ backgroundColor: draft.headerColor }}><BrandLogoMark wine={wine} /></div>
     <div className="flex h-[48px] shrink-0 items-center justify-center" style={{ backgroundColor: mixWithWhite(draft.headerColor, .62) }}><h1 className="text-center text-[30px] font-black uppercase tracking-[-.035em]">{draft.wineName}</h1></div>
     <div className="relative flex-1 overflow-hidden bg-white">
-      <div className="relative z-10 w-[62%] px-[48px] py-[42px] pr-[10px]">
-        <SheetSection title="Tasting Notes"><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
-        <SheetSection title="Wine Specs"><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        {!!draft.highlights.length && <SheetSection title="Highlights"><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>}
-        {draft.includeCasePackaging && <SheetSection title="Case Packaging">{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[105px] max-w-[250px] object-contain object-left" /> : <div className="no-print flex h-[78px] max-w-[250px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
+      <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
+        <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
+        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
+        {!!draft.highlights.length && <SheetSection title="Highlights" compact={compact}><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>}
+        {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[155px] max-w-[320px] object-contain object-left" /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
       </div>
-      <div className="absolute bottom-0 right-0 top-0 w-[46%] overflow-hidden">{draft.bottleImage ? <img src={draft.bottleImage} alt="" className="absolute inset-0 h-full w-full origin-bottom object-contain object-bottom" style={{ transform: `scale(${draft.bottleScale})` }} /> : <div className="absolute inset-8 flex items-center justify-center rounded-2xl border-2 border-dashed border-black/15 text-sm font-bold text-black/25">Bottle image</div>}{firstAward && !compositeColdDuck && (draft.awardGraphic ? <img src={draft.awardGraphic} alt={`${firstAward.result} award`} className="absolute left-[-6px] top-[17%] z-20 h-[150px] w-[150px] object-contain drop-shadow-lg" /> : <AwardBadge award={firstAward} wine={wine} />)}</div>
+
+      <div className="absolute bottom-0 right-0 top-0 w-[42%] overflow-hidden">
+        {draft.bottleImage ? <img src={draft.bottleImage} alt="" className="absolute inset-0 h-full w-full origin-bottom object-contain object-bottom" style={{ transform: `scale(${draft.bottleScale})` }} /> : <div className="absolute inset-8 flex items-center justify-center rounded-2xl border-2 border-dashed border-black/15 text-sm font-bold text-black/25">Bottle image</div>}
+        {firstAward && !compositeColdDuck && (awardGraphic
+          ? <img src={awardGraphic} alt={`${firstAward.result} award`} className="absolute left-[4px] top-[15%] z-20 h-[132px] w-[132px] object-contain drop-shadow-md" />
+          : <AwardBadge award={firstAward} />)}
+      </div>
     </div>
     <footer className="flex h-[32px] shrink-0 items-center justify-center bg-black px-6 text-center text-[12px] font-medium text-white">{draft.footer}</footer>
   </article>;
@@ -650,13 +708,14 @@ function mixWithWhite(hex: string, amount: number) {
   const mixed = rgb.map((channel) => Math.round(channel + (255 - channel) * amount));
   return `rgb(${mixed.join(',')})`;
 }
-function SheetSection({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-[28px]"><h2 className="mb-[7px] text-[25px] font-black uppercase tracking-[-.015em]">{title}</h2>{children}</section>; }
+function SheetSection({ title, children, compact = false }: { title: string; children: React.ReactNode; compact?: boolean }) { return <section className={compact ? 'mb-[19px]' : 'mb-[28px]'}><h2 className="mb-[7px] text-[25px] font-black uppercase tracking-[-.015em]">{title}</h2>{children}</section>; }
 function Spec({ label, value }: { label: string; value: string }) { if (!value) return null; return <p><strong>{label}:</strong> {value}</p>; }
-function AwardBadge({ award, wine }: { award: Award; wine?: WineRecord }) {
-  const official = officialAwardCrop(wine, award);
-  if (official) return <div className="absolute left-[-6px] top-[17%] z-20 h-[150px] w-[150px] overflow-hidden rounded-full drop-shadow-lg"><img src={official.url} alt={`${award.result} award`} className="absolute max-w-none" style={{ width: 430, height: 377, left: official.left, top: official.top }} /></div>;
-  const longResult = award.result.length > 8;
-  return <div className="absolute left-[-6px] top-[17%] z-20 flex h-[150px] w-[150px] flex-col items-center justify-center rounded-full border-[3px] border-white bg-[#d8a847] text-center text-white shadow-lg"><span className="text-[8px] font-black uppercase leading-3">San Francisco Chronicle</span><span className="mt-1 text-[8px] font-bold uppercase tracking-[.16em]">Wine Competition</span><span className={`${longResult ? 'text-[18px]' : 'text-[25px]'} my-2 block w-full bg-white px-1 py-2 font-black uppercase leading-none text-[#d19d37]`}>{award.result}</span><span className="text-[10px] font-black">{award.year} Award Winner</span></div>;
+function AwardBadge({ award }: { award: Award }) {
+  return <div className="absolute left-[8px] top-[16%] z-20 w-[132px] rounded-xl border border-[#d7a33d]/50 bg-white/95 p-3 text-center shadow-lg">
+    <AwardIcon className="mx-auto h-5 w-5 text-[#b27d16]" />
+    <p className="mt-1 text-[13px] font-black uppercase leading-4 text-[#8f6312]">{award.result}</p>
+    <p className="mt-1 text-[9px] font-bold leading-3 text-black/50">{award.year}<br />San Francisco Chronicle</p>
+  </div>;
 }
 
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
