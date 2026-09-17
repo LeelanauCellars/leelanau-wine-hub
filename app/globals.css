@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -11,7 +12,7 @@ body {
   margin: 0;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
 }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
@@ -42,7 +43,7 @@ button { cursor: pointer; }
 .tech-sheet-paper {
   width: 816px;
   height: 1056px;
-  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
 }
 
 @media print {

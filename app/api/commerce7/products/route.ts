@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { WineRecord } from '@/lib/types';
+import { loadCurrentWebsiteAwards, matchWebsiteAwards } from '@/lib/website-awards';
 
 type C7Variant = {
   upcCode?: string | null;
   volumeInML?: number | null;
   price?: number | null;
   title?: string | null;
+  alcoholPercentage?: number | null;
 };
 
 type C7Product = {
@@ -71,11 +73,43 @@ const awardsMeta = (meta: Record<string, unknown> | null | undefined) => {
   }
 };
 
-const toWine = (product: C7Product): WineRecord => {
+const htmlToLines = (html = '') => html
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<br\s*\/?\s*>/gi, '\n')
+  .replace(/<\/(p|li|div|h[1-6])>/gi, '\n')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&nbsp;/g, ' ')
+  .replace(/&amp;/g, '&')
+  .replace(/&#39;|&apos;/g, "'")
+  .replace(/&quot;/g, '"')
+  .split('\n')
+  .map((line) => line.replace(/[ \t]{2,}/g, ' ').trim())
+  .filter(Boolean);
+
+const inferBrand = (product: C7Product, meta: Record<string, unknown> | null | undefined) => {
+  const explicit = metaValue(meta, ['brand', 'tech_brand']);
+  if (explicit) return explicit;
+  const haystack = [product.title, ...(product.collections || []).map((collection) => collection.title || '')].join(' ').toLowerCase();
+  if (haystack.includes('farm fresh')) return 'Farm Fresh';
+  if (haystack.includes('country crush')) return 'Country Crush';
+  if (haystack.includes('zilly')) return 'Zilly';
+  if (haystack.includes('lakeshore farms')) return 'Lakeshore Farms';
+  return 'Leelanau Cellars';
+};
+
+const formatAbv = (value?: number | null) => {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) return '';
+  const numeric = Number(value);
+  return `${Number.isInteger(numeric) ? numeric.toFixed(0) : numeric.toFixed(1).replace(/\.0$/, '')}%`;
+};
+
+const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loadCurrentWebsiteAwards>>): WineRecord => {
   const variant = product.variants?.[0] ?? {};
   const meta = product.metaData;
   const teaser = stripHtml(product.teaser ?? '');
   const content = stripHtml(product.content ?? '');
+  const contentLines = htmlToLines(product.content ?? '');
   const price = typeof variant.price === 'number' ? variant.price / 100 : undefined;
   const vintage = product.wine?.vintage ? String(product.wine.vintage) : 'NV';
   const category = product.wine?.type || product.type || 'Wine';
@@ -86,7 +120,7 @@ const toWine = (product: C7Product): WineRecord => {
     source: 'commerce7',
     name: product.title,
     vintage,
-    brand: metaValue(meta, ['brand', 'tech_brand']) || 'Leelanau Cellars',
+    brand: inferBrand(product, meta),
     category,
     collection: product.collections?.[0]?.title || undefined,
     status: product.webStatus === 'Retired' ? 'Retired' : product.webStatus === 'Available' ? 'Available' : 'Not Available',
@@ -98,24 +132,29 @@ const toWine = (product: C7Product): WineRecord => {
     price,
     upc: variant.upcCode || undefined,
     volumeMl: variant.volumeInML || undefined,
-    abv: metaValue(meta, ['abv', 'alcohol', 'alcohol_by_volume', 'tech_abv']) || undefined,
+    abv: formatAbv(variant.alcoholPercentage) || metaValue(meta, ['abv', 'alcohol', 'alcohol_by_volume', 'tech_abv']) || undefined,
     rs: metaValue(meta, ['rs', 'residual_sugar', 'tech_rs']) || undefined,
     ta: metaValue(meta, ['ta', 'total_acidity', 'tech_ta']) || undefined,
     ph: metaValue(meta, ['ph', 'tech_ph']) || undefined,
     casePack: metaValue(meta, ['case_pack', 'case_size', 'casepack', 'tech_case_pack']) || undefined,
     casesProduced: metaValue(meta, ['cases_produced', 'casesproduced', 'tech_cases_produced']) || undefined,
     sweetness: metaValue(meta, ['sweetness', 'sweetness_level', 'style', 'tech_sweetness']) || undefined,
-    tastingNotes: metaValue(meta, ['tasting_notes', 'tastingnotes', 'tech_tasting_notes']) || teaser || content,
-    shortDescription: metaValue(meta, ['short_description', 'quick_description', 'tech_short_description']) || teaser || content.slice(0, 180),
+    tastingNotes: metaValue(meta, ['tasting_notes', 'tastingnotes', 'tech_tasting_notes']) || teaser || contentLines[0] || content,
+    shortDescription: metaValue(meta, ['short_description', 'quick_description', 'tech_short_description']) || teaser || contentLines[0]?.slice(0, 180) || content.slice(0, 180),
     staffPitch: metaValue(meta, ['staff_pitch', 'customer_pitch', 'tech_staff_pitch']),
     pairings: metaValue(meta, ['pairings', 'food_pairings', 'tech_pairings']),
-    highlights: metaValue(meta, ['highlights', 'sales_highlights', 'tech_highlights'])
-      .split(/\n|\|/)
-      .map((value) => value.trim())
-      .filter(Boolean),
+    highlights: (() => {
+      const manual = metaValue(meta, ['highlights', 'sales_highlights', 'tech_highlights'])
+        .split(/\n|\|/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (manual.length) return manual;
+      if (contentLines.length) return contentLines.slice(0, 5);
+      return teaser ? [teaser] : [];
+    })(),
     productionNotes: metaValue(meta, ['production_notes', 'winemaker_notes']) || undefined,
     vineyardNotes: metaValue(meta, ['vineyard_notes', 'vintage_notes']) || undefined,
-    awards: awardsMeta(meta),
+    awards: (() => { const saved = awardsMeta(meta); const website = matchWebsiteAwards(product.title, vintage, inferBrand(product, meta), websiteAwards); const combined = [...website, ...saved]; return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index); })(),
     onTastingMenu: booleanMeta(meta, ['tech_on_tasting_menu', 'on_tasting_menu']),
     updatedAt: product.updatedAt || new Date().toISOString(),
   };
@@ -162,9 +201,10 @@ export async function GET() {
       page += 1;
     }
 
+    const websiteAwards = await loadCurrentWebsiteAwards();
     const wines = products
       .filter((product) => product.type === 'Wine')
-      .map(toWine)
+      .map((product) => toWine(product, websiteAwards))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ configured: true, wines, total: wines.length });

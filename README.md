@@ -6,11 +6,11 @@ A private internal wine-knowledge and sales-material app designed to live on Ver
 
 - **Wine Library** — a searchable master profile for every wine.
 - **Editable master content** — tasting notes, staff pitch, pairings, highlights, awards, technical data and production/vineyard notes.
-- **Commerce7 sync** — pulls Wine products from the Product API and maps product name, image, vintage, varietal, appellation, price, UPC and bottle volume automatically.
+- **Commerce7 sync** — pulls Wine products from the Product API and maps product name, image, vintage, varietal, appellation, price, UPC, bottle volume and variant alcohol percentage automatically.
 - **Shared Wine Hub fields in Commerce7** — when the app has Product write access, master Wine Hub content, awards and the current tasting-menu flag are stored in the product `metaData`, so sales/tasting-room staff share the same information.
 - **Tasting Room Guide** — select the current menu, save it, and print a staff-ready reference guide built from the same master records.
 - **Tech Sheet Builder** — starts from the master record but permits document-only overrides. The print layout mirrors the supplied Leelanau sales one-sheet: blue logo header, light-blue title bar, copy on the left, bottle/award visual on the right and a black footer.
-- **Awards Library** and **Asset Library** — reusable information attached to the wine profile.
+- **Awards Library** and **Asset Library** — reusable information attached to the wine profile. Current San Francisco Chronicle awards are refreshed from `lwc.wine/awards` when the Commerce7 catalog syncs.
 - **Demo/local fallback** — if Commerce7 is not configured, the included sample catalog and browser localStorage let the workflow be tested immediately.
 
 ## Run locally
@@ -57,7 +57,7 @@ The app reads and writes the following Product `metaData` keys. Matching Product
 - `tech_awards_json` — JSON array of award objects
 - `tech_on_tasting_menu` — `true` / `false`
 
-Standard Commerce7 product facts remain managed in Commerce7 itself. In the Wine Hub, those fields are displayed as synced rather than duplicated as a second editable source of truth.
+Standard Commerce7 product facts remain managed in Commerce7 itself. In the Wine Hub, those fields are displayed as synced without duplicating them as a second editable record.
 
 ## Commerce7 extension
 
@@ -65,4 +65,13 @@ The app includes Commerce7's iframe helper script. In the Commerce7 App Developm
 
 ## Data model notes
 
-With Commerce7 connected, product facts and Wine Hub custom fields are shared through Commerce7. Browser localStorage remains a fallback/cache for demo use. If you later want versioned tasting menus, approval workflows, staff roles, archived generated documents or a full audit history, add a small shared database layer without changing Commerce7 as the product source of truth.
+With Commerce7 connected, product facts and Wine Hub custom fields are shared through Commerce7. Browser localStorage remains a fallback/cache for demo use. If you later want versioned tasting menus, approval workflows, staff roles, archived generated documents or a full audit history, add a small shared database layer without changing Commerce7 as the system that owns the core product data.
+
+
+## Brand logos
+
+Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, Zilly and Lakeshore Farms based on the Commerce7 product title/collections. The current implementation uses the approved logo assets hosted on the Leelanau/Farm Fresh websites.
+
+## Temporary highlight mapping
+
+Until dedicated Wine Hub highlights are entered, the Commerce7 long product description is split into paragraph-level highlights for the tech sheet. A saved `tech_highlights` field always overrides that fallback.
