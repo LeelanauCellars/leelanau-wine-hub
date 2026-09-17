@@ -42,9 +42,14 @@ const TECH_COLOR = '#5BA3F8';
 const TECH_LIGHT = '#BDDAFC';
 const FOOTER = 'Leelanau Cellars | 231-386-5201 | sales@lwc.wine | lwc.wine';
 
-const normalize = (value = '') => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const normalize = (value = '') => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 const money = (value?: number) => value === undefined ? '—' : `$${value.toFixed(2)}`;
 const safeArray = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
+const formatUpc = (value = '') => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 12) return `${digits.slice(0, 1)}-${digits.slice(1, 6)}-${digits.slice(6, 11)}-${digits.slice(11)}`;
+  return value;
+};
 
 function mergeCommerce7(current: WineRecord[], incoming: WineRecord[]) {
   const used = new Set<string>();
@@ -88,11 +93,13 @@ function draftFromWine(wine: WineRecord): TechSheetDraft {
     highlights: wine.highlights.length ? wine.highlights : [wine.shortDescription].filter(Boolean),
     abv: wine.abv || '',
     casePack: wine.casePack || (wine.volumeMl ? `12–${wine.volumeMl} mL bottles` : ''),
-    upc: wine.upc || '',
+    upc: formatUpc(wine.upc || ''),
     srp: wine.price === undefined ? '' : `$${wine.price.toFixed(2)}`,
     bottleImage: wine.bottleImage,
     awardGraphic: wine.awards[0]?.graphicUrl,
-    bottleScale: 1.55,
+    includeCasePackaging: false,
+    casePackagingImage: undefined,
+    bottleScale: 2.2,
     headerColor: TECH_COLOR,
     footer: FOOTER,
   };
@@ -423,14 +430,14 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
         <ProfileBlock title="Pairings">{isEditing ? <Textarea value={shown.pairings} onChange={(value) => update('pairings', value)} rows={3} /> : <p className="profile-copy">{shown.pairings || 'Add pairing ideas.'}</p>}</ProfileBlock>
       </div>
       <div className="space-y-5">
-        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Style" value={shown.category} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc || '—'} /></dl></ProfileBlock>
+        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Style" value={shown.category} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /></dl></ProfileBlock>
         <ProfileBlock title="Awards" badge={`${shown.awards.length} total`}><div className="space-y-2">{shown.awards.map((award, index) => isEditing ? <AwardEditor key={award.id} award={award} onChange={(patch) => updateAward(index, patch)} onRemove={() => removeAward(index)} /> : <AwardRow key={award.id} award={award} />)}{!shown.awards.length && <p className="text-sm text-black/40">No awards added yet.</p>}{isEditing && <button onClick={addAward} className="mt-2 flex items-center gap-1.5 text-xs font-black text-[#326eac]"><Plus className="h-3.5 w-3.5" /> Add award</button>}</div></ProfileBlock>
       </div>
     </div>}
 
     {tab === 'sales' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Sales highlights">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /> : <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul>}</ProfileBlock><ProfileBlock title="Production / vineyard notes">{isEditing ? <><label className="field-label">Production notes</label><Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /><label className="field-label mt-4">Vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></> : <div className="space-y-5"><div><p className="field-label">Production notes</p><p className="profile-copy">{shown.productionNotes || 'No production notes added.'}</p></div><div><p className="field-label">Vineyard notes</p><p className="profile-copy">{shown.vineyardNotes || 'No vineyard notes added.'}</p></div></div>}</ProfileBlock></div>}
 
-    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock></div>}
+    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock></div>}
 
     {tab === 'assets' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Bottle image">{isEditing ? <EditField label="Image URL" value={shown.bottleImage || ''} onChange={(value) => update('bottleImage', value)} /> : shown.bottleImage ? <div className="flex min-h-80 items-center justify-center rounded-xl bg-[#f3f5f7]"><img src={shown.bottleImage} alt="" className="max-h-80 max-w-full object-contain p-4" /></div> : <p className="text-sm text-black/40">No bottle image attached.</p>}</ProfileBlock><ProfileBlock title="Links">{isEditing ? <EditField label="Product URL" value={shown.productUrl || ''} onChange={(value) => update('productUrl', value)} /> : <div className="space-y-3">{shown.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={shown.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Asset management is intentionally separate from document overrides, so changing a tech-sheet image never has to change the master record.</p></div>}</ProfileBlock></div>}
   </div>;
@@ -445,15 +452,62 @@ function Textarea({ value, onChange, rows }: { value: string; onChange: (value: 
 function AwardRow({ award }: { award: Award }) { return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span><div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>; }
 function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (patch: Partial<Award>) => void; onRemove: () => void }) { return <div className="rounded-xl border border-[#ead9b4] bg-[#fffaf0] p-3"><div className="grid gap-2 sm:grid-cols-[90px_1fr]"><label><span className="field-label">Year</span><input type="number" value={award.year} onChange={(event) => onChange({ year: Number(event.target.value) || new Date().getFullYear() })} className="field-input" /></label><EditField label="Result" value={award.result} onChange={(value) => onChange({ result: value })} /></div><div className="mt-2"><EditField label="Competition" value={award.competition} onChange={(value) => onChange({ competition: value })} /></div><div className="mt-2"><EditField label="Award graphic URL (optional)" value={award.graphicUrl || ''} onChange={(value) => onChange({ graphicUrl: value || undefined })} /></div><button onClick={onRemove} className="mt-3 text-[11px] font-black text-red-600 hover:text-red-700">Remove award</button></div>; }
 
+function menuCandidates(wine: WineRecord) {
+  const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
+  const withoutVintage = withoutBrand.replace(/^20\d{2}\s+|\s+20\d{2}$/g, '').trim();
+  return Array.from(new Set([wine.name, withoutBrand, withoutVintage, `${wine.vintage} ${withoutVintage}`]))
+    .map((value) => normalize(value))
+    .filter((value) => value.length >= 5);
+}
+
+function matchMenuText(text: string, wines: WineRecord[]) {
+  const lines = text.split(/\r?\n/).map((line) => normalize(line)).filter(Boolean);
+  const whole = normalize(text);
+  return wines.filter((wine) => menuCandidates(wine).some((candidate) => {
+    if (candidate.length < 7) return lines.some((line) => line === candidate || line.endsWith(candidate) || line.startsWith(candidate));
+    return whole.includes(candidate) || lines.some((line) => line.includes(candidate));
+  }));
+}
+
 function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingMenu, commerce7Connected }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; saveMenu: () => void | Promise<void>; savingMenu: boolean; commerce7Connected: boolean }) {
   const [q, setQ] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [menuText, setMenuText] = useState('');
+  const [importNotice, setImportNotice] = useState('');
   const chosen = wines.filter((wine) => selected.includes(wine.id));
   const available = wines.filter((wine) => `${wine.name} ${wine.vintage} ${wine.category}`.toLowerCase().includes(q.toLowerCase()));
   const toggle = (id: string) => setSelected(selected.includes(id) ? selected.filter((wineId) => wineId !== id) : [...selected, id]);
+  const autoSelect = (text = menuText) => {
+    const matches = matchMenuText(text, wines);
+    setSelected(matches.map((wine) => wine.id));
+    setImportNotice(matches.length ? `Matched ${matches.length} wines: ${matches.map((wine) => wine.name).join(', ')}` : 'No wine names matched yet. Try pasting the menu text or use Add / change wines.');
+  };
+  const readMenuFile = async (file?: File) => {
+    if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (file.type.startsWith('text/') || ['.txt', '.csv', '.md', '.html'].some((extension) => lower.endsWith(extension))) {
+      const text = await file.text();
+      setMenuText(text);
+      autoSelect(text);
+      return;
+    }
+    setImportNotice('This version can auto-match pasted text, TXT, CSV, Markdown and HTML menus. PDF/photo OCR is the next step once we test it against your actual menu format.');
+  };
+
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="Choose the wines currently on the menu. The guide updates itself from the Wine Library, so staff never has to rebuild tasting notes from scratch." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save current menu'}</button><button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print staff guide</button></div>} /></div>
+    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="Keep one current menu, print a clean staff guide, and update the wine list without digging through the full catalog every time." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save current menu'}</button><button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print staff guide</button></div>} /></div>
     <div className="no-print grid gap-5 xl:grid-cols-[390px_1fr]">
-      <aside className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm"><div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared menu enabled.' : 'Demo mode.'}</strong> {commerce7Connected ? 'Saving writes the current tasting-menu selection back to the wine records so the same menu follows the team.' : 'The menu is saved in this browser until Commerce7 is connected.'}</div><div className="mb-3 flex items-center justify-between"><div><h2 className="font-black">Build the menu</h2><p className="text-xs text-black/45">{selected.length} wines selected</p></div><button onClick={() => setSelected([])} className="text-xs font-bold text-black/40 hover:text-black">Clear</button></div><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search wines…" className="field-input pl-9" /></div><div className="max-h-[calc(100vh-260px)] space-y-1 overflow-auto pr-1">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 ${selected.includes(wine.id) ? 'bg-[#eaf3fb]' : 'hover:bg-black/[.035]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/40">{wine.vintage} · {wine.category}</p></div></label>)}</div></aside>
+      <aside className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+        <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared menu enabled.' : 'Demo mode.'}</strong> {commerce7Connected ? 'Save the menu once and the current selection follows the team.' : 'The menu is saved in this browser until Commerce7 is connected.'}</div>
+        <div className="mb-3 flex items-center justify-between"><div><h2 className="font-black">Current menu</h2><p className="text-xs text-black/45">{selected.length} wines selected</p></div>{selected.length > 0 && <button onClick={() => setSelected([])} className="text-xs font-bold text-black/40 hover:text-black">Clear</button>}</div>
+        <div className="space-y-2">{chosen.length ? chosen.map((wine) => <div key={wine.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#eef5fb] px-3 py-2.5"><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[10px] text-black/40">{wine.vintage === 'NV' ? wine.category : `${wine.vintage} · ${wine.category}`}</p></div><button onClick={() => toggle(wine.id)} aria-label={`Remove ${wine.name}`} className="rounded-full p-1 text-black/35 hover:bg-white hover:text-black"><X className="h-3.5 w-3.5" /></button></div>) : <div className="rounded-xl border border-dashed border-black/15 p-5 text-center text-xs leading-5 text-black/40">No wines selected yet.</div>}</div>
+        <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Import menu</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change</button></div>
+
+        {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-3"><p className="text-xs font-black">Auto-select from your menu</p><p className="mt-1 text-[11px] leading-4 text-black/45">Paste the current menu or upload a text-based menu. Wine Hub matches the names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste the current tasting menu here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload menu file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
+
+        {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="max-h-[430px] space-y-1 overflow-auto pr-1">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 ${selected.includes(wine.id) ? 'bg-[#eaf3fb]' : 'hover:bg-black/[.035]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/40">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
+      </aside>
       <TastingGuide chosen={chosen} openWine={openWine} />
     </div>
     <div className="print-root hidden print:block"><TastingGuide chosen={chosen} /></div>
@@ -461,10 +515,13 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
 }
 
 function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (wine: WineRecord) => void }) {
-  return <section className="tasting-guide rounded-2xl border border-black/10 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none">
-    <div className="mb-6 flex items-center justify-between border-b-2 border-black pb-4"><div><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-11 w-11 border border-black" /><div><p className="text-[10px] font-black uppercase tracking-[.2em]">Leelanau Cellars</p><h2 className="text-2xl font-black">Tasting Room Wine Guide</h2></div></div></div><p className="text-xs font-bold text-black/40">{chosen.length} wines</p></div>
-    {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Select wines to build the current tasting-room guide.</div>}
-    <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">{chosen.map((wine) => <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 p-4"><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#3976b7]">{wine.category} · {wine.sweetness || 'Style TBD'}</p><h3 className="mt-1 text-lg font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3></div><div className="text-right"><p className="text-sm font-black">{money(wine.price)}</p><p className="text-[10px] font-bold text-black/35">{wine.abv || 'ABV —'}</p></div></div><p className="text-xs leading-5 text-black/65">{wine.shortDescription || wine.tastingNotes}</p><div className="mt-3 rounded-lg bg-[#f5f6f8] p-3"><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">What to tell a customer</p><p className="mt-1 text-xs font-semibold leading-5">{wine.staffPitch || 'Add a staff pitch in the Wine Library.'}</p></div>{wine.awards[0] && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-[#9a6d17]"><AwardIcon className="h-3.5 w-3.5" /> {wine.awards[0].result} · {wine.awards[0].competition} {wine.awards[0].year}</p>}{openWine && <button onClick={() => openWine(wine)} className="mt-3 text-[11px] font-black text-[#326eac]">Open full wine profile →</button>}</article>)}</div>
+  return <section className="tasting-guide overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="flex items-center justify-between bg-[#5BA3F8] px-5 py-4"><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" /><div><p className="text-[9px] font-black uppercase tracking-[.22em] text-white/85">Leelanau Cellars</p><h2 className="text-2xl font-black text-white">Tasting Room Wine Guide</h2></div></div><p className="rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white">{chosen.length} wines</p></div>
+    <div className="bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Website descriptions + space for handwritten staff notes</div>
+    <div className="p-5 print:p-0">
+    {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div>}
+    <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">{chosen.map((wine) => <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4"><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#3976b7]">{wine.sweetness ? `${wine.category} · ${wine.sweetness}` : wine.category}</p><h3 className="mt-1 text-lg font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3></div><div className="text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div><p className="text-xs leading-5 text-black/65">{wine.shortDescription || wine.tastingNotes}</p>{wine.awards[0] && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-[#9a6d17]"><AwardIcon className="h-3.5 w-3.5" /> {wine.awards[0].result} · {wine.awards[0].competition} {wine.awards[0].year}</p>}<div className="mt-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="mt-2 space-y-3"><div className="border-b border-black/20" /><div className="border-b border-black/20" /><div className="border-b border-black/20" /></div></div>{openWine && <button onClick={() => openWine(wine)} className="mt-4 text-[11px] font-black text-[#326eac]">Open full wine profile →</button>}</article>)}</div>
+    </div>
   </section>;
 }
 
@@ -477,23 +534,57 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
     const wine = wines.find((item) => item.id === id);
     if (wine) setDraft(draftFromWine(wine));
   };
+  const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage') => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => update(key, typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  };
+
   return <div className="tech-builder min-h-screen bg-[#dfe2e6]">
     <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6"><div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change the master wine</p></div></div><div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0"><select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select><button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Reset to master</button><button onClick={() => window.print()} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button></div></div>
 
     <div className="no-print grid min-h-[calc(100vh-65px)] xl:grid-cols-[390px_1fr]">
-      <aside className="border-r border-black/10 bg-white p-5 xl:max-h-[calc(100vh-65px)] xl:overflow-auto"><div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Everything is prefilled.</strong> Sales can adjust this one sheet without altering the official Wine Library copy.</div><div className="space-y-5"><EditField label="Wine name" value={draft.wineName} onChange={(value) => update('wineName', value)} /><label><span className="field-label">Tasting notes</span><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} /></label><label><span className="field-label">Highlights · one per line</span><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /></label><div className="grid grid-cols-2 gap-3"><EditField label="ABV" value={draft.abv} onChange={(value) => update('abv', value)} /><EditField label="SRP" value={draft.srp} onChange={(value) => update('srp', value)} /></div><EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} /><EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} /><EditField label="Bottle / hero image URL" value={draft.bottleImage || ''} onChange={(value) => update('bottleImage', value)} /><label><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="1" max="2.2" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /></label><EditField label="Award graphic URL (optional)" value={draft.awardGraphic || ''} onChange={(value) => update('awardGraphic', value || undefined)} /><label><span className="field-label">Header color</span><div className="flex items-center gap-2"><input type="color" value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="h-10 w-14 rounded-lg border border-black/10 bg-white p-1" /><input value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="field-input" /></div></label></div></aside>
+      <aside className="border-r border-black/10 bg-white p-5 xl:max-h-[calc(100vh-65px)] xl:overflow-auto">
+        <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Everything is prefilled.</strong> Sales can adjust this one sheet without altering the official Wine Library copy.</div>
+        <div className="space-y-5">
+          <EditField label="Wine name" value={draft.wineName} onChange={(value) => update('wineName', value)} />
+          <label><span className="field-label">Tasting notes</span><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} /></label>
+          <label><span className="field-label">Highlights · one per line</span><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /></label>
+          <div className="grid grid-cols-2 gap-3"><EditField label="ABV" value={draft.abv} onChange={(value) => update('abv', value)} /><EditField label="SRP" value={draft.srp} onChange={(value) => update('srp', value)} /></div>
+          <EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} />
+          <EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} />
+          <EditField label="Bottle / hero image URL" value={draft.bottleImage || ''} onChange={(value) => update('bottleImage', value)} />
+          <label><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="0.8" max="2.2" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /></label>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Award badge</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Wine Hub uses the official 2026 award artwork when it can. You can still override it for a specific sheet.</p>
+            <div className="mt-3 space-y-2"><EditField label="Award graphic URL (optional)" value={draft.awardGraphic || ''} onChange={(value) => update('awardGraphic', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload award image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'awardGraphic')} /></label></div>
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">Optional section at the bottom of the sales sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => update('includeCasePackaging', event.target.checked)} className="h-4 w-4 accent-black" /></label>
+            {draft.includeCasePackaging && <div className="mt-3 space-y-2"><EditField label="Packaging image URL" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label></div>}
+          </div>
+
+          <label><span className="field-label">Header color</span><div className="flex items-center gap-2"><input type="color" value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="h-10 w-14 rounded-lg border border-black/10 bg-white p-1" /><input value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="field-input" /></div></label>
+        </div>
+      </aside>
       <div className="flex items-start justify-center overflow-auto p-6 xl:p-10"><TechSheetPaper draft={draft} wine={activeWine} /></div>
     </div>
     <div className="print-root hidden print:block"><TechSheetPaper draft={draft} wine={activeWine} /></div>
   </div>;
 }
 
-const BRAND_LOGOS: Record<string, { src: string; whitePanel: boolean; alt: string }> = {
-  'Leelanau Cellars': { src: '/lwc-logo.png', whitePanel: false, alt: 'Leelanau Cellars' },
-  'Farm Fresh': { src: 'https://farmfresh.wine/wp-content/uploads/2021/02/farm-fresh-logo-full-white-03.png', whitePanel: false, alt: 'Farm Fresh Wine Company' },
-  'Country Crush': { src: 'https://www.lwc.wine/wp-content/uploads/2022/01/Country-Crush-With-Brand_Logo.png', whitePanel: true, alt: 'Country Crush Fruit Wine Company' },
-  'Zilly': { src: 'https://www.lwc.wine/wp-content/uploads/2025/04/Zilly-Black-Logo-bigger.png', whitePanel: true, alt: 'Zilly' },
-  'Lakeshore Farms': { src: 'https://www.lwc.wine/wp-content/uploads/2021/05/Website_Logo-03.png', whitePanel: true, alt: 'Lakeshore Farms Trading Company' },
+type BrandLogo = { src: string; alt: string; mode: 'square' | 'natural-white' | 'screen-white'; className?: string };
+
+const BRAND_LOGOS: Record<string, BrandLogo> = {
+  'Leelanau Cellars': { src: '/lwc-logo.png', mode: 'square', alt: 'Leelanau Cellars' },
+  'Farm Fresh': { src: 'https://farmfresh.wine/wp-content/uploads/2021/02/farm-fresh-logo-full-white-03.png', mode: 'natural-white', alt: 'Farm Fresh Wine Company', className: 'max-h-[108px] max-w-[220px]' },
+  'Country Crush': { src: 'https://www.lwc.wine/wp-content/uploads/2022/01/Country-Crush-With-Brand_Logo.png', mode: 'screen-white', alt: 'Country Crush Fruit Wine Company', className: 'max-h-[104px] max-w-[245px]' },
+  'Zilly': { src: 'https://www.lwc.wine/wp-content/uploads/2025/04/Zilly-Black-Logo-bigger.png', mode: 'screen-white', alt: 'Zilly', className: 'max-h-[92px] max-w-[190px]' },
+  'Lakeshore Farms': { src: 'https://www.lwc.wine/wp-content/uploads/2021/05/Website_Logo-03.png', mode: 'screen-white', alt: 'Lakeshore Farms Trading Company', className: 'max-h-[104px] max-w-[215px]' },
 };
 
 function brandLogoFor(wine?: WineRecord) {
@@ -501,19 +592,52 @@ function brandLogoFor(wine?: WineRecord) {
   return BRAND_LOGOS[brand] || BRAND_LOGOS['Leelanau Cellars'];
 }
 
+function BrandLogoMark({ wine }: { wine?: WineRecord }) {
+  const logo = brandLogoFor(wine);
+  if (logo.mode === 'square') return <img src={logo.src} alt={logo.alt} className="h-[98px] w-[92px] border-[2px] border-black bg-white object-cover" />;
+  const screenStyle = logo.mode === 'screen-white' ? { filter: 'brightness(0) invert(1)', mixBlendMode: 'screen' as const } : undefined;
+  return <img src={logo.src} alt={logo.alt} className={`${logo.className || 'max-h-[104px] max-w-[230px]'} object-contain`} style={screenStyle} />;
+}
+
+const OFFICIAL_AWARD_SHEETS = {
+  lwc: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-LWC.png',
+  farmFresh: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-Farm-Fresh.png',
+  zilly: 'https://www.lwc.wine/wp-content/uploads/2026/01/2026-Award-Badges-Zilly-1.png',
+};
+
+type AwardCrop = { url: string; left: number; top: number };
+function officialAwardCrop(wine: WineRecord | undefined, award: Award): AwardCrop | null {
+  if (award.year !== 2026 || !award.competition.toLowerCase().includes('san francisco chronicle')) return null;
+  const result = award.result.toLowerCase();
+  if (wine?.brand === 'Farm Fresh') {
+    const positions: Record<string, [number, number]> = { 'best of class': [-18, -130], 'double gold': [-140, -130], silver: [-266, -130] };
+    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.farmFresh, left: positions[result][0], top: positions[result][1] } : null;
+  }
+  if (wine?.brand === 'Zilly') {
+    const positions: Record<string, [number, number]> = { gold: [-94, -133], bronze: [-194, -133] };
+    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.zilly, left: positions[result][0], top: positions[result][1] } : null;
+  }
+  if (!wine || wine.brand === 'Leelanau Cellars') {
+    const positions: Record<string, [number, number]> = { 'double gold': [-140, -11], gold: [-33, -133], silver: [-248, -133], bronze: [-140, -240] };
+    return positions[result] ? { url: OFFICIAL_AWARD_SHEETS.lwc, left: positions[result][0], top: positions[result][1] } : null;
+  }
+  return null;
+}
+
 function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRecord }) {
   const firstAward = wine?.awards[0];
   const compositeColdDuck = draft.bottleImage?.includes('cold-duck-composite');
   return <article className="tech-sheet-paper relative flex shrink-0 flex-col overflow-hidden bg-white text-black shadow-2xl print:shadow-none">
-    <div className="flex h-[132px] shrink-0 items-center justify-center" style={{ backgroundColor: draft.headerColor }}>{(() => { const logo = brandLogoFor(wine); return logo.whitePanel ? <div className="flex h-[102px] min-w-[150px] max-w-[270px] items-center justify-center rounded-sm bg-white px-5 py-3 shadow-sm"><img src={logo.src} alt={logo.alt} className="max-h-[82px] max-w-[230px] object-contain" /></div> : <img src={logo.src} alt={logo.alt} className={wine?.brand === 'Farm Fresh' ? 'max-h-[108px] max-w-[210px] object-contain' : 'h-[98px] w-[92px] border-[2px] border-black bg-white object-cover'} />; })()}</div>
+    <div className="flex h-[132px] shrink-0 items-center justify-center" style={{ backgroundColor: draft.headerColor }}><BrandLogoMark wine={wine} /></div>
     <div className="flex h-[48px] shrink-0 items-center justify-center" style={{ backgroundColor: mixWithWhite(draft.headerColor, .62) }}><h1 className="text-center text-[30px] font-black uppercase tracking-[-.035em]">{draft.wineName}</h1></div>
     <div className="relative flex-1 overflow-hidden bg-white">
       <div className="relative z-10 w-[62%] px-[48px] py-[42px] pr-[10px]">
         <SheetSection title="Tasting Notes"><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
         <SheetSection title="Wine Specs"><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        <SheetSection title="Highlights"><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>
+        {!!draft.highlights.length && <SheetSection title="Highlights"><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>}
+        {draft.includeCasePackaging && <SheetSection title="Case Packaging">{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[105px] max-w-[250px] object-contain object-left" /> : <div className="no-print flex h-[78px] max-w-[250px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
       </div>
-      <div className="absolute bottom-0 right-0 top-0 w-[46%] overflow-hidden">{draft.bottleImage ? <img src={draft.bottleImage} alt="" className="absolute inset-0 h-full w-full origin-bottom object-contain object-bottom" style={{ transform: `scale(${draft.bottleScale})` }} /> : <div className="absolute inset-8 flex items-center justify-center rounded-2xl border-2 border-dashed border-black/15 text-sm font-bold text-black/25">Bottle image</div>}{firstAward && !compositeColdDuck && (draft.awardGraphic ? <img src={draft.awardGraphic} alt={`${firstAward.result} award`} className="absolute left-[-6px] top-[18%] z-20 h-[150px] w-[150px] object-contain drop-shadow-lg" /> : <AwardBadge award={firstAward} />)}</div>
+      <div className="absolute bottom-0 right-0 top-0 w-[46%] overflow-hidden">{draft.bottleImage ? <img src={draft.bottleImage} alt="" className="absolute inset-0 h-full w-full origin-bottom object-contain object-bottom" style={{ transform: `scale(${draft.bottleScale})` }} /> : <div className="absolute inset-8 flex items-center justify-center rounded-2xl border-2 border-dashed border-black/15 text-sm font-bold text-black/25">Bottle image</div>}{firstAward && !compositeColdDuck && (draft.awardGraphic ? <img src={draft.awardGraphic} alt={`${firstAward.result} award`} className="absolute left-[-6px] top-[17%] z-20 h-[150px] w-[150px] object-contain drop-shadow-lg" /> : <AwardBadge award={firstAward} wine={wine} />)}</div>
     </div>
     <footer className="flex h-[32px] shrink-0 items-center justify-center bg-black px-6 text-center text-[12px] font-medium text-white">{draft.footer}</footer>
   </article>;
@@ -528,7 +652,12 @@ function mixWithWhite(hex: string, amount: number) {
 }
 function SheetSection({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-[28px]"><h2 className="mb-[7px] text-[25px] font-black uppercase tracking-[-.015em]">{title}</h2>{children}</section>; }
 function Spec({ label, value }: { label: string; value: string }) { if (!value) return null; return <p><strong>{label}:</strong> {value}</p>; }
-function AwardBadge({ award }: { award: Award }) { const longResult = award.result.length > 8; return <div className="absolute left-[-6px] top-[18%] z-20 flex h-[150px] w-[150px] flex-col items-center justify-center rounded-full border-[5px] border-white bg-[#d8a847] text-center text-white shadow-lg"><span className="text-[8px] font-black uppercase leading-3">San Francisco Chronicle</span><span className="mt-1 text-[9px] font-bold uppercase tracking-[.18em]">Wine Competition</span><span className={`${longResult ? 'text-[19px]' : 'text-[26px]'} my-2 block w-full whitespace-nowrap bg-white px-1 py-2 font-black uppercase leading-none text-[#d19d37]`}>{award.result}</span><span className="text-[11px] font-black">{award.year}</span></div>; }
+function AwardBadge({ award, wine }: { award: Award; wine?: WineRecord }) {
+  const official = officialAwardCrop(wine, award);
+  if (official) return <div className="absolute left-[-6px] top-[17%] z-20 h-[150px] w-[150px] overflow-hidden rounded-full drop-shadow-lg"><img src={official.url} alt={`${award.result} award`} className="absolute max-w-none" style={{ width: 430, height: 377, left: official.left, top: official.top }} /></div>;
+  const longResult = award.result.length > 8;
+  return <div className="absolute left-[-6px] top-[17%] z-20 flex h-[150px] w-[150px] flex-col items-center justify-center rounded-full border-[3px] border-white bg-[#d8a847] text-center text-white shadow-lg"><span className="text-[8px] font-black uppercase leading-3">San Francisco Chronicle</span><span className="mt-1 text-[8px] font-bold uppercase tracking-[.16em]">Wine Competition</span><span className={`${longResult ? 'text-[18px]' : 'text-[25px]'} my-2 block w-full bg-white px-1 py-2 font-black uppercase leading-none text-[#d19d37]`}>{award.result}</span><span className="text-[10px] font-black">{award.year} Award Winner</span></div>;
+}
 
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
   const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => (b.awards[0]?.year ?? 0) - (a.awards[0]?.year ?? 0) || a.name.localeCompare(b.name));

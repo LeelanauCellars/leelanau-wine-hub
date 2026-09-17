@@ -72,6 +72,16 @@ With Commerce7 connected, product facts and Wine Hub custom fields are shared th
 
 Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, Zilly and Lakeshore Farms based on the Commerce7 product title/collections. The current implementation uses the approved logo assets hosted on the Leelanau/Farm Fresh websites.
 
-## Temporary highlight mapping
 
-Until dedicated Wine Hub highlights are entered, the Commerce7 long product description is split into paragraph-level highlights for the tech sheet. A saved `tech_highlights` field always overrides that fallback.
+## v3 workflow updates
+
+- Commerce7 descriptions now decode HTML entities before display, including smart apostrophes/quotes, umlauts, dashes, bullets and numeric entities.
+- The first paragraph of the Commerce7 long description becomes the default tasting note.
+- The tech-sheet Highlights section looks for headings such as **Why You'll Love It**, **The Difference**, **The Craft**, **Highlights**, and similar sections, then uses the copy underneath without printing the heading itself.
+- 12-digit UPCs are displayed in the sales format `0-84690-20004-2` while the underlying Commerce7 value stays unchanged.
+- Tech-sheet bottle scale now starts at `2.20×` and can be reduced to `0.80×`.
+- Case Packaging is an optional document-only section. Sales can paste an image URL or upload an image for the current sheet.
+- The current 2026 San Francisco Chronicle results continue to come from the Awards page. For supported Leelanau Cellars, Farm Fresh and Zilly awards, the tech sheet uses the winery's official 2026 award artwork rather than a generic generated medal.
+- Country Crush, Zilly and Lakeshore Farms logos are rendered directly against the blue header without the white logo box.
+- The Tasting Room page now shows the current menu first. The full catalog is hidden behind **Add / change**, and a menu can be pasted or uploaded as TXT/CSV/Markdown/HTML to auto-select matching Commerce7 wines.
+- Printed tasting-room cards use the website/Commerce7 description and include blank staff-note lines for handwritten notes.

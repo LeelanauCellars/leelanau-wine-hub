@@ -39,15 +39,22 @@ const fallbackAwards = (year: number): WebsiteAward[] => year === 2026 ? FALLBAC
   result,
 })) : [];
 
-const decode = (value: string) => value
-  .replace(/&nbsp;|&#160;/gi, ' ')
-  .replace(/&amp;/gi, '&')
-  .replace(/&#39;|&apos;/gi, "'")
-  .replace(/&quot;/gi, '"')
-  .replace(/&uuml;/gi, 'ü')
-  .replace(/&ouml;/gi, 'ö')
-  .replace(/&eacute;/gi, 'é')
-  .replace(/&auml;/gi, 'ä');
+const AWARD_ENTITIES: Record<string, string> = {
+  nbsp: ' ', amp: '&', apos: "'", quot: '"', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
+  ndash: '–', mdash: '—', hellip: '…', uuml: 'ü', ouml: 'ö', eacute: 'é', auml: 'ä',
+};
+
+const decode = (value: string) => value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (match, entity: string) => {
+  if (entity[0] === '#') {
+    const isHex = entity[1]?.toLowerCase() === 'x';
+    const parsed = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+    if (Number.isFinite(parsed)) {
+      try { return String.fromCodePoint(parsed); } catch { return match; }
+    }
+    return match;
+  }
+  return AWARD_ENTITIES[entity.toLowerCase()] ?? match;
+});
 
 const htmlToLines = (html: string) => decode(html)
   .replace(/<script[\s\S]*?<\/script>/gi, ' ')

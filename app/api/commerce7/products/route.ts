@@ -33,25 +33,118 @@ type C7Product = {
   collections?: { title?: string | null }[] | null;
 };
 
-const stripHtml = (html = '') => html
-  .replace(/<br\s*\/?\s*>/gi, '\n')
-  .replace(/<\/p>/gi, '\n')
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: ' ', amp: '&', apos: "'", quot: '"', lt: '<', gt: '>',
+  rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
+  ndash: '–', mdash: '—', hellip: '…', middot: '·', bull: '•',
+  uuml: 'ü', Uuml: 'Ü', ouml: 'ö', Ouml: 'Ö', auml: 'ä', Auml: 'Ä',
+  eacute: 'é', Eacute: 'É', agrave: 'à', Agrave: 'À',
+  reg: '®', trade: '™', copy: '©', deg: '°', times: '×',
+};
+
+const decodeHtmlEntities = (value = '') => value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (match, entity: string) => {
+  if (entity[0] === '#') {
+    const isHex = entity[1]?.toLowerCase() === 'x';
+    const parsed = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+    if (Number.isFinite(parsed)) {
+      try { return String.fromCodePoint(parsed); } catch { return match; }
+    }
+    return match;
+  }
+  return NAMED_ENTITIES[entity] ?? NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+});
+
+const cleanInline = (value = '') => decodeHtmlEntities(value)
   .replace(/<[^>]+>/g, ' ')
-  .replace(/&nbsp;/g, ' ')
-  .replace(/&amp;/g, '&')
-  .replace(/&#39;/g, "'")
-  .replace(/&quot;/g, '"')
+  .replace(/\u00a0/g, ' ')
+  .replace(/[ \t]{2,}/g, ' ')
+  .trim();
+
+const stripHtml = (html = '') => decodeHtmlEntities(html
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<br\s*\/?\s*>/gi, '\n')
+  .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+  .replace(/<[^>]+>/g, ' '))
+  .replace(/\u00a0/g, ' ')
   .replace(/\s+\n/g, '\n')
   .replace(/\n\s+/g, '\n')
   .replace(/[ \t]{2,}/g, ' ')
   .trim();
+
+const htmlToLines = (html = '') => decodeHtmlEntities(html
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<br\s*\/?\s*>/gi, '\n')
+  .replace(/<\/(p|li|div|h[1-6]|ul|ol)>/gi, '\n')
+  .replace(/<[^>]+>/g, ' '))
+  .split('\n')
+  .map((line) => line.replace(/\u00a0/g, ' ').replace(/[ \t]{2,}/g, ' ').trim())
+  .filter(Boolean);
+
+const htmlToParagraphs = (html = '') => {
+  const paragraphs = Array.from(html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi))
+    .map((match) => cleanInline(match[1]))
+    .filter(Boolean);
+  if (paragraphs.length) return paragraphs;
+  return htmlToLines(html).filter((line) => line.length > 25);
+};
+
+const normalizeHeading = (value = '') => decodeHtmlEntities(value)
+  .toLowerCase()
+  .replace(/[’‘']/g, '')
+  .replace(/&/g, 'and')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const HIGHLIGHT_HEADINGS = [
+  'why youll love it', 'why you will love it', 'why we love it', 'what youll love',
+  'highlights', 'the difference', 'the craft', 'what makes it special',
+  'why it works', 'what makes this wine special', 'reasons to love it',
+];
+
+const STOP_HEADINGS = [
+  ...HIGHLIGHT_HEADINGS,
+  'tasting notes', 'tasting note', 'aroma', 'palate', 'finish', 'serving tip',
+  'serving tips', 'food pairing', 'food pairings', 'pairings', 'wine specs',
+  'wine specifications', 'technical notes', 'production notes', 'vineyard notes',
+  'details', 'about', 'awards', 'award',
+];
+
+const headingMatches = (line: string, options: string[]) => {
+  const normalized = normalizeHeading(line);
+  return options.some((option) => normalized === option || normalized.startsWith(`${option} `));
+};
+
+const extractHighlights = (html: string, firstParagraph: string) => {
+  const lines = htmlToLines(html);
+  const start = lines.findIndex((line) => headingMatches(line, HIGHLIGHT_HEADINGS));
+  if (start >= 0) {
+    const result: string[] = [];
+    for (let index = start + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (headingMatches(line, STOP_HEADINGS)) break;
+      if (line && line !== firstParagraph) result.push(line);
+      if (result.length >= 6) break;
+    }
+    if (result.length) return result;
+  }
+
+  // If the description is not sectioned, use the paragraphs after the opening paragraph.
+  const paragraphs = htmlToParagraphs(html).filter((paragraph) => paragraph !== firstParagraph);
+  if (paragraphs.length) return paragraphs.slice(0, 4);
+
+  return lines
+    .filter((line) => line !== firstParagraph && !headingMatches(line, STOP_HEADINGS))
+    .slice(0, 4);
+};
 
 const metaValue = (meta: Record<string, unknown> | null | undefined, aliases: string[]) => {
   if (!meta) return '';
   const normalized = new Map(Object.entries(meta).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ''), value]));
   for (const alias of aliases) {
     const value = normalized.get(alias.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+    if (value !== undefined && value !== null && String(value).trim()) return decodeHtmlEntities(String(value).trim());
   }
   return '';
 };
@@ -72,20 +165,6 @@ const awardsMeta = (meta: Record<string, unknown> | null | undefined) => {
     return [];
   }
 };
-
-const htmlToLines = (html = '') => html
-  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-  .replace(/<br\s*\/?\s*>/gi, '\n')
-  .replace(/<\/(p|li|div|h[1-6])>/gi, '\n')
-  .replace(/<[^>]+>/g, ' ')
-  .replace(/&nbsp;/g, ' ')
-  .replace(/&amp;/g, '&')
-  .replace(/&#39;|&apos;/g, "'")
-  .replace(/&quot;/g, '"')
-  .split('\n')
-  .map((line) => line.replace(/[ \t]{2,}/g, ' ').trim())
-  .filter(Boolean);
 
 const inferBrand = (product: C7Product, meta: Record<string, unknown> | null | undefined) => {
   const explicit = metaValue(meta, ['brand', 'tech_brand']);
@@ -109,24 +188,26 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
   const meta = product.metaData;
   const teaser = stripHtml(product.teaser ?? '');
   const content = stripHtml(product.content ?? '');
-  const contentLines = htmlToLines(product.content ?? '');
+  const contentParagraphs = htmlToParagraphs(product.content ?? '');
+  const firstParagraph = contentParagraphs[0] || htmlToLines(product.content ?? '')[0] || content;
   const price = typeof variant.price === 'number' ? variant.price / 100 : undefined;
   const vintage = product.wine?.vintage ? String(product.wine.vintage) : 'NV';
   const category = product.wine?.type || product.type || 'Wine';
+  const brand = inferBrand(product, meta);
 
   return {
     id: `c7-${product.id}`,
     commerce7Id: product.id,
     source: 'commerce7',
-    name: product.title,
+    name: decodeHtmlEntities(product.title),
     vintage,
-    brand: inferBrand(product, meta),
+    brand,
     category,
-    collection: product.collections?.[0]?.title || undefined,
+    collection: product.collections?.[0]?.title ? decodeHtmlEntities(product.collections[0].title || '') : undefined,
     status: product.webStatus === 'Retired' ? 'Retired' : product.webStatus === 'Available' ? 'Available' : 'Not Available',
-    varietal: product.wine?.varietal || undefined,
-    appellation: product.wine?.appellation || undefined,
-    region: product.wine?.region || undefined,
+    varietal: product.wine?.varietal ? decodeHtmlEntities(product.wine.varietal) : undefined,
+    appellation: product.wine?.appellation ? decodeHtmlEntities(product.wine.appellation) : undefined,
+    region: product.wine?.region ? decodeHtmlEntities(product.wine.region) : undefined,
     bottleImage: product.image || undefined,
     productUrl: product.slug ? `https://www.lwc.wine/product/${product.slug}/` : undefined,
     price,
@@ -139,8 +220,9 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
     casePack: metaValue(meta, ['case_pack', 'case_size', 'casepack', 'tech_case_pack']) || undefined,
     casesProduced: metaValue(meta, ['cases_produced', 'casesproduced', 'tech_cases_produced']) || undefined,
     sweetness: metaValue(meta, ['sweetness', 'sweetness_level', 'style', 'tech_sweetness']) || undefined,
-    tastingNotes: metaValue(meta, ['tasting_notes', 'tastingnotes', 'tech_tasting_notes']) || teaser || contentLines[0] || content,
-    shortDescription: metaValue(meta, ['short_description', 'quick_description', 'tech_short_description']) || teaser || contentLines[0]?.slice(0, 180) || content.slice(0, 180),
+    // Master custom fields win. Otherwise the first real paragraph of the Commerce7 description is the tasting note.
+    tastingNotes: metaValue(meta, ['tasting_notes', 'tastingnotes', 'tech_tasting_notes']) || firstParagraph || teaser || content,
+    shortDescription: metaValue(meta, ['short_description', 'quick_description', 'tech_short_description']) || firstParagraph || teaser || content.slice(0, 240),
     staffPitch: metaValue(meta, ['staff_pitch', 'customer_pitch', 'tech_staff_pitch']),
     pairings: metaValue(meta, ['pairings', 'food_pairings', 'tech_pairings']),
     highlights: (() => {
@@ -149,12 +231,16 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
         .map((value) => value.trim())
         .filter(Boolean);
       if (manual.length) return manual;
-      if (contentLines.length) return contentLines.slice(0, 5);
-      return teaser ? [teaser] : [];
+      return extractHighlights(product.content ?? '', firstParagraph);
     })(),
     productionNotes: metaValue(meta, ['production_notes', 'winemaker_notes']) || undefined,
     vineyardNotes: metaValue(meta, ['vineyard_notes', 'vintage_notes']) || undefined,
-    awards: (() => { const saved = awardsMeta(meta); const website = matchWebsiteAwards(product.title, vintage, inferBrand(product, meta), websiteAwards); const combined = [...website, ...saved]; return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index); })(),
+    awards: (() => {
+      const saved = awardsMeta(meta);
+      const website = matchWebsiteAwards(product.title, vintage, brand, websiteAwards);
+      const combined = [...website, ...saved];
+      return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index);
+    })(),
     onTastingMenu: booleanMeta(meta, ['tech_on_tasting_menu', 'on_tasting_menu']),
     updatedAt: product.updatedAt || new Date().toISOString(),
   };

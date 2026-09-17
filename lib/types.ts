@@ -54,6 +54,8 @@ export type TechSheetDraft = {
   srp: string;
   bottleImage?: string;
   awardGraphic?: string;
+  includeCasePackaging: boolean;
+  casePackagingImage?: string;
   bottleScale: number;
   headerColor: string;
   footer: string;
