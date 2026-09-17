@@ -57,3 +57,70 @@ button { cursor: pointer; }
   .tasting-guide { padding: .35in !important; width: 8.5in !important; min-height: 11in !important; }
   .tasting-card { break-inside: avoid; }
 }
+
+/* Print-first tasting room guide */
+.staff-note-lines > div {
+  height: 22px;
+  border-bottom: 1px solid rgba(0,0,0,.28);
+}
+.tasting-category + .tasting-category { margin-top: 1rem; }
+
+@media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .tech-sheet-paper,
+  .tech-sheet-paper *,
+  .tasting-guide,
+  .tasting-guide * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .tasting-guide {
+    padding: .26in !important;
+    width: 8.5in !important;
+    min-height: 11in !important;
+  }
+  .tasting-guide-header { padding: .12in .16in !important; }
+  .tasting-guide-header img { width: .43in !important; height: .43in !important; }
+  .tasting-guide-header h2 { font-size: 16pt !important; line-height: 1.05 !important; }
+  .tasting-guide-subhead { padding: .05in .16in !important; font-size: 7.5pt !important; }
+  .tasting-guide-body { padding-top: .12in !important; }
+  .tasting-category { margin: 0 0 .11in !important; break-inside: auto; }
+  .tasting-category + .tasting-category { margin-top: .13in !important; }
+  .tasting-category-header {
+    break-after: avoid;
+    padding: .045in .10in !important;
+    border-radius: .06in !important;
+  }
+  .tasting-category-header h3 { font-size: 8pt !important; }
+  .tasting-category-header span { font-size: 7pt !important; }
+  .tasting-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: .10in !important;
+    margin-top: .07in !important;
+  }
+  .tasting-card {
+    break-inside: avoid;
+    min-height: 1.92in;
+    padding: .10in .12in !important;
+    border-top-width: 3px !important;
+    border-radius: .08in !important;
+  }
+  .tasting-card-title { margin-bottom: .055in !important; }
+  .tasting-card-title h4 { font-size: 10pt !important; line-height: 1.12 !important; }
+  .tasting-card-title p { font-size: 8.5pt !important; line-height: 1.1 !important; }
+  .tasting-highlights {
+    margin: 0 !important;
+    padding-left: .16in !important;
+    font-size: 7.7pt !important;
+    line-height: 1.32 !important;
+  }
+  .tasting-highlights li + li { margin-top: .035in !important; }
+  .tasting-award { margin-top: .055in !important; font-size: 6.7pt !important; line-height: 1.2 !important; }
+  .staff-notes { margin-top: .07in !important; }
+  .staff-note-lines { margin-top: .025in !important; }
+  .staff-note-lines > div { height: .18in !important; border-bottom-color: rgba(0,0,0,.38) !important; }
+}

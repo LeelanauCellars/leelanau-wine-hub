@@ -51,6 +51,32 @@ const formatUpc = (value = '') => {
   return value;
 };
 
+const GUIDE_CATEGORY_ORDER = ['Red', 'White', 'Rosé', 'Sparkling', 'Fruit & Sweet', 'Dessert', 'Seasonal / Specialty', 'Other'];
+
+function guideCategoryFor(wine: WineRecord) {
+  const text = `${wine.category} ${wine.varietal || ''} ${wine.name}`.toLowerCase();
+  if (/sparkling|bubbly|brüt|brut|cuvée|cuvee|cold duck|cherries galore/.test(text)) return 'Sparkling';
+  if (/rosé|rose/.test(text)) return 'Rosé';
+  if (/dessert|port|cordial/.test(text)) return 'Dessert';
+  if (/red|baco|merlot|meritage|pinot noir|cabernet|nouveau/.test(text)) return 'Red';
+  if (/white|riesling|pinot grigio|gewürz|gewurz|chardonnay|sauvignon blanc|vignoles|renaissance/.test(text)) return 'White';
+  if (/fruit|cherry|blueberry|blackberry|apple|cranberry|sangria/.test(text)) return 'Fruit & Sweet';
+  if (/seasonal|witches|winter white|summer sunset|spring splendor|autumn harvest/.test(text)) return 'Seasonal / Specialty';
+  return 'Other';
+}
+
+function printWithTitle(title: string) {
+  const previousTitle = document.title;
+  const cleanTitle = title.replace(/[<>:"/\\|?*]+/g, '-').replace(/\s+/g, ' ').trim();
+  document.title = cleanTitle;
+  const restore = () => {
+    document.title = previousTitle;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  window.print();
+}
+
 function mergeCommerce7(current: WineRecord[], incoming: WineRecord[]) {
   const used = new Set<string>();
   const merged = incoming.map((remote) => {
@@ -417,7 +443,7 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
         <div className="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white">{shown.bottleImage ? <img src={shown.bottleImage} alt="" className="h-full w-full object-contain p-2" /> : <WinePlaceholder wine={shown} />}</div>
         <div><div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#e8f2fb] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{shown.category}</span><span className="rounded-full bg-black/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-black/45">{shown.status}</span>{shown.source === 'commerce7' && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Synced from Commerce7</span>}</div><h1 className="text-4xl font-black tracking-[-.04em]">{shown.name}</h1><p className="mt-2 text-sm font-semibold text-black/45">{shown.vintage} · {shown.varietal || 'Varietal not set'} · {shown.appellation || 'Appellation not set'}</p></div>
       </div>
-      <div className="flex flex-col items-start gap-2 lg:items-end"><div className="flex flex-wrap gap-2">{!isEditing ? <><button onClick={() => setEditing(structuredClone(wine))} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-bold shadow-sm"><Pencil className="h-4 w-4" /> Edit master</button><button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button></> : <><button onClick={() => setEditing(null)} disabled={saving} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-bold disabled:opacity-50">Cancel</button><button onClick={() => void save()} disabled={saving} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saving ? 'Saving…' : 'Save master'}</button></>}</div>{saveNotice && <p className={`max-w-sm text-xs font-semibold ${saveNotice.toLowerCase().includes('couldn') || saveNotice.toLowerCase().includes('failed') ? 'text-red-600' : 'text-emerald-700'}`}>{saveNotice}</p>}</div>
+      <div className="flex flex-col items-start gap-2 lg:items-end"><button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button><p className="max-w-sm text-right text-[11px] leading-4 text-black/40">Product and master wine information is managed in Commerce7.</p></div>
     </div>
 
     <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-black/10 bg-white p-1.5">{(['overview','sales','specs','assets'] as ProfileTab[]).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-lg px-4 py-2 text-xs font-black capitalize ${tab === item ? 'bg-black text-white' : 'text-black/45 hover:bg-black/[.04]'}`}>{item}</button>)}</div>
@@ -499,7 +525,7 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
   };
 
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="Keep one current menu, print a clean staff guide, and update the wine list without digging through the full catalog every time." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save current menu'}</button><button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print staff guide</button></div>} /></div>
+    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="Keep one current menu, print a clean staff guide, and update the wine list without digging through the full catalog every time." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save current menu'}</button><button onClick={() => printWithTitle(`Leelanau Cellars - Tasting Room Wine Guide - ${new Date().toISOString().slice(0, 10)}`)} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print staff guide</button></div>} /></div>
     <div className="no-print grid gap-5 xl:grid-cols-[390px_1fr]">
       <aside className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
         <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared menu enabled.' : 'Demo mode.'}</strong> {commerce7Connected ? 'Save the menu once and the current selection follows the team.' : 'The menu is saved in this browser until Commerce7 is connected.'}</div>
@@ -518,22 +544,32 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
 }
 
 function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (wine: WineRecord) => void }) {
+  const groups = GUIDE_CATEGORY_ORDER.map((name) => ({
+    name,
+    wines: chosen.filter((wine) => guideCategoryFor(wine) === name).sort((a, b) => a.name.localeCompare(b.name)),
+  })).filter((group) => group.wines.length);
+  const uncategorized = chosen.filter((wine) => !GUIDE_CATEGORY_ORDER.includes(guideCategoryFor(wine)));
+  if (uncategorized.length) groups.push({ name: 'Other', wines: uncategorized.sort((a, b) => a.name.localeCompare(b.name)) });
+
   return <section className="tasting-guide overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-    <div className="flex items-center justify-between bg-[#5BA3F8] px-5 py-4"><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" /><div><p className="text-[9px] font-black uppercase tracking-[.22em] text-white/85">Leelanau Cellars</p><h2 className="text-2xl font-black text-white">Tasting Room Wine Guide</h2></div></div><p className="rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white">{chosen.length} wines</p></div>
-    <div className="bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Sales highlights + space for handwritten staff notes</div>
-    <div className="p-5 print:p-0">
-    {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div>}
-    <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">{chosen.map((wine) => {
-      const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
-      return <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4">
-        <div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#3976b7]">{wine.sweetness ? `${wine.category} · ${wine.sweetness}` : wine.category}</p><h3 className="mt-1 text-lg font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3></div><div className="text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div>
-        <p className="mb-2 text-[9px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p>
-        <ul className="space-y-1.5 pl-4 text-xs leading-5 text-black/65">{salesHighlights.slice(0, 5).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>
-        {wine.awards[0] && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-[#9a6d17]"><AwardIcon className="h-3.5 w-3.5" /> {wine.awards[0].result} · {wine.awards[0].competition} {wine.awards[0].year}</p>}
-        <div className="mt-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="mt-2 space-y-3"><div className="border-b border-black/20" /><div className="border-b border-black/20" /><div className="border-b border-black/20" /></div></div>
-        {openWine && <button onClick={() => openWine(wine)} className="mt-4 text-[11px] font-black text-[#326eac]">Open wine profile →</button>}
-      </article>;
-    })}</div>
+    <div className="tasting-guide-header flex items-center justify-between bg-[#5BA3F8] px-5 py-4"><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" /><div><p className="text-[9px] font-black uppercase tracking-[.22em] text-white/85">Leelanau Cellars</p><h2 className="text-2xl font-black text-white">Tasting Room Wine Guide</h2></div></div><p className="rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white">{chosen.length} wines</p></div>
+    <div className="tasting-guide-subhead bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Grouped by wine style · top sales highlights · room for handwritten staff notes</div>
+    <div className="tasting-guide-body p-5 print:p-0">
+      {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div>}
+      {groups.map((group) => <section key={group.name} className="tasting-category">
+        <div className="tasting-category-header flex items-center justify-between rounded-lg bg-[#eaf3fb] px-3 py-2 text-[#2d69a7]"><h3 className="text-xs font-black uppercase tracking-[.14em]">{group.name}</h3><span className="text-[10px] font-bold">{group.wines.length} {group.wines.length === 1 ? 'wine' : 'wines'}</span></div>
+        <div className="tasting-grid mt-2 grid gap-3 md:grid-cols-2 print:grid-cols-2">{group.wines.map((wine) => {
+          const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
+          return <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4">
+            <div className="tasting-card-title mb-2 flex items-start justify-between gap-3"><div><h4 className="text-base font-black leading-5">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h4></div><div className="shrink-0 text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div>
+            <p className="mb-1.5 text-[8px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p>
+            <ul className="tasting-highlights space-y-1 pl-4 text-[11px] leading-[1.45] text-black/65">{salesHighlights.slice(0, 2).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>
+            {wine.awards[0] && <p className="tasting-award mt-2 flex items-center gap-1 text-[9px] font-black uppercase leading-3 text-[#9a6d17]"><AwardIcon className="h-3 w-3 shrink-0" /> {wine.awards[0].result} · {wine.awards[0].year}</p>}
+            <div className="staff-notes mt-3"><p className="text-[8px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="staff-note-lines mt-1.5"><div /><div /></div></div>
+            {openWine && <button onClick={() => openWine(wine)} className="mt-3 text-[11px] font-black text-[#326eac]">Open wine profile →</button>}
+          </article>;
+        })}</div>
+      </section>)}
     </div>
   </section>;
 }
@@ -555,11 +591,11 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
   };
 
   return <div className="tech-builder min-h-screen bg-[#dfe2e6]">
-    <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6"><div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change the master wine</p></div></div><div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0"><select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select><button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Reset to master</button><button onClick={() => window.print()} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button></div></div>
+    <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6"><div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change Commerce7</p></div></div><div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0"><select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select><button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Reset from Commerce7</button><button onClick={() => printWithTitle(`Leelanau Cellars - ${activeWine?.name || draft.wineName}${activeWine?.vintage && activeWine.vintage !== 'NV' ? ` ${activeWine.vintage}` : ''} - Tech Sheet`)} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button></div></div>
 
     <div className="no-print grid min-h-[calc(100vh-65px)] xl:grid-cols-[390px_1fr]">
       <aside className="border-r border-black/10 bg-white p-5 xl:max-h-[calc(100vh-65px)] xl:overflow-auto">
-        <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Everything is prefilled.</strong> Sales can adjust this one sheet without altering the official Wine Library copy.</div>
+        <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Everything is prefilled.</strong> Sales can adjust this one sheet without changing the official Commerce7 product information.</div>
         <div className="space-y-5">
           <EditField label="Wine name" value={draft.wineName} onChange={(value) => update('wineName', value)} />
           <label><span className="field-label">Tasting notes</span><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} /></label>
