@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f6f8;
+  --foreground: #171717;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body {
+  margin: 0;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+
+.field-label {
+  display: block;
+  margin-bottom: .4rem;
+  font-size: 10px;
+  line-height: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .11em;
+  color: rgba(0,0,0,.42);
+}
+.field-input {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: .65rem;
+  background: white;
+  padding: .65rem .75rem;
+  color: #171717;
+  font-size: .875rem;
+  outline: none;
+}
+.field-input:focus { border-color: rgba(0,0,0,.38); box-shadow: 0 0 0 3px rgba(57,118,183,.10); }
+.profile-copy { font-size: .9rem; line-height: 1.7; color: rgba(0,0,0,.68); white-space: pre-line; }
+
+.tech-sheet-paper {
+  width: 816px;
+  height: 1056px;
+  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  @page { size: letter portrait; margin: 0; }
+  html, body { width: 8.5in; min-height: 11in; background: white !important; }
+  .no-print { display: none !important; }
+  .print-root { display: block !important; }
+  .app-shell, main { min-height: 0 !important; background: white !important; padding: 0 !important; margin: 0 !important; }
+  .tech-builder { background: white !important; min-height: 0 !important; }
+  .tech-sheet-paper { width: 8.5in !important; height: 11in !important; margin: 0 !important; box-shadow: none !important; }
+  .tasting-guide { padding: .35in !important; width: 8.5in !important; min-height: 11in !important; }
+  .tasting-card { break-inside: avoid; }
+}

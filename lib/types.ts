@@ -1,0 +1,59 @@
+export type Award = {
+  id: string;
+  year: number;
+  competition: string;
+  result: string;
+  graphicUrl?: string;
+};
+
+export type WineRecord = {
+  id: string;
+  commerce7Id?: string;
+  source: 'commerce7' | 'hub' | 'demo';
+  name: string;
+  vintage: string;
+  brand: string;
+  category: string;
+  collection?: string;
+  status: 'Available' | 'Not Available' | 'Retired' | 'Draft';
+  varietal?: string;
+  appellation?: string;
+  region?: string;
+  bottleImage?: string;
+  productUrl?: string;
+  price?: number;
+  upc?: string;
+  volumeMl?: number;
+  abv?: string;
+  rs?: string;
+  ta?: string;
+  ph?: string;
+  casePack?: string;
+  casesProduced?: string;
+  sweetness?: string;
+  tastingNotes: string;
+  shortDescription: string;
+  staffPitch: string;
+  pairings: string;
+  highlights: string[];
+  productionNotes?: string;
+  vineyardNotes?: string;
+  awards: Award[];
+  onTastingMenu?: boolean;
+  updatedAt: string;
+};
+
+export type TechSheetDraft = {
+  wineId: string;
+  wineName: string;
+  tastingNotes: string;
+  highlights: string[];
+  abv: string;
+  casePack: string;
+  upc: string;
+  srp: string;
+  bottleImage?: string;
+  awardGraphic?: string;
+  headerColor: string;
+  footer: string;
+};
