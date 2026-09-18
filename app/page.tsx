@@ -52,6 +52,98 @@ const formatUpc = (value = '') => {
   return value;
 };
 
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b].map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function rgbToHsl(r: number, g: number, b: number) {
+  const rn = r / 255, gn = g / 255, bn = b / 255;
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+  if (!delta) return { saturation: 0, lightness };
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  return { saturation, lightness };
+}
+
+async function prominentLabelColor(imageUrl?: string): Promise<string | null> {
+  if (!imageUrl || typeof document === 'undefined') return null;
+  return await new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      try {
+        const width = 120;
+        const height = 180;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) return resolve(null);
+        context.clearRect(0, 0, width, height);
+        const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+        const drawWidth = image.naturalWidth * scale;
+        const drawHeight = image.naturalHeight * scale;
+        const dx = (width - drawWidth) / 2;
+        const dy = (height - drawHeight) / 2;
+        context.drawImage(image, dx, dy, drawWidth, drawHeight);
+        const pixels = context.getImageData(0, 0, width, height).data;
+
+        let minX = width, minY = height, maxX = 0, maxY = 0;
+        for (let y = 0; y < height; y += 2) {
+          for (let x = 0; x < width; x += 2) {
+            const i = (y * width + x) * 4;
+            const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2], a = pixels[i + 3];
+            const nearlyWhite = r > 245 && g > 245 && b > 245;
+            if (a > 35 && !nearlyWhite) {
+              minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+              minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+            }
+          }
+        }
+        if (minX > maxX || minY > maxY) return resolve(null);
+
+        const boxWidth = maxX - minX + 1;
+        const boxHeight = maxY - minY + 1;
+        const cropMinX = Math.max(0, Math.floor(minX + boxWidth * 0.14));
+        const cropMaxX = Math.min(width - 1, Math.ceil(maxX - boxWidth * 0.14));
+        const cropMinY = Math.max(0, Math.floor(minY + boxHeight * 0.43));
+        const cropMaxY = Math.min(height - 1, Math.ceil(minY + boxHeight * 0.9));
+
+        type Bucket = { count: number; r: number; g: number; b: number; score: number };
+        const buckets = new Map<string, Bucket>();
+        for (let y = cropMinY; y <= cropMaxY; y += 2) {
+          for (let x = cropMinX; x <= cropMaxX; x += 2) {
+            const i = (y * width + x) * 4;
+            const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2], a = pixels[i + 3];
+            if (a < 60) continue;
+            const { saturation, lightness } = rgbToHsl(r, g, b);
+            if (lightness > 0.9 || lightness < 0.11 || saturation < 0.22) continue;
+            const qr = Math.round(r / 24) * 24;
+            const qg = Math.round(g / 24) * 24;
+            const qb = Math.round(b / 24) * 24;
+            const key = `${qr}-${qg}-${qb}`;
+            const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0, score: 0 };
+            bucket.count += 1;
+            bucket.r += r; bucket.g += g; bucket.b += b;
+            bucket.score += 0.6 + saturation * 1.4;
+            buckets.set(key, bucket);
+          }
+        }
+        const winner = [...buckets.values()].sort((a, b) => b.score - a.score || b.count - a.count)[0];
+        if (!winner) return resolve(null);
+        resolve(rgbToHex(winner.r / winner.count, winner.g / winner.count, winner.b / winner.count));
+      } catch (error) {
+        console.warn('Unable to sample bottle image color', error);
+        resolve(null);
+      }
+    };
+    image.onerror = () => resolve(null);
+    image.src = imageUrl;
+  });
+}
+
 const GUIDE_CATEGORY_ORDER = ['Red', 'White', 'Rosé', 'Sparkling', 'Fruit & Sweet', 'Dessert', 'Seasonal / Specialty', 'Other'];
 
 function guideCategoryFor(wine: WineRecord) {
@@ -113,21 +205,23 @@ function mergeCommerce7(current: WineRecord[], incoming: WineRecord[]) {
 }
 
 function draftFromWine(wine: WineRecord): TechSheetDraft {
+  const casePackaging = casePackagingForWine(wine);
   return {
     wineId: wine.id,
     wineName: wine.name,
-    tastingNotes: wine.tastingNotes,
-    highlights: wine.highlights.length ? wine.highlights : [wine.shortDescription].filter(Boolean),
+    tastingNotes: '',
+    highlights: [],
     abv: wine.abv || '',
     casePack: wine.casePack || (wine.volumeMl ? `12–${wine.volumeMl} mL bottles` : ''),
     upc: formatUpc(wine.upc || ''),
     srp: wine.price === undefined ? '' : `$${wine.price.toFixed(2)}`,
     bottleImage: wine.bottleImage,
     awardGraphic: wine.awards[0]?.graphicUrl,
-    includeCasePackaging: false,
-    casePackagingImage: casePackagingForWine(wine)?.src,
+    includeCasePackaging: Boolean(casePackaging),
+    casePackagingImage: casePackaging?.src,
     bottleScale: 2.2,
     headerColor: TECH_COLOR,
+    autoHeaderColor: true,
     footer: FOOTER,
   };
 }
@@ -483,7 +577,7 @@ function ProfileBlock({ title, badge, children }: { title: string; badge?: strin
 }
 function QuickFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{value}</dd></div>; }
 function EditField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label><span className="field-label">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="field-input" /></label>; }
-function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} className="field-input resize-y leading-6" />; }
+function Textarea({ value, onChange, rows, placeholder }: { value: string; onChange: (value: string) => void; rows: number; placeholder?: string }) { return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} placeholder={placeholder} className="field-input resize-y leading-6 placeholder:text-black/25" />; }
 function AwardRow({ award }: { award: Award }) {
   const graphic = award.graphicUrl || awardGraphicFor(award);
   return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>;
@@ -624,46 +718,142 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
   </div>;
 }
 function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, draft, setDraft }: {
-  wines: WineRecord[]; activeWine?: WineRecord; activeWineId: string; setActiveWineId: (id: string) => void; draft: TechSheetDraft; setDraft: (draft: TechSheetDraft) => void;
+  wines: WineRecord[];
+  activeWine?: WineRecord;
+  activeWineId: string;
+  setActiveWineId: (id: string) => void;
+  draft: TechSheetDraft;
+  setDraft: React.Dispatch<React.SetStateAction<TechSheetDraft>>;
 }) {
-  const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft({ ...draft, [key]: value });
+  const [colorStatus, setColorStatus] = useState('');
+  const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
+  const commerce7TastingNotes = activeWine?.tastingNotes || activeWine?.shortDescription || '';
+  const commerce7Highlights = activeWine?.highlights || [];
+
   const setWine = (id: string) => {
     setActiveWineId(id);
     const wine = wines.find((item) => item.id === id);
     if (wine) setDraft(draftFromWine(wine));
   };
-  const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage') => {
+
+  const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage' | 'bottleImage') => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => update(key, typeof reader.result === 'string' ? reader.result : undefined);
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : undefined;
+      setDraft((current) => ({
+        ...current,
+        [key]: value,
+        ...(key === 'bottleImage' ? { autoHeaderColor: true } : {}),
+      }));
+    };
     reader.readAsDataURL(file);
   };
 
+  const applyBottleColor = async () => {
+    if (!draft.bottleImage) return;
+    setColorStatus('Matching label color…');
+    const color = await prominentLabelColor(draft.bottleImage);
+    if (color) {
+      setDraft((current) => ({ ...current, headerColor: color, autoHeaderColor: true }));
+      setColorStatus('Matched from the bottle label.');
+    } else {
+      setColorStatus('Could not sample this image. Choose a color manually.');
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!draft.autoHeaderColor || !draft.bottleImage) return;
+    setColorStatus('Matching label color…');
+    const source = draft.bottleImage;
+    void prominentLabelColor(source).then((color) => {
+      if (cancelled) return;
+      if (!color) {
+        setColorStatus('Could not sample this image. Choose a color manually.');
+        return;
+      }
+      setDraft((current) => current.autoHeaderColor && current.bottleImage === source ? { ...current, headerColor: color } : current);
+      setColorStatus('Matched from the bottle label.');
+    });
+    return () => { cancelled = true; };
+  }, [draft.bottleImage, draft.autoHeaderColor, setDraft]);
+
+  const setManualHeaderColor = (value: string) => {
+    setDraft((current) => ({ ...current, headerColor: value, autoHeaderColor: false }));
+    setColorStatus('Manual header color.');
+  };
+
   return <div className="tech-builder min-h-screen bg-[#dfe2e6]">
-    <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6"><div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change Commerce7</p></div></div><div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0"><select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select><button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Reset from Commerce7</button><button onClick={() => printWithTitle(`Leelanau Cellars - ${activeWine?.name || draft.wineName}${activeWine?.vintage && activeWine.vintage !== 'NV' ? ` ${activeWine.vintage}` : ''} - Tech Sheet`)} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button></div></div>
+    <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6">
+      <div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change Commerce7</p></div></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0">
+        <select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select>
+        <button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Start over</button>
+        <button onClick={() => printWithTitle(`Leelanau Cellars - ${activeWine?.name || draft.wineName}${activeWine?.vintage && activeWine.vintage !== 'NV' ? ` ${activeWine.vintage}` : ''} - Tech Sheet`)} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button>
+      </div>
+    </div>
 
     <div className="no-print grid min-h-[calc(100vh-65px)] xl:grid-cols-[390px_1fr]">
       <aside className="border-r border-black/10 bg-white p-5 xl:max-h-[calc(100vh-65px)] xl:overflow-auto">
-        <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Everything is prefilled.</strong> Sales can adjust this one sheet without changing the official Commerce7 product information.</div>
+        <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Product facts are already filled in.</strong> Tasting notes and highlights start blank so sales can write for the customer in front of them, or bring in the Commerce7 copy with one click.</div>
         <div className="space-y-5">
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Header color</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">By default Wine Hub tries to match the most prominent color on the bottle label. You can turn that off and choose any color instead.</p>
+            <div className="mt-3 flex items-center gap-2">
+              <input type="color" value={/^#[0-9a-f]{6}$/i.test(draft.headerColor) ? draft.headerColor : TECH_COLOR} onChange={(event) => setManualHeaderColor(event.target.value)} className="h-10 w-14 rounded-lg border border-black/10 bg-white p-1" />
+              <input value={draft.headerColor} onChange={(event) => setManualHeaderColor(event.target.value)} className="field-input" />
+            </div>
+            <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg bg-white px-3 py-2"><span className="text-[11px] font-black">Auto-match bottle label</span><input type="checkbox" checked={draft.autoHeaderColor} onChange={(event) => setDraft((current) => ({ ...current, autoHeaderColor: event.target.checked }))} className="h-4 w-4 accent-black" /></label>
+            <div className="mt-2 flex flex-wrap items-center gap-2"><button onClick={() => void applyBottleColor()} disabled={!draft.bottleImage} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black disabled:opacity-40">Match bottle label now</button>{colorStatus && <span className="text-[10px] font-semibold text-black/40">{colorStatus}</span>}</div>
+          </div>
+
           <EditField label="Wine name" value={draft.wineName} onChange={(value) => update('wineName', value)} />
-          <label><span className="field-label">Tasting notes</span><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} /></label>
-          <label><span className="field-label">Highlights · one per line</span><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /></label>
-          <div className="grid grid-cols-2 gap-3"><EditField label="ABV" value={draft.abv} onChange={(value) => update('abv', value)} /><EditField label="SRP" value={draft.srp} onChange={(value) => update('srp', value)} /></div>
-          <EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} />
-          <EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} />
-          <EditField label="Bottle / hero image URL" value={draft.bottleImage || ''} onChange={(value) => update('bottleImage', value)} />
-          <label><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="0.5" max="4" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /><span className="mt-1 block text-[10px] leading-4 text-black/40">Starts at 2.20×. Move it up until the bottle reaches the top of the page, or shrink it for wider bottle shots.</span></label>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Tasting notes</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your tasting notes here — or click the button below to bring in the Commerce7 tasting notes.</p>
+            <div className="mt-3"><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
+            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40">Use Commerce7 tasting notes</button>
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Highlights</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Add one sales highlight per line — or bring in the Commerce7 sales highlights and edit them for this sheet.</p>
+            <div className="mt-3"><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} placeholder="Type one highlight per line…" /></div>
+            <button onClick={() => update('highlights', [...commerce7Highlights])} disabled={!commerce7Highlights.length} className="mt-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40">Use Commerce7 sales highlights</button>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-black">Wine Specs</p>
+            <div className="grid grid-cols-2 gap-3"><EditField label="ABV" value={draft.abv} onChange={(value) => update('abv', value)} /><EditField label="SRP" value={draft.srp} onChange={(value) => update('srp', value)} /></div>
+            <div className="mt-3"><EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} /></div>
+            <div className="mt-3"><EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} /></div>
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Bottle image</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">The Commerce7 bottle image is applied automatically. Upload a different bottle image for this tech sheet if you need one, then adjust the size below.</p>
+            <div className="mt-3 space-y-2">
+              <EditField label="Bottle / hero image URL" value={draft.bottleImage || ''} onChange={(value) => setDraft((current) => ({ ...current, bottleImage: value || undefined, autoHeaderColor: true }))} />
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload bottle image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'bottleImage')} /></label>
+                {activeWine?.bottleImage && draft.bottleImage !== activeWine.bottleImage && <button onClick={() => setDraft((current) => ({ ...current, bottleImage: activeWine.bottleImage, autoHeaderColor: true }))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Use Commerce7 bottle image</button>}
+              </div>
+              <label className="block pt-1"><span className="field-label">Bottle size on sheet · {draft.bottleScale.toFixed(2)}×</span><input type="range" min="0.5" max="4" step="0.05" value={draft.bottleScale} onChange={(event) => update('bottleScale', Number(event.target.value))} className="w-full accent-black" /><span className="mt-1 block text-[10px] leading-4 text-black/40">Starts at 2.20×. Scale all the way up toward a full-page bottle or shrink it for wider images.</span></label>
+            </div>
+          </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Award badge</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Wine Hub uses the official 2026 award artwork when it can. You can still override it for a specific sheet.</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Wine Hub applies the matching award artwork automatically when it can. You can override the badge for a specific sheet.</p>
             <div className="mt-3 space-y-2"><EditField label="Award graphic URL (optional)" value={draft.awardGraphic || ''} onChange={(value) => update('awardGraphic', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload award image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'awardGraphic')} /></label></div>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
-            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">Turn this on and Wine Hub automatically uses the approved case artwork for this wine when a match exists.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft({ ...draft, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !draft.casePackagingImage ? automaticCasePackaging?.src : draft.casePackagingImage })} className="h-4 w-4 accent-black" /></label>
+            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">If Wine Hub has approved case artwork for this wine, Case Packaging starts turned on automatically. You can turn it off for any sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft((current) => ({ ...current, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !current.casePackagingImage ? automaticCasePackaging?.src : current.casePackagingImage }))} className="h-4 w-4 accent-black" /></label>
             {automaticCasePackaging && <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-emerald-800">Auto-matched: {automaticCasePackaging.label}</div>}
             {draft.includeCasePackaging && <div className="mt-3 space-y-2">{!automaticCasePackaging && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-amber-800">No automatic case match yet. You can still add an image below.</p>}<EditField label="Packaging image URL · optional override" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload different packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label>{automaticCasePackaging && draft.casePackagingImage !== automaticCasePackaging.src && <button onClick={() => update('casePackagingImage', automaticCasePackaging.src)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Use automatic match</button>}</div></div>}
           </div>
@@ -673,8 +863,6 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
             <p className="mt-1 text-[10px] leading-4 text-black/45">The standard Leelanau Cellars contact information stays prefilled. Sales can replace it on a specific sheet with their name, phone, email, territory, or other contact details.</p>
             <div className="mt-3"><EditField label="Footer text" value={draft.footer} onChange={(value) => update('footer', value)} /></div>
           </div>
-
-          <label><span className="field-label">Header color</span><div className="flex items-center gap-2"><input type="color" value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="h-10 w-14 rounded-lg border border-black/10 bg-white p-1" /><input value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="field-input" /></div></label>
         </div>
       </aside>
       <div className="flex items-start justify-center overflow-auto p-6 xl:p-10"><TechSheetPaper draft={draft} wine={activeWine} /></div>
