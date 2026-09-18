@@ -67,6 +67,12 @@ function rgbToHsl(r: number, g: number, b: number) {
   return { saturation, lightness };
 }
 
+function colorSampleImageUrl(imageUrl: string) {
+  if (/^(data:|blob:|\/)/i.test(imageUrl)) return imageUrl;
+  if (/^https?:\/\//i.test(imageUrl)) return `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+  return imageUrl;
+}
+
 async function prominentLabelColor(imageUrl?: string): Promise<string | null> {
   if (!imageUrl || typeof document === 'undefined') return null;
   return await new Promise((resolve) => {
@@ -140,7 +146,7 @@ async function prominentLabelColor(imageUrl?: string): Promise<string | null> {
       }
     };
     image.onerror = () => resolve(null);
-    image.src = imageUrl;
+    image.src = colorSampleImageUrl(imageUrl);
   });
 }
 
@@ -816,14 +822,14 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
             <p className="text-xs font-black">Tasting notes</p>
             <p className="mt-1 text-[10px] leading-4 text-black/45">Type your tasting notes here — or click the button below to bring in the Commerce7 tasting notes.</p>
             <div className="mt-3"><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
-            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40">Use Commerce7 tasting notes</button>
+            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use Commerce7 tasting notes</button>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Highlights</p>
             <p className="mt-1 text-[10px] leading-4 text-black/45">Add one sales highlight per line — or bring in the Commerce7 sales highlights and edit them for this sheet.</p>
             <div className="mt-3"><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} placeholder="Type one highlight per line…" /></div>
-            <button onClick={() => update('highlights', [...commerce7Highlights])} disabled={!commerce7Highlights.length} className="mt-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40">Use Commerce7 sales highlights</button>
+            <button onClick={() => update('highlights', [...commerce7Highlights])} disabled={!commerce7Highlights.length} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use Commerce7 sales highlights</button>
           </div>
 
           <div>
@@ -967,7 +973,7 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
       <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
         <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
         <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        {!!draft.highlights.length && <SheetSection title="Highlights" compact={compact}><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>}
+        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
         {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[185px] max-w-[350px] object-contain object-left" /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
       </div>
 

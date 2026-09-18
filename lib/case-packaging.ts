@@ -28,6 +28,11 @@ export function casePackagingForWine(wine?: WineRecord): CasePackagingMatch | un
   const category = normalize(wine.category || '');
   const all = `${name} ${brand} ${collection} ${category}`;
 
+  // Canned products do not use the 12-bottle case artwork. This specifically
+  // prevents items such as Winter White Bubbly Can from inheriting the
+  // Winter White Bubbly bottle case just because the wine name matches.
+  if (/\bcan(?:s|ned)?\b|\b12\s*oz\b|\b355\s*ml\b/.test(all)) return undefined;
+
   // Product-specific packages.
   if (contains(name, 'summer sunset') && /bubbly|sparkling/.test(name)) {
     return { src: '/cases/summer-sunset-bubbly-case.png', label: 'Summer Sunset Bubbly case' };
