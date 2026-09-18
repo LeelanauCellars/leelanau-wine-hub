@@ -386,9 +386,8 @@ function PageHeader({ eyebrow, title, description, right }: { eyebrow: string; t
 function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, openWine, openTech, sync }: {
   wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState;
 }) {
-  const complete = allWines.filter((wine) => wine.tastingNotes && wine.staffPitch && wine.abv && wine.upc).length;
   return <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-    <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Search a wine once and find the product facts, sales language, awards, assets and printable documents your team needs." right={<div className="flex gap-2"><Stat value={allWines.length} label="wines" /><Stat value={complete} label="complete" /></div>} />
+    <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Search a wine once and find the product facts, sales language, awards, assets and printable documents your team needs." right={<Stat value={allWines.length} label="wines" />} />
 
     <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
       <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search wine, vintage, varietal or style…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
@@ -544,34 +543,40 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
 }
 
 function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (wine: WineRecord) => void }) {
-  const groups = GUIDE_CATEGORY_ORDER.map((name) => ({
-    name,
-    wines: chosen.filter((wine) => guideCategoryFor(wine) === name).sort((a, b) => a.name.localeCompare(b.name)),
-  })).filter((group) => group.wines.length);
-  const uncategorized = chosen.filter((wine) => !GUIDE_CATEGORY_ORDER.includes(guideCategoryFor(wine)));
-  if (uncategorized.length) groups.push({ name: 'Other', wines: uncategorized.sort((a, b) => a.name.localeCompare(b.name)) });
+  const categoryRank = (wine: WineRecord) => {
+    const category = guideCategoryFor(wine);
+    const index = GUIDE_CATEGORY_ORDER.indexOf(category);
+    return index === -1 ? GUIDE_CATEGORY_ORDER.length : index;
+  };
+  const sorted = [...chosen].sort((a, b) => categoryRank(a) - categoryRank(b) || a.name.localeCompare(b.name));
+  const pageSize = 12;
+  const pages = sorted.length ? Array.from({ length: Math.ceil(sorted.length / pageSize) }, (_, index) => sorted.slice(index * pageSize, (index + 1) * pageSize)) : [[]];
 
-  return <section className="tasting-guide overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-    <div className="tasting-guide-header flex items-center justify-between bg-[#5BA3F8] px-5 py-4"><div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" /><div><p className="text-[9px] font-black uppercase tracking-[.22em] text-white/85">Leelanau Cellars</p><h2 className="text-2xl font-black text-white">Tasting Room Wine Guide</h2></div></div><p className="rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white">{chosen.length} wines</p></div>
-    <div className="tasting-guide-subhead bg-[#BDDAFC] px-5 py-2 text-[10px] font-semibold text-black/65">Grouped by wine style · top sales highlights · room for handwritten staff notes</div>
-    <div className="tasting-guide-body p-5 print:p-0">
-      {!chosen.length && <div className="py-20 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div>}
-      {groups.map((group) => <section key={group.name} className="tasting-category">
-        <div className="tasting-category-header flex items-center justify-between rounded-lg bg-[#eaf3fb] px-3 py-2 text-[#2d69a7]"><h3 className="text-xs font-black uppercase tracking-[.14em]">{group.name}</h3><span className="text-[10px] font-bold">{group.wines.length} {group.wines.length === 1 ? 'wine' : 'wines'}</span></div>
-        <div className="tasting-grid mt-2 grid gap-3 md:grid-cols-2 print:grid-cols-2">{group.wines.map((wine) => {
+  return <div className="tasting-guide-pages space-y-5 print:space-y-0">
+    {pages.map((pageWines, pageIndex) => <section key={`guide-page-${pageIndex}`} className="tasting-guide-page overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+      <header className="staff-guide-header flex items-center justify-between bg-[#5BA3F8] px-5 py-3.5">
+        <div className="flex items-center gap-3">
+          <img src="/lwc-logo.png" alt="" className="h-11 w-11 border border-black bg-white object-cover" />
+          <div><p className="text-[8px] font-black uppercase tracking-[.24em] text-white/80">Leelanau Cellars</p><h2 className="text-xl font-black tracking-[-.02em] text-white">Tasting Room Wine Guide</h2></div>
+        </div>
+        <div className="text-right text-white"><p className="text-[10px] font-black">{chosen.length} wines</p><p className="text-[9px] font-semibold text-white/75">Page {pageIndex + 1} of {pages.length}</p></div>
+      </header>
+      <div className="staff-guide-subhead flex items-center justify-between bg-[#BDDAFC] px-5 py-1.5 text-[9px] font-bold text-black/60"><span>Grouped by category · sales highlights · handwritten staff notes</span><span>{pageWines.length ? `${guideCategoryFor(pageWines[0])}${guideCategoryFor(pageWines[pageWines.length - 1]) !== guideCategoryFor(pageWines[0]) ? ` → ${guideCategoryFor(pageWines[pageWines.length - 1])}` : ''}` : ''}</span></div>
+      {!pageWines.length ? <div className="flex min-h-[520px] items-center justify-center p-10 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div> : <div className="staff-guide-grid grid grid-cols-1 gap-2.5 p-4 md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3">
+        {pageWines.map((wine) => {
           const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
-          return <article key={wine.id} className="tasting-card break-inside-avoid rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] p-4">
-            <div className="tasting-card-title mb-2 flex items-start justify-between gap-3"><div><h4 className="text-base font-black leading-5">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h4></div><div className="shrink-0 text-right"><p className="text-sm font-black">{money(wine.price)}</p>{wine.abv && <p className="text-[10px] font-bold text-black/35">{wine.abv}</p>}</div></div>
-            <p className="mb-1.5 text-[8px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p>
-            <ul className="tasting-highlights space-y-1 pl-4 text-[11px] leading-[1.45] text-black/65">{salesHighlights.slice(0, 2).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>
-            {wine.awards[0] && <p className="tasting-award mt-2 flex items-center gap-1 text-[9px] font-black uppercase leading-3 text-[#9a6d17]"><AwardIcon className="h-3 w-3 shrink-0" /> {wine.awards[0].result} · {wine.awards[0].year}</p>}
-            <div className="staff-notes mt-3"><p className="text-[8px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="staff-note-lines mt-1.5"><div /><div /></div></div>
-            {openWine && <button onClick={() => openWine(wine)} className="mt-3 text-[11px] font-black text-[#326eac]">Open wine profile →</button>}
+          const category = guideCategoryFor(wine);
+          return <article key={wine.id} className="staff-guide-card relative flex min-h-[185px] flex-col rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] bg-white p-3">
+            <div className="mb-1.5 flex items-center justify-between gap-2"><span className="rounded-full bg-[#eaf3fb] px-2 py-0.5 text-[8px] font-black uppercase tracking-[.12em] text-[#2d69a7]">{category}</span><div className="shrink-0 text-right"><span className="text-[11px] font-black">{money(wine.price)}</span>{wine.abv && <span className="ml-2 text-[8px] font-bold text-black/35">{wine.abv}</span>}</div></div>
+            <h3 className="staff-guide-name text-[13px] font-black leading-[1.12] tracking-[-.02em]">{wine.name} <span className="font-semibold text-black/30">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3>
+            <div className="mt-2 min-h-0 flex-1"><p className="mb-1 text-[7px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p><ul className="staff-guide-highlights space-y-1 pl-3.5 text-[9px] leading-[1.3] text-black/65">{salesHighlights.slice(0, 2).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>{wine.awards[0] && <p className="staff-guide-award mt-1.5 flex items-center gap-1 text-[7.5px] font-black uppercase leading-3 text-[#9a6d17]"><AwardIcon className="h-2.5 w-2.5 shrink-0" /> {wine.awards[0].result} · {wine.awards[0].year}</p>}</div>
+            <div className="staff-guide-notes mt-2"><p className="text-[7px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="staff-guide-note-lines mt-1"><div /><div /></div></div>
+            {openWine && <button onClick={() => openWine(wine)} className="mt-2 text-left text-[10px] font-black text-[#326eac]">Open wine profile →</button>}
           </article>;
-        })}</div>
-      </section>)}
-    </div>
-  </section>;
+        })}
+      </div>}
+    </section>)}
+  </div>;
 }
 
 function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, draft, setDraft }: {
@@ -615,6 +620,12 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">Optional section at the bottom of the sales sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => update('includeCasePackaging', event.target.checked)} className="h-4 w-4 accent-black" /></label>
             {draft.includeCasePackaging && <div className="mt-3 space-y-2"><EditField label="Packaging image URL" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label></div>}
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Footer / sales contact line</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">The standard Leelanau Cellars contact information stays prefilled. Sales can replace it on a specific sheet with their name, phone, email, territory, or other contact details.</p>
+            <div className="mt-3"><EditField label="Footer text" value={draft.footer} onChange={(value) => update('footer', value)} /></div>
           </div>
 
           <label><span className="field-label">Header color</span><div className="flex items-center gap-2"><input type="color" value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="h-10 w-14 rounded-lg border border-black/10 bg-white p-1" /><input value={draft.headerColor} onChange={(event) => update('headerColor', event.target.value)} className="field-input" /></div></label>

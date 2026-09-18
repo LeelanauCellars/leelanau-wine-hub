@@ -1,3 +1,11 @@
+
+## v6 updates
+
+- Removed the Wine Library “complete” counter.
+- Tech-sheet footer/contact line is editable per document while keeping the standard Leelanau Cellars contact information as the default.
+- Rebuilt the Tasting Room staff guide as fixed landscape Letter pages with 12 wines per page, three columns, category labels, sales highlights, awards, and larger handwritten note lines.
+- The tasting guide remains sorted by Red, White, Rosé, Sparkling, Fruit & Sweet, Dessert, Seasonal / Specialty, then Other.
+
 # Leelanau Cellars Wine Hub
 
 A private internal wine-knowledge and sales-material app designed to live on Vercel and run as a Commerce7 app/extension.

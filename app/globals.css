@@ -48,14 +48,13 @@ button { cursor: pointer; }
 
 @media print {
   @page { size: letter portrait; margin: 0; }
-  html, body { width: 8.5in; min-height: 11in; background: white !important; }
+  html, body { width: auto; min-height: 0; background: white !important; }
   .no-print { display: none !important; }
   .print-root { display: block !important; }
   .app-shell, main { min-height: 0 !important; background: white !important; padding: 0 !important; margin: 0 !important; }
   .tech-builder { background: white !important; min-height: 0 !important; }
   .tech-sheet-paper { width: 8.5in !important; height: 11in !important; margin: 0 !important; box-shadow: none !important; }
-  .tasting-guide { padding: .35in !important; width: 8.5in !important; min-height: 11in !important; }
-  .tasting-card { break-inside: avoid; }
+  .tasting-guide-page { break-inside: avoid; }
 }
 
 /* Print-first tasting room guide */
@@ -123,4 +122,101 @@ button { cursor: pointer; }
   .staff-notes { margin-top: .07in !important; }
   .staff-note-lines { margin-top: .025in !important; }
   .staff-note-lines > div { height: .18in !important; border-bottom-color: rgba(0,0,0,.38) !important; }
+}
+
+
+/* v6 tasting-room print guide: fixed landscape pages, 12 wines per page */
+.tech-sheet-paper { page: techSheet; }
+.tasting-guide-page { page: tastingGuide; }
+
+.staff-guide-note-lines > div {
+  height: 18px;
+  border-bottom: 1px solid rgba(0,0,0,.32);
+}
+.staff-guide-highlights li {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@page techSheet { size: letter portrait; margin: 0; }
+@page tastingGuide { size: letter landscape; margin: 0; }
+
+@media print {
+  .tasting-guide-pages { margin: 0 !important; padding: 0 !important; }
+  .tasting-guide-page {
+    width: 11in !important;
+    height: 8.5in !important;
+    min-height: 8.5in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .tasting-guide-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  .staff-guide-header {
+    height: .63in !important;
+    padding: .07in .16in !important;
+  }
+  .staff-guide-header img {
+    width: .40in !important;
+    height: .40in !important;
+  }
+  .staff-guide-header h2 {
+    font-size: 15pt !important;
+    line-height: 1 !important;
+  }
+  .staff-guide-subhead {
+    height: .24in !important;
+    padding: .035in .16in !important;
+    font-size: 6.8pt !important;
+  }
+  .staff-guide-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+    gap: .065in !important;
+    height: 7.63in !important;
+    padding: .10in .14in .12in !important;
+  }
+  .staff-guide-card {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: .075in .095in !important;
+    border-top-width: 2px !important;
+    border-radius: .06in !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+  }
+  .staff-guide-card > div:first-child { margin-bottom: .035in !important; }
+  .staff-guide-name {
+    font-size: 8.8pt !important;
+    line-height: 1.08 !important;
+  }
+  .staff-guide-highlights {
+    margin: 0 !important;
+    padding-left: .13in !important;
+    font-size: 6.5pt !important;
+    line-height: 1.22 !important;
+  }
+  .staff-guide-highlights li + li { margin-top: .025in !important; }
+  .staff-guide-award {
+    margin-top: .035in !important;
+    font-size: 6pt !important;
+    line-height: 1.05 !important;
+  }
+  .staff-guide-notes { margin-top: .045in !important; }
+  .staff-guide-note-lines { margin-top: .015in !important; }
+  .staff-guide-note-lines > div {
+    height: .145in !important;
+    border-bottom-color: rgba(0,0,0,.42) !important;
+  }
 }
