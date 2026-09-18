@@ -291,6 +291,9 @@ export async function GET() {
     const wines = products
       .filter((product) => product.type === 'Wine')
       .map((product) => toWine(product, websiteAwards))
+      // 2023 Leelanau Cellars Pinot Grigio is a retired historical product that
+      // should not return to the current Wine Hub just because it has an award.
+      .filter((wine) => !(wine.brand === 'Leelanau Cellars' && wine.name.trim().toLowerCase() === 'pinot grigio' && wine.vintage === '2023'))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ configured: true, wines, total: wines.length });

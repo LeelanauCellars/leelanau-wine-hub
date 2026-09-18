@@ -43,12 +43,6 @@ export const SEED_WINES: WineRecord[] = [
     awards: [{ id: 'cg-2026', year: 2026, competition: 'San Francisco Chronicle Wine Competition', result: 'Double Gold' }], onTastingMenu: true, updatedAt: now,
   },
   {
-    id: 'pinot-grigio-2023', source: 'demo', name: 'Pinot Grigio', vintage: '2023', brand: 'Leelanau Cellars', category: 'White', status: 'Available',
-    varietal: 'Pinot Grigio', appellation: 'Leelanau Peninsula', sweetness: 'Dry', tastingNotes: 'A crisp, refreshing white with bright fruit character and a clean finish.',
-    shortDescription: 'Crisp, bright and refreshing.', staffPitch: 'A comfortable first pour for guests looking for a familiar dry white.', pairings: 'Seafood, salads, light pasta and summer dishes.',
-    highlights: ['Bronze — 2026 San Francisco Chronicle Wine Competition'], awards: [{ id: 'pg-2026', year: 2026, competition: 'San Francisco Chronicle Wine Competition', result: 'Bronze' }], onTastingMenu: true, updatedAt: now,
-  },
-  {
     id: 'limited-batch-riesling-2024', source: 'demo', name: 'Limited Batch Riesling', vintage: '2024', brand: 'Leelanau Cellars', category: 'White', status: 'Available',
     varietal: 'Riesling', appellation: 'Leelanau Peninsula', sweetness: 'Semi-Dry', tastingNotes: 'Fresh fruit character, lively acidity and an easy, balanced finish.',
     shortDescription: 'Bright Riesling with fruit, freshness and balance.', staffPitch: 'Good for guests who want Riesling with fruit but do not want something heavily sweet.', pairings: 'Spicy food, pork, poultry and soft cheeses.', highlights: [], awards: [], onTastingMenu: true, updatedAt: now,

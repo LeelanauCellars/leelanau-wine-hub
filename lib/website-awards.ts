@@ -179,6 +179,10 @@ export function matchWebsiteAwards(title: string, vintage: string, brand: string
 
   return awards
     .filter((award) => {
+      const vintagePrefix = award.wineName.match(/^(20\d{2})\s+/)?.[1];
+      // If Commerce7 has a real vintage, never let a differently-vintaged award
+      // attach just because the base wine name is the same.
+      if (vintagePrefix && /^20\d{2}$/.test(vintage) && vintagePrefix !== vintage) return false;
       const awardName = normalize(award.wineName);
       const noYearAwardName = normalize(award.wineName.replace(/^20\d{2}\s+/, ''));
       return candidates.has(awardName) || candidates.has(noYearAwardName);

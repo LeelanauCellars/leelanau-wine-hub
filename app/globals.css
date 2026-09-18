@@ -125,15 +125,22 @@ button { cursor: pointer; }
 }
 
 
-/* v6 tasting-room print guide: fixed landscape pages, 12 wines per page */
-.tech-sheet-paper { page: techSheet; }
-.tasting-guide-page { page: tastingGuide; }
 
-.staff-guide-note-lines > div {
-  height: 18px;
+/* v7 tasting-room field guide: cleaner two-column staff-reference layout */
+.tech-sheet-paper { page: techSheet; }
+.field-guide-page { page: tastingGuide; }
+
+.field-guide-page {
+  width: min(1056px, 100%);
+  aspect-ratio: 11 / 8.5;
+  margin: 0 auto;
+}
+.field-guide-body { min-height: 0; }
+.field-guide-note-lines > div {
+  height: 19px;
   border-bottom: 1px solid rgba(0,0,0,.32);
 }
-.staff-guide-highlights li {
+.field-guide-highlights li {
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -144,79 +151,77 @@ button { cursor: pointer; }
 @page tastingGuide { size: letter landscape; margin: 0; }
 
 @media print {
-  .tasting-guide-pages { margin: 0 !important; padding: 0 !important; }
-  .tasting-guide-page {
+  .field-guide-pages { margin: 0 !important; padding: 0 !important; }
+  .field-guide-page {
     width: 11in !important;
     height: 8.5in !important;
     min-height: 8.5in !important;
+    aspect-ratio: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
     break-after: page !important;
     page-break-after: always !important;
     border: 0 !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
   }
-  .tasting-guide-page:last-child {
+  .field-guide-page:last-child {
     break-after: auto !important;
     page-break-after: auto !important;
   }
-  .staff-guide-header {
-    height: .63in !important;
-    padding: .07in .16in !important;
+  .field-guide-header {
+    height: .78in !important;
+    padding: .10in .22in !important;
+    border-bottom-width: .055in !important;
   }
-  .staff-guide-header img {
-    width: .40in !important;
-    height: .40in !important;
+  .field-guide-header img {
+    width: .48in !important;
+    height: .48in !important;
   }
-  .staff-guide-header h2 {
-    font-size: 15pt !important;
+  .field-guide-header h2 {
+    font-size: 16.5pt !important;
     line-height: 1 !important;
   }
-  .staff-guide-subhead {
-    height: .24in !important;
-    padding: .035in .16in !important;
-    font-size: 6.8pt !important;
-  }
-  .staff-guide-grid {
+  .field-guide-body {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
-    gap: .065in !important;
-    height: 7.63in !important;
-    padding: .10in .14in .12in !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    height: 7.34in !important;
   }
-  .staff-guide-card {
+  .field-guide-column {
+    display: grid !important;
+    grid-template-rows: repeat(5, minmax(0, 1fr)) !important;
+    padding: .08in .18in !important;
+  }
+  .field-guide-wine {
     min-height: 0 !important;
-    height: 100% !important;
-    padding: .075in .095in !important;
-    border-top-width: 2px !important;
-    border-radius: .06in !important;
+    padding: .065in .03in .06in .12in !important;
     overflow: hidden !important;
-    break-inside: avoid !important;
   }
-  .staff-guide-card > div:first-child { margin-bottom: .035in !important; }
-  .staff-guide-name {
-    font-size: 8.8pt !important;
-    line-height: 1.08 !important;
+  .field-guide-wine > div.absolute {
+    top: .06in !important;
+    bottom: .06in !important;
+    width: .025in !important;
   }
-  .staff-guide-highlights {
+  .field-guide-category { font-size: 5.8pt !important; line-height: 1 !important; }
+  .field-guide-name { font-size: 9.4pt !important; line-height: 1.04 !important; }
+  .field-guide-price { font-size: 8.4pt !important; }
+  .field-guide-highlights {
     margin: 0 !important;
     padding-left: .13in !important;
-    font-size: 6.5pt !important;
-    line-height: 1.22 !important;
+    font-size: 6.25pt !important;
+    line-height: 1.24 !important;
   }
-  .staff-guide-highlights li + li { margin-top: .025in !important; }
-  .staff-guide-award {
-    margin-top: .035in !important;
-    font-size: 6pt !important;
-    line-height: 1.05 !important;
+  .field-guide-highlights li + li { margin-top: .02in !important; }
+  .field-guide-award { margin-top: .025in !important; font-size: 5.5pt !important; line-height: 1 !important; }
+  .field-guide-notes { margin-top: .04in !important; }
+  .field-guide-note-lines { margin-top: .015in !important; }
+  .field-guide-note-lines > div {
+    height: .14in !important;
+    border-bottom-color: rgba(0,0,0,.40) !important;
   }
-  .staff-guide-notes { margin-top: .045in !important; }
-  .staff-guide-note-lines { margin-top: .015in !important; }
-  .staff-guide-note-lines > div {
-    height: .145in !important;
-    border-bottom-color: rgba(0,0,0,.42) !important;
+  .field-guide-footer {
+    height: .38in !important;
+    padding: .06in .22in !important;
+    font-size: 5.6pt !important;
   }
 }

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SEED_WINES } from '@/lib/seed';
 import type { Award, TechSheetDraft, WineRecord } from '@/lib/types';
+import { casePackagingForWine } from '@/lib/case-packaging';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -124,7 +125,7 @@ function draftFromWine(wine: WineRecord): TechSheetDraft {
     bottleImage: wine.bottleImage,
     awardGraphic: wine.awards[0]?.graphicUrl,
     includeCasePackaging: false,
-    casePackagingImage: undefined,
+    casePackagingImage: casePackagingForWine(wine)?.src,
     bottleScale: 2.2,
     headerColor: TECH_COLOR,
     footer: FOOTER,
@@ -171,6 +172,15 @@ export default function WineHub() {
     if (!hydrated) return;
     window.localStorage.setItem(MENU_KEY, JSON.stringify(tastingIds));
   }, [tastingIds, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const validIds = new Set(wines.map((wine) => wine.id));
+    setTastingIds((current) => {
+      const cleaned = current.filter((id) => validIds.has(id));
+      return cleaned.length === current.length ? current : cleaned;
+    });
+  }, [wines, hydrated]);
 
   useEffect(() => {
     void checkCommerce7();
@@ -549,40 +559,75 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
     return index === -1 ? GUIDE_CATEGORY_ORDER.length : index;
   };
   const sorted = [...chosen].sort((a, b) => categoryRank(a) - categoryRank(b) || a.name.localeCompare(b.name));
-  const pageSize = 12;
+  const pageSize = 10;
   const pages = sorted.length ? Array.from({ length: Math.ceil(sorted.length / pageSize) }, (_, index) => sorted.slice(index * pageSize, (index + 1) * pageSize)) : [[]];
+  const today = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 
-  return <div className="tasting-guide-pages space-y-5 print:space-y-0">
-    {pages.map((pageWines, pageIndex) => <section key={`guide-page-${pageIndex}`} className="tasting-guide-page overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
-      <header className="staff-guide-header flex items-center justify-between bg-[#5BA3F8] px-5 py-3.5">
-        <div className="flex items-center gap-3">
-          <img src="/lwc-logo.png" alt="" className="h-11 w-11 border border-black bg-white object-cover" />
-          <div><p className="text-[8px] font-black uppercase tracking-[.24em] text-white/80">Leelanau Cellars</p><h2 className="text-xl font-black tracking-[-.02em] text-white">Tasting Room Wine Guide</h2></div>
+  const renderWine = (wine: WineRecord) => {
+    const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
+    const category = guideCategoryFor(wine);
+    return <article key={wine.id} className="field-guide-wine group relative flex min-h-0 flex-col border-b border-black/10 py-2.5 pl-3 pr-1 last:border-b-0">
+      <div className="absolute bottom-2 left-0 top-2 w-[3px] bg-[#5BA3F8]" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="field-guide-category text-[7px] font-black uppercase tracking-[.16em] text-[#3976b7]">{category}</p>
+          <h3 className="field-guide-name mt-0.5 text-[13px] font-black leading-[1.08] tracking-[-.025em]">{wine.name} <span className="font-semibold text-black/30">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3>
         </div>
-        <div className="text-right text-white"><p className="text-[10px] font-black">{chosen.length} wines</p><p className="text-[9px] font-semibold text-white/75">Page {pageIndex + 1} of {pages.length}</p></div>
-      </header>
-      <div className="staff-guide-subhead flex items-center justify-between bg-[#BDDAFC] px-5 py-1.5 text-[9px] font-bold text-black/60"><span>Grouped by category · sales highlights · handwritten staff notes</span><span>{pageWines.length ? `${guideCategoryFor(pageWines[0])}${guideCategoryFor(pageWines[pageWines.length - 1]) !== guideCategoryFor(pageWines[0]) ? ` → ${guideCategoryFor(pageWines[pageWines.length - 1])}` : ''}` : ''}</span></div>
-      {!pageWines.length ? <div className="flex min-h-[520px] items-center justify-center p-10 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div> : <div className="staff-guide-grid grid grid-cols-1 gap-2.5 p-4 md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3">
-        {pageWines.map((wine) => {
-          const salesHighlights = wine.highlights.length ? wine.highlights : [wine.tastingNotes || wine.shortDescription].filter(Boolean);
-          const category = guideCategoryFor(wine);
-          return <article key={wine.id} className="staff-guide-card relative flex min-h-[185px] flex-col rounded-xl border border-black/10 border-t-[4px] border-t-[#5BA3F8] bg-white p-3">
-            <div className="mb-1.5 flex items-center justify-between gap-2"><span className="rounded-full bg-[#eaf3fb] px-2 py-0.5 text-[8px] font-black uppercase tracking-[.12em] text-[#2d69a7]">{category}</span><div className="shrink-0 text-right"><span className="text-[11px] font-black">{money(wine.price)}</span>{wine.abv && <span className="ml-2 text-[8px] font-bold text-black/35">{wine.abv}</span>}</div></div>
-            <h3 className="staff-guide-name text-[13px] font-black leading-[1.12] tracking-[-.02em]">{wine.name} <span className="font-semibold text-black/30">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h3>
-            <div className="mt-2 min-h-0 flex-1"><p className="mb-1 text-[7px] font-black uppercase tracking-[.14em] text-black/35">Sales highlights</p><ul className="staff-guide-highlights space-y-1 pl-3.5 text-[9px] leading-[1.3] text-black/65">{salesHighlights.slice(0, 2).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}</ul>{wine.awards[0] && <p className="staff-guide-award mt-1.5 flex items-center gap-1 text-[7.5px] font-black uppercase leading-3 text-[#9a6d17]"><AwardIcon className="h-2.5 w-2.5 shrink-0" /> {wine.awards[0].result} · {wine.awards[0].year}</p>}</div>
-            <div className="staff-guide-notes mt-2"><p className="text-[7px] font-black uppercase tracking-[.14em] text-black/35">Staff notes</p><div className="staff-guide-note-lines mt-1"><div /><div /></div></div>
-            {openWine && <button onClick={() => openWine(wine)} className="mt-2 text-left text-[10px] font-black text-[#326eac]">Open wine profile →</button>}
-          </article>;
-        })}
-      </div>}
-    </section>)}
+        <div className="shrink-0 text-right">
+          <p className="field-guide-price text-[11px] font-black leading-none">{money(wine.price)}</p>
+          {wine.abv && <p className="mt-1 text-[7px] font-bold text-black/35">{wine.abv} ABV</p>}
+        </div>
+      </div>
+      <div className="mt-2 min-h-0 flex-1">
+        <p className="mb-1 text-[6.5px] font-black uppercase tracking-[.14em] text-black/30">Sales highlights</p>
+        <ul className="field-guide-highlights space-y-1 pl-3 text-[8px] leading-[1.28] text-black/68">
+          {salesHighlights.slice(0, 2).map((item, index) => <li key={`${wine.id}-highlight-${index}`} className="list-disc">{item}</li>)}
+        </ul>
+        {wine.awards[0] && <p className="field-guide-award mt-1.5 flex items-center gap-1 text-[6.5px] font-black uppercase leading-3 text-[#9a6d17]"><AwardIcon className="h-2.5 w-2.5 shrink-0" /> {wine.awards[0].result} · {wine.awards[0].year}</p>}
+      </div>
+      <div className="field-guide-notes mt-2">
+        <p className="text-[6.5px] font-black uppercase tracking-[.14em] text-black/30">Staff notes</p>
+        <div className="field-guide-note-lines mt-1"><div /><div /></div>
+      </div>
+      {openWine && <button onClick={() => openWine(wine)} className="no-print mt-2 text-left text-[9px] font-black text-[#326eac]">Open wine profile →</button>}
+    </article>;
+  };
+
+  return <div className="field-guide-pages space-y-5 print:space-y-0">
+    {pages.map((pageWines, pageIndex) => {
+      const left = pageWines.slice(0, 5);
+      const right = pageWines.slice(5, 10);
+      return <section key={`guide-page-${pageIndex}`} className="field-guide-page overflow-hidden bg-white shadow-xl print:shadow-none">
+        <header className="field-guide-header flex items-center justify-between border-b-[5px] border-[#5BA3F8] px-6 py-4">
+          <div className="flex items-center gap-4">
+            <img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" />
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-[.23em] text-[#3976b7]">Leelanau Cellars · Staff Reference</p>
+              <h2 className="mt-0.5 text-[23px] font-black tracking-[-.035em]">Tasting Room Wine Guide</h2>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-black text-black/65">{today}</p>
+            <p className="mt-1 text-[8px] font-semibold text-black/35">{chosen.length} wines · Page {pageIndex + 1} of {pages.length}</p>
+          </div>
+        </header>
+        {!pageWines.length ? <div className="flex min-h-[560px] items-center justify-center p-10 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div> : <div className="field-guide-body grid grid-cols-2 divide-x divide-black/10">
+          <div className="field-guide-column grid grid-rows-5 px-5 py-3">{left.map(renderWine)}</div>
+          <div className="field-guide-column grid grid-rows-5 px-5 py-3">{right.map(renderWine)}</div>
+        </div>}
+        <footer className="field-guide-footer flex items-center justify-between bg-[#f3f6f8] px-6 py-2 text-[7px] font-semibold text-black/35">
+          <span>Use these highlights as a starting point. Add your own tasting-room notes below each wine.</span>
+          <span>lwc.wine · 231-386-5201</span>
+        </footer>
+      </section>;
+    })}
   </div>;
 }
-
 function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, draft, setDraft }: {
   wines: WineRecord[]; activeWine?: WineRecord; activeWineId: string; setActiveWineId: (id: string) => void; draft: TechSheetDraft; setDraft: (draft: TechSheetDraft) => void;
 }) {
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft({ ...draft, [key]: value });
+  const automaticCasePackaging = casePackagingForWine(activeWine);
   const setWine = (id: string) => {
     setActiveWineId(id);
     const wine = wines.find((item) => item.id === id);
@@ -618,8 +663,9 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
-            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">Optional section at the bottom of the sales sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => update('includeCasePackaging', event.target.checked)} className="h-4 w-4 accent-black" /></label>
-            {draft.includeCasePackaging && <div className="mt-3 space-y-2"><EditField label="Packaging image URL" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label></div>}
+            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">Turn this on and Wine Hub automatically uses the approved case artwork for this wine when a match exists.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft({ ...draft, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !draft.casePackagingImage ? automaticCasePackaging?.src : draft.casePackagingImage })} className="h-4 w-4 accent-black" /></label>
+            {automaticCasePackaging && <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-emerald-800">Auto-matched: {automaticCasePackaging.label}</div>}
+            {draft.includeCasePackaging && <div className="mt-3 space-y-2">{!automaticCasePackaging && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-amber-800">No automatic case match yet. You can still add an image below.</p>}<EditField label="Packaging image URL · optional override" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload different packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label>{automaticCasePackaging && draft.casePackagingImage !== automaticCasePackaging.src && <button onClick={() => update('casePackagingImage', automaticCasePackaging.src)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Use automatic match</button>}</div></div>}
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
@@ -734,7 +780,7 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
         <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
         <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
         {!!draft.highlights.length && <SheetSection title="Highlights" compact={compact}><ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></SheetSection>}
-        {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[155px] max-w-[320px] object-contain object-left" /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
+        {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[185px] max-w-[350px] object-contain object-left" /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
       </div>
 
       <div className="absolute bottom-0 right-0 top-0 w-[42%] overflow-hidden">

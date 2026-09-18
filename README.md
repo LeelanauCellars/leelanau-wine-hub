@@ -103,3 +103,30 @@ Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, 
 - When Case Packaging is enabled, the copy column moves upward and uses tighter section spacing. Packaging artwork can display up to roughly 320 × 155 px.
 - Wine Library bottle cards now use a padded `object-contain` image treatment rather than enlarging/cropping the Commerce7 image.
 - The Tasting Room printable guide now centers on **Sales Highlights** instead of the overview/short description, while keeping handwritten Staff Notes space.
+
+## v7 updates
+
+- Rebuilt the Tasting Room print guide as a cleaner two-column landscape field guide (10 wines/page) with no card-grid look.
+- Removed the retired Leelanau Cellars Pinot Grigio 2023 from the current Commerce7 Wine Hub feed and demo data.
+- Tightened website-award matching so a 2023 award does not attach to a 2022 wine with the same base name.
+- Added approved case-packaging artwork under `public/cases/` and automatic wine-to-case matching in the Tech Sheet Builder.
+- Case Packaging still supports a per-document URL/upload override when sales needs a different image.
+
+### Automatic case packaging rules
+
+- Autumn Harvest / Spring Splendor / Summer Sunset / Red Sangria / White Sangria → shared Leelanau seasonal/sangria case
+- Summer Sunset Bubbly → Summer Sunset Bubbly case
+- Winter White → Winter White case
+- Winter White Bubbly → Winter White Bubbly case
+- Great Lakes Red → Great Lakes Red case
+- Great Lakes Red Bubbly → Great Lakes Red Bubbly case
+- Witches Brew variants → Witches Brew case
+- Festivus → Festivus case
+- Farm Fresh Bubbly/Sparkling Moscato → Farm Fresh Bubbly Moscato case
+- Other Farm Fresh wines → Farm Fresh Fruit Wine & Moscato case
+- Country Crush wines → Country Crush case
+- Lakeshore Farms Bubbly/Sparkling Moscato → Lakeshore Farms Sparkling Moscato case
+- Other Lakeshore Farms wines → Lakeshore Farms Fruit & Moscato case
+- Zilly wines → Zilly case
+- Products/collections containing “Lakeshore Collection” → Lakeshore Collection case
+- Products/collections containing “Chill” → Chill Wine case
