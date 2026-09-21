@@ -225,3 +225,23 @@ button { cursor: pointer; }
     font-size: 5.6pt !important;
   }
 }
+
+/* Batch tech-sheet printing */
+.batch-tech-page {
+  break-after: page;
+  page-break-after: always;
+}
+.batch-tech-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+@media print {
+  .batch-tech-print { margin: 0 !important; padding: 0 !important; }
+  .batch-tech-page {
+    width: 8.5in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+}

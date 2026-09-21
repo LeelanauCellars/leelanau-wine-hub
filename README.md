@@ -161,6 +161,15 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 
 ## v18 tech-sheet formatting and display update
 
-- Tasting Notes and Highlights now include lightweight formatting controls for **bold**, underline, and highlighted text. Select text in the editor, click a formatting button, and the finished tech sheet renders the styling. A live preview appears below each editor.
+- Tasting Notes and Highlights include formatting controls for **bold**, underline, and highlighted text. In v19 these controls work directly in the rich-text editor, so formatting is visible while editing without marker characters.
 - Tech sheets now support an optional **Display** merchandising image. When Case Packaging is present, Display appears beside it. When there is no Case Packaging, Display slides into the left-side packaging area by itself.
 - Display images can be supplied by URL or uploaded directly for the current tech sheet and remain document-only overrides.
+
+## v19 tech-sheet workflow update
+
+- Tasting Notes and Highlights now populate automatically whenever a wine is opened in the Tech Sheet Builder or included in a batch. The Commerce7 buttons remain as refresh controls.
+- Bold, underline, and highlight formatting is now applied directly inside a rich-text editor, so sales staff no longer see marker characters such as `**`, `__`, or `==` while editing.
+- The left-side Tech Sheet Builder is no longer limited to a viewport-height nested scroll area; it continues naturally down the page.
+- Bottle images start higher on the finished sheet by default and now include a vertical-position slider in addition to the size slider.
+- The printable tech-sheet layout uses tighter spacing and copy sizing when notes, highlights, Case Packaging, or Display artwork need additional room, keeping the standard automatically generated content on one letter-size page.
+- Wine Library now includes a **Select tech sheets** workflow for choosing multiple wines and printing/saving them together as one multi-page PDF. Batch sheets use the same automatic notes, highlights, awards, case packaging, bottle positioning, and header-color matching as individual sheets.

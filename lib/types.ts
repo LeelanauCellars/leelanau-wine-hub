@@ -70,6 +70,7 @@ export type TechSheetDraft = {
   casePackagingImage?: string;
   displayImage?: string;
   bottleScale: number;
+  bottleOffsetY: number;
   headerColor: string;
   autoHeaderColor: boolean;
   footer: string;
