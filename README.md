@@ -142,3 +142,15 @@ Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, 
 ## Lifestyle image assets
 
 Wine profile Asset pages now include a dedicated **Wine Lifestyle Images** section. The approved photography supplied in `Wine Lifestyle Images for Hub.zip` is bundled under `public/lifestyle/` and matched automatically to the correct Commerce7 wine by wine name, brand, and collection. Lifestyle assets can be opened full-size or downloaded as PNG/JPEG from the Wine Hub.
+
+## v12 updates
+
+- Approved case-packaging artwork is now exposed directly on each wine's **Assets** tab when a case is associated with that wine. The case can be downloaded as PNG or JPEG and uses the same automatic mapping as the Tech Sheet Builder.
+- Wine Hub now creates downloadable **UPC-A barcode artwork** from the UPC stored in Commerce7. Each valid UPC can be downloaded as SVG, PNG, or JPEG from the wine's Assets tab.
+- 11-digit UPC values receive a calculated UPC-A check digit for artwork generation. Existing 12-digit Commerce7 UPCs are validated before a barcode is created; Wine Hub does not silently alter an invalid 12-digit UPC.
+- The main Asset Library now indicates when a wine has case packaging and/or a valid downloadable UPC in addition to bottle and lifestyle images.
+
+## v13 update
+- Tech Sheet Builder now includes optional **Cost (Retailer)** and **Cost (Distributor)** fields.
+- Both start blank and appear on the finished tech sheet only when filled in.
+- On the tech sheet, they appear between UPC and SRP.

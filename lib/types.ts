@@ -59,6 +59,8 @@ export type TechSheetDraft = {
   abv: string;
   casePack: string;
   upc: string;
+  retailerCost: string;
+  distributorCost: string;
   srp: string;
   bottleImage?: string;
   awardGraphic?: string;
