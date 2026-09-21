@@ -508,13 +508,41 @@ function mergeCommerce7(current: WineRecord[], incoming: WineRecord[]) {
   return [...merged, ...hubOnly].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function estimatedRichLines(value: string, charsPerLine: number) {
+  const plain = plainFormattedText(value);
+  if (!plain) return 0;
+  return plain
+    .split(/\n+/)
+    .reduce((sum, line) => sum + Math.max(1, Math.ceil(line.trim().length / charsPerLine)), 0);
+}
+
+function shouldAutoIncludeCasePackaging(wine: WineRecord, tastingNotes: string, highlights: string[]) {
+  if (!casePackagingForWine(wine)) return false;
+
+  // Keep the original full-size tech-sheet typography. Instead of shrinking a crowded
+  // page, skip the optional case artwork when the default copy would likely push it
+  // past the footer. Sales can still turn Case Packaging back on manually.
+  const notesLines = estimatedRichLines(tastingNotes, 50);
+  const highlightLines = highlights.reduce((sum, item) => sum + estimatedRichLines(item, 44), 0);
+  const projectedContentHeight =
+    72 + // top/bottom breathing room in the content column
+    38 + notesLines * 25 + // Tasting Notes heading + copy
+    148 + // Wine Specs with the standard four populated rows
+    38 + highlightLines * 23 + // Highlights heading + bullets
+    225; // Case Packaging heading + image + section spacing
+
+  return projectedContentHeight <= 790;
+}
+
 function draftFromWine(wine: WineRecord): TechSheetDraft {
   const casePackaging = casePackagingForWine(wine);
+  const tastingNotes = shortCommerce7TastingNotes(wine) || wine.tastingNotes || wine.shortDescription || '';
+  const highlights = commerce7SalesHighlights(wine);
   return {
     wineId: wine.id,
     wineName: wine.name,
-    tastingNotes: shortCommerce7TastingNotes(wine) || wine.tastingNotes || wine.shortDescription || '',
-    highlights: commerce7SalesHighlights(wine),
+    tastingNotes,
+    highlights,
     abv: wine.abv || '',
     casePack: wine.casePack || (wine.volumeMl ? `12–${wine.volumeMl} mL bottles` : ''),
     upc: formatUpc(wine.upc || ''),
@@ -523,7 +551,7 @@ function draftFromWine(wine: WineRecord): TechSheetDraft {
     srp: wine.price === undefined ? '' : `$${wine.price.toFixed(2)}`,
     bottleImage: wine.bottleImage,
     awardGraphic: wine.awards[0]?.graphicUrl,
-    includeCasePackaging: Boolean(casePackaging),
+    includeCasePackaging: Boolean(casePackaging) && shouldAutoIncludeCasePackaging(wine, tastingNotes, highlights),
     casePackagingImage: casePackaging?.src,
     displayImage: undefined,
     bottleScale: 2.55,
@@ -828,7 +856,7 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
       </div>
 
       {batchMode && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#b9d7f3] bg-[#eef6fd] p-4 md:flex-row md:items-center md:justify-between">
-        <div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/50">Select wines below, then save them as one multi-page PDF. Notes, highlights, specs, awards and case packaging are filled automatically.</p></div>
+        <div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/50">Select wines below, then save them as one multi-page PDF. Notes, highlights, specs and awards are filled automatically; case packaging is included when the default copy leaves enough room.</p></div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg bg-white px-3 py-2 text-xs font-black shadow-sm">{selectedWines.length} selected</span>
           <button onClick={() => setSelectedTechIds(Array.from(new Set([...selectedTechIds, ...wines.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button>
@@ -861,7 +889,7 @@ function Stat({ value, label }: { value: number; label: string }) {
 function WineCard({ wine, open, tech, batchMode = false, selected = false, toggleSelected }: { wine: WineRecord; open: () => void; tech: () => void; batchMode?: boolean; selected?: boolean; toggleSelected?: () => void }) {
   const award = wine.awards[0];
   return <article className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}>
-    <button onClick={open} className="block w-full text-left">
+    <button onClick={() => batchMode ? toggleSelected?.() : open()} className="block w-full text-left" aria-label={batchMode ? `${selected ? 'Deselect' : 'Select'} ${wine.name} for batch tech sheets` : `Open ${wine.name}`}>
       <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
         {wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}
         <div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
@@ -1040,6 +1068,24 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
     emit();
   };
 
+  const clearFormatting = () => {
+    const editor = ref.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed || !editor.contains(range.commonAncestorContainer)) return;
+
+    // Remove only the formatting from the selected text, including partial selections
+    // inside a bold/underline/highlight span. Text and line breaks stay in place.
+    const fragment = range.extractContents();
+    const formattedNodes = Array.from(fragment.querySelectorAll('strong, b, u, mark')).reverse();
+    formattedNodes.forEach((node) => node.replaceWith(...Array.from(node.childNodes)));
+    range.insertNode(fragment);
+    selection.removeAllRanges();
+    editor.focus();
+    emit();
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -1056,7 +1102,8 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
       <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('bold')} className={buttonClass} title="Bold selected text"><span className="text-sm font-black">B</span></button>
       <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('underline')} className={buttonClass} title="Underline selected text"><span className="text-sm font-black underline">U</span></button>
       <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('highlight')} className={buttonClass} title="Highlight selected text"><span className="rounded-sm bg-[#fff1a8] px-1 text-[10px] font-black">HL</span></button>
-      <span className="ml-1 text-[9px] leading-3 text-black/35">Select text, then choose a format.</span>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={clearFormatting} className={buttonClass} title="Remove bold, underline and highlight from selected text"><span className="text-[10px] font-black">Clear</span></button>
+      <span className="ml-1 text-[9px] leading-3 text-black/35">Select text to add or clear formatting.</span>
     </div>
     <div className="relative">
       {!plainFormattedText(value) && placeholder && <span className="pointer-events-none absolute left-3 top-2.5 text-sm text-black/25">{placeholder}</span>}
@@ -1281,7 +1328,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
     setColorStatus('Manual header color.');
   };
 
-  return <div className="tech-builder min-h-screen bg-[#dfe2e6]">
+  return <div className="tech-builder flex min-h-screen flex-col bg-[#dfe2e6] xl:h-screen xl:min-h-0 xl:overflow-hidden">
     <div className="no-print flex flex-col border-b border-black/10 bg-white px-4 py-3 xl:flex-row xl:items-center xl:justify-between xl:px-6">
       <div className="flex items-center gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change Commerce7</p></div></div>
       <div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0">
@@ -1291,8 +1338,8 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
       </div>
     </div>
 
-    <div className="no-print grid items-start xl:grid-cols-[390px_minmax(0,1fr)]">
-      <aside className="min-h-full border-r border-black/10 bg-white p-5">
+    <div className="no-print grid flex-1 min-h-0 items-start xl:grid-cols-[390px_minmax(0,1fr)] xl:overflow-hidden">
+      <aside className="min-h-full border-r border-black/10 bg-white p-5 xl:h-full xl:min-h-0 xl:overflow-y-auto">
         <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Product facts, tasting notes and highlights are already filled in.</strong> Sales can edit anything for a specific customer without changing Commerce7.</div>
         <div className="space-y-5">
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
@@ -1355,8 +1402,8 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
-            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">If Wine Hub has approved case artwork for this wine, Case Packaging starts turned on automatically. You can turn it off for any sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft((current) => ({ ...current, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !current.casePackagingImage ? automaticCasePackaging?.src : current.casePackagingImage }))} className="h-4 w-4 accent-black" /></label>
-            {automaticCasePackaging && <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-emerald-800">Auto-matched: {automaticCasePackaging.label}</div>}
+            <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">If Wine Hub has approved case artwork and the default copy has enough room, Case Packaging starts turned on automatically. Longer sheets leave it off so the main layout stays full-size. You can always turn it on or off manually.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft((current) => ({ ...current, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !current.casePackagingImage ? automaticCasePackaging?.src : current.casePackagingImage }))} className="h-4 w-4 accent-black" /></label>
+            {automaticCasePackaging && <div className={`mt-2 rounded-lg px-2.5 py-2 text-[10px] font-bold leading-4 ${draft.includeCasePackaging ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}>{draft.includeCasePackaging ? `Auto-matched: ${automaticCasePackaging.label}` : `Available: ${automaticCasePackaging.label}. Left off unless you choose to include it.`}</div>}
             {draft.includeCasePackaging && <div className="mt-3 space-y-2">{!automaticCasePackaging && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-amber-800">No automatic case match yet. You can still add an image below.</p>}<EditField label="Packaging image URL · optional override" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload different packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label>{automaticCasePackaging && draft.casePackagingImage !== automaticCasePackaging.src && <button onClick={() => update('casePackagingImage', automaticCasePackaging.src)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Use automatic match</button>}</div></div>}
           </div>
 
@@ -1379,7 +1426,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           </div>
         </div>
       </aside>
-      <div className="flex items-start justify-center overflow-auto p-6 xl:p-10"><TechSheetPaper draft={draft} wine={activeWine} /></div>
+      <TechSheetPreview draft={draft} wine={activeWine} />
     </div>
     <div className="print-root hidden print:block"><TechSheetPaper draft={draft} wine={activeWine} /></div>
   </div>;
@@ -1472,21 +1519,19 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
   const firstAward = wine?.awards[0];
   const compositeColdDuck = draft.bottleImage?.includes('cold-duck-composite');
   const awardGraphic = draft.awardGraphic || (firstAward ? awardGraphicFor(firstAward) : undefined);
-  const notesLength = plainFormattedText(draft.tastingNotes).length;
-  const highlightsLength = draft.highlights.reduce((sum, item) => sum + plainFormattedText(item).length, 0);
-  const compact = Boolean(draft.includeCasePackaging || draft.displayImage || notesLength > 260 || highlightsLength > 280);
+  const compact = Boolean(draft.includeCasePackaging || draft.displayImage);
 
   return <article className="tech-sheet-paper relative flex shrink-0 flex-col overflow-hidden bg-white text-black shadow-2xl print:shadow-none">
     <div className="flex h-[132px] shrink-0 items-center justify-center" style={{ backgroundColor: draft.headerColor }}><BrandLogoMark wine={wine} /></div>
     <div className="flex h-[48px] shrink-0 items-center justify-center" style={{ backgroundColor: mixWithWhite(draft.headerColor, .62) }}><h1 className="text-center text-[30px] font-black uppercase tracking-[-.035em]">{draft.wineName}</h1></div>
     <div className="relative flex-1 overflow-hidden bg-white">
-      <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[24px]' : 'py-[38px]'}`}>
-        <SheetSection title="Tasting Notes" compact={compact}><p className={compact ? 'text-[15.5px] leading-[1.38]' : 'text-[17px] leading-[1.45]'}><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>
-        <SheetSection title="Wine Specs" compact={compact}><div className={`${compact ? 'text-[14.5px] leading-[1.28]' : 'text-[16px] leading-[1.35]'} space-y-[2px]`}><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className={`${compact ? 'text-[14.5px] leading-[1.28]' : 'text-[16px] leading-[1.35]'} list-disc space-y-[3px] pl-7`}>{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[28px]' : 'min-h-[52px]'} />}</SheetSection>
+      <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
+        <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]"><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>
+        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
+        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
         {(draft.includeCasePackaging || draft.displayImage) && <div className={`grid items-start ${draft.includeCasePackaging && draft.displayImage ? 'grid-cols-2 gap-5' : 'grid-cols-1'}`}>
-          {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className={`${draft.displayImage ? 'max-h-[132px] max-w-[190px]' : 'max-h-[160px] max-w-[350px]'} w-full object-contain object-left`} /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
-          {draft.displayImage && <SheetSection title="Display" compact><img src={draft.displayImage} alt="Display" className={`${draft.includeCasePackaging ? 'max-h-[132px] max-w-[190px]' : 'max-h-[160px] max-w-[350px]'} w-full object-contain object-left`} /></SheetSection>}
+          {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className={`${draft.displayImage ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
+          {draft.displayImage && <SheetSection title="Display" compact><img src={draft.displayImage} alt="Display" className={`${draft.includeCasePackaging ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /></SheetSection>}
         </div>}
       </div>
 
@@ -1501,6 +1546,41 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
   </article>;
 }
 
+function TechSheetPreview({ draft, wine }: { draft: TechSheetDraft; wine?: WineRecord }) {
+  const frameRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(.72);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateScale = () => {
+      const rect = frame.getBoundingClientRect();
+      const availableWidth = Math.max(0, rect.width - 48);
+      const availableHeight = Math.max(0, rect.height - 48);
+      const next = Math.min(1, availableWidth / 816, availableHeight / 1056);
+      setScale(Number.isFinite(next) && next > 0 ? next : .72);
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(frame);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, []);
+
+  return <div ref={frameRef} className="flex min-h-[720px] items-center justify-center overflow-hidden p-6 xl:h-full xl:min-h-0 xl:p-6">
+    <div className="shrink-0" style={{ width: 816 * scale, height: 1056 * scale }}>
+      <div style={{ width: 816, height: 1056, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+        <TechSheetPaper draft={draft} wine={wine} />
+      </div>
+    </div>
+  </div>;
+}
+
 function mixWithWhite(hex: string, amount: number) {
   const clean = hex.replace('#', '');
   if (clean.length !== 6) return TECH_LIGHT;
@@ -1508,7 +1588,7 @@ function mixWithWhite(hex: string, amount: number) {
   const mixed = rgb.map((channel) => Math.round(channel + (255 - channel) * amount));
   return `rgb(${mixed.join(',')})`;
 }
-function SheetSection({ title, children, compact = false }: { title: string; children: React.ReactNode; compact?: boolean }) { return <section className={compact ? 'mb-[14px]' : 'mb-[25px]'}><h2 className={`${compact ? 'mb-[5px] text-[22px]' : 'mb-[7px] text-[25px]'} font-black uppercase tracking-[-.015em]`}>{title}</h2>{children}</section>; }
+function SheetSection({ title, children, compact = false }: { title: string; children: React.ReactNode; compact?: boolean }) { return <section className={compact ? 'mb-[19px]' : 'mb-[28px]'}><h2 className="mb-[7px] text-[25px] font-black uppercase tracking-[-.015em]">{title}</h2>{children}</section>; }
 function Spec({ label, value }: { label: string; value: string }) { if (!value) return null; return <p><strong>{label}:</strong> {value}</p>; }
 function AwardBadge({ award }: { award: Award }) {
   return <div className="absolute left-[8px] top-[16%] z-20 w-[132px] rounded-xl border border-[#d7a33d]/50 bg-white/95 p-3 text-center shadow-lg">

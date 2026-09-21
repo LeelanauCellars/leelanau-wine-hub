@@ -1,4 +1,13 @@
 
+## v20 updates
+
+- Restores the original full-size tech-sheet typography/spacing instead of shrinking crowded pages.
+- Case packaging is auto-included only when the default copy is likely to fit; it can still be toggled manually.
+- Adds a **Clear** formatting control for selected bold, underline, or highlight text.
+- Keeps the full tech-sheet preview visible while the editor column scrolls independently on desktop.
+- Makes the main wine card toggle batch-tech-sheet selection while batch mode is active.
+
+
 ## v6 updates
 
 - Removed the Wine Library “complete” counter.
