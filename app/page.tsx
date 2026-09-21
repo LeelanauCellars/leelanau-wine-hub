@@ -54,30 +54,82 @@ const formatUpc = (value = '') => {
   return value;
 };
 
-const cleanSentence = (value = '') => value.replace(/^\s*(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish)\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
+const cleanSentence = (value = '') => value.replace(/^\s*(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish|style|the flavor|flavor|notes?)\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
 
-function shortenToWords(value: string, max = 155) {
+function shortenToWords(value: string, max = 175) {
   const clean = value.replace(/\s+/g, ' ').trim();
   if (clean.length <= max) return clean;
   const slice = clean.slice(0, max + 1);
+  const sentenceCut = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '));
+  if (sentenceCut > max * .58) return slice.slice(0, sentenceCut + 1).trim();
   const cut = slice.lastIndexOf(' ');
   const shortened = slice.slice(0, cut > max * .65 ? cut : max).replace(/[,:;\-–—\s]+$/g, '');
   return `${shortened}.`;
 }
 
+const sensoryTerms = [
+  'apple', 'apricot', 'berry', 'blackberry', 'blueberry', 'cherry', 'cranberry', 'citrus', 'grape', 'lemon', 'lime', 'mango', 'melon', 'orange', 'peach', 'pear', 'pineapple', 'plum', 'raspberry', 'strawberry', 'tropical',
+  'cinnamon', 'clove', 'cloves', 'ginger', 'nutmeg', 'spice', 'spiced', 'pumpkin', 'brown sugar', 'vanilla', 'chocolate', 'caramel', 'honey', 'floral', 'flower', 'honeysuckle', 'cedar', 'oak', 'smoke', 'earthy',
+  'aroma', 'palate', 'flavor', 'taste', 'finish', 'mouthfeel', 'texture', 'tannin', 'acidity', 'effervescence', 'bubbles', 'bubbly', 'sparkling',
+  'sweet', 'semi-sweet', 'semi-dry', 'dry', 'crisp', 'tart', 'juicy', 'jammy', 'bright', 'smooth', 'creamy', 'rich', 'light-bodied', 'full-bodied', 'refreshing', 'savory', 'fruity', 'fruit-forward', 'soft', 'velvety', 'warming', 'warm',
+];
+
+const marketingTerms = [
+  'official', 'tradition', 'celebration', 'award', 'winner', 'america', 'favorite', 'perfect for', 'occasion', 'party', 'gathering', 'season', 'fall tradition', 'stockpile', 'customers', 'purchase', 'benefits', 'support',
+];
+
+function sensoryScore(value: string) {
+  const normalized = value.toLowerCase().replace(/[’‘]/g, "'");
+  let score = 0;
+  for (const term of sensoryTerms) if (normalized.includes(term)) score += term.includes(' ') ? 2 : 1;
+  for (const term of marketingTerms) if (normalized.includes(term)) score -= 1;
+  if (/^(?:flavor profile|aroma|palate|taste|texture|finish|style|tasting notes?)\s*:/i.test(value.trim())) score += 4;
+  return score;
+}
+
+function sentenceParts(value = '') {
+  return value
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9“"'])/)
+    .map((part) => cleanSentence(part))
+    .filter((part) => part.length > 18);
+}
+
 function shortCommerce7TastingNotes(wine?: WineRecord) {
   if (!wine) return '';
-  const flavorPattern = /^(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish)\s*:/i;
-  const flavorLines = (wine.highlights || []).filter((item) => flavorPattern.test(item)).map(cleanSentence).filter(Boolean);
-  const source = flavorLines.length ? flavorLines.join(' ') : (wine.tastingNotes || wine.shortDescription || '');
-  const sentences = source.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => cleanSentence(sentence)).filter(Boolean) || [cleanSentence(source)];
-  let result = '';
-  for (const sentence of sentences) {
-    const candidate = result ? `${result} ${sentence}` : sentence;
-    if (candidate.length <= 155 || !result) result = candidate;
-    if (result.length >= 105) break;
+
+  // Search all of the Commerce7 description copy, not just the opening paragraph.
+  // This keeps a marketing-first opener from hiding the actual flavor details farther down the product copy.
+  const rawCandidates = [
+    ...(wine.commerce7CopyLines || []),
+    ...(wine.highlights || []),
+    wine.tastingNotes || '',
+    wine.shortDescription || '',
+  ].filter(Boolean);
+
+  const candidates = rawCandidates
+    .flatMap(sentenceParts)
+    .map((text, index) => ({ text, index, score: sensoryScore(text) }))
+    .filter(({ text }, index, array) => array.findIndex((candidate) => normalize(candidate.text) === normalize(text)) === index);
+
+  const sensory = candidates
+    .filter((candidate) => candidate.score >= 2)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  // Prefer actual sensory copy. Add a second complementary flavor sentence when it still fits a 2–3 line note.
+  if (sensory.length) {
+    const selected: string[] = [];
+    for (const candidate of sensory) {
+      if (selected.some((item) => normalize(item) === normalize(candidate.text))) continue;
+      const next = [...selected, candidate.text].join(' ');
+      if (!selected.length || next.length <= 185) selected.push(candidate.text);
+      if (selected.join(' ').length >= 125 || selected.length >= 2) break;
+    }
+    return shortenToWords(selected.join(' '), 175);
   }
-  return shortenToWords(result || source, 155);
+
+  // If Commerce7 has no clearly sensory sentence, fall back to its opening copy rather than inventing a tasting note.
+  const fallback = cleanSentence(wine.tastingNotes || wine.shortDescription || rawCandidates[0] || '');
+  return shortenToWords(fallback, 175);
 }
 
 function wineImageAssets(wine: WineRecord) {
@@ -971,9 +1023,9 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Tasting notes</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your own notes here — or let Wine Hub condense the Commerce7 copy into a short, flavor-focused 2–3 line tasting note.</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your own notes here — or let Wine Hub pull the most flavor-focused parts of the Commerce7 description into a short 2–3 line tasting note.</p>
             <div className="mt-3"><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
-            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use short Commerce7 tasting notes</button>
+            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use flavor-focused Commerce7 notes</button>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">

@@ -252,6 +252,7 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
       if (manual.length) return manual;
       return extractHighlights(product.content ?? '', firstParagraph);
     })(),
+    commerce7CopyLines: htmlToLines(product.content ?? ''),
     productionNotes: metaValue(meta, ['production_notes', 'winemaker_notes']) || undefined,
     vineyardNotes: metaValue(meta, ['vineyard_notes', 'vintage_notes']) || undefined,
     awards: (() => {

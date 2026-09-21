@@ -2,7 +2,7 @@ import type { WineRecord } from '@/lib/types';
 
 export type WineLifestyleAsset = { src: string; title: string };
 
-type LifestyleRule = WineLifestyleAsset & { brand?: string; collection?: string; aliases: string[] };
+type LifestyleRule = WineLifestyleAsset & { brand?: string; collection?: string; vintage?: string; nameContains?: string[]; allBrand?: boolean; aliases: string[] };
 
 const RULES: LifestyleRule[] = [
   { src: "/lifestyle/basketball-peach-sparkling-moscato.jpg", title: "Basketball Peach Sparkling Moscato", brand: "Lakeshore Farms", aliases: ["Peach Sparkling Moscato", "Sparkling Peach Moscato", "Lakeshore Farms Peach Sparkling Moscato"] },
@@ -82,6 +82,79 @@ const RULES: LifestyleRule[] = [
   { src: "/lifestyle/zilly-sauvignon-blanc-christmas-table-decor-captured-by-grace-2.jpg", title: "Zilly Sauvignon Blanc - Christmas Table Decor - Captured by Grace (2)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
   { src: "/lifestyle/zilly-sauvignon-blanc-overlooking-back-deck-captured-by-grace-3.jpg", title: "Zilly Sauvignon Blanc - overlooking back deck - Captured by Grace (3)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
   { src: "/lifestyle/zilly-sauvignon-blanc-pretzels-captured-by-grace-2.jpg", title: "Zilly Sauvignon Blanc - Pretzels - Captured by Grace (2)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
+
+  // Second lifestyle batch uploaded by Leelanau Cellars
+  { src: "/lifestyle/2021-baco-noir-lifestyle-photo-19.jpg", title: "2021 Baco Noir Lifestyle Photo (19)", brand: "Leelanau Cellars", vintage: "2021", aliases: ["Baco Noir"] },
+  { src: "/lifestyle/2021-baco-noir-lifestyle-photo-20.jpg", title: "2021 Baco Noir Lifestyle Photo (20)", brand: "Leelanau Cellars", vintage: "2021", aliases: ["Baco Noir"] },
+  { src: "/lifestyle/2021-baco-noir-lifestyle-photo-8.jpg", title: "2021 Baco Noir Lifestyle Photo (8)", brand: "Leelanau Cellars", vintage: "2021", aliases: ["Baco Noir"] },
+  { src: "/lifestyle/autumn-harvest-dinner-table-madi-taylor-1-1.jpg", title: "Autumn Harvest - Dinner Table - Madi Taylor (1) (1)", brand: "Leelanau Cellars", aliases: ["Autumn Harvest"] },
+  { src: "/lifestyle/baco-noir-the-end-captured-by-grace-2.jpg", title: "Baco Noir The End - Captured by Grace (2)", brand: "Leelanau Cellars", aliases: ["Baco Noir: The End", "Baco Noir The End"] },
+  { src: "/lifestyle/baco-noir-the-end-captured-by-grace-9.jpg", title: "Baco Noir The End - Captured by Grace (9)", brand: "Leelanau Cellars", aliases: ["Baco Noir: The End", "Baco Noir The End"] },
+  { src: "/lifestyle/basketball-peach-sparkling-moscato-2.jpg", title: "Basketball Peach Sparkling Moscato", brand: "Lakeshore Farms", aliases: ["Peach Sparkling Moscato", "Sparkling Peach Moscato", "Lakeshore Farms Peach Sparkling Moscato"] },
+  { src: "/lifestyle/cherries-galore-cherry-and-beach-madi-taylor-photo-23.jpg", title: "Cherries Galore - Cherry and Beach - Madi Taylor Photo (23)", brand: "Leelanau Cellars", aliases: ["Cherries Galore"] },
+  { src: "/lifestyle/cherries-galore-downtown-tc-and-ball-drop-madi-taylor-10-1.jpg", title: "Cherries Galore - Downtown TC and Ball Drop - Madi Taylor (10) (1)", brand: "Leelanau Cellars", aliases: ["Cherries Galore"] },
+  { src: "/lifestyle/cherries-galore-downtown-tc-and-ball-drop-madi-taylor-13.jpg", title: "Cherries Galore - Downtown TC and Ball Drop - Madi Taylor (13)", brand: "Leelanau Cellars", aliases: ["Cherries Galore"] },
+  { src: "/lifestyle/cherries-galore-madi-taylor-photo-2.jpg", title: "Cherries Galore - Madi Taylor Photo (2)", brand: "Leelanau Cellars", aliases: ["Cherries Galore"] },
+  { src: "/lifestyle/cherries-galore-madi-taylor-photo-6.jpg", title: "Cherries Galore - Madi Taylor Photo (6)", brand: "Leelanau Cellars", aliases: ["Cherries Galore"] },
+  { src: "/lifestyle/chill-blackberry-on-cooler-at-beach-1.jpg", title: "Chill blackberry on cooler at beach (1)", brand: "Leelanau Cellars", aliases: ["Chill Blackberry", "Blackberry Chill"] },
+  { src: "/lifestyle/chill-blackberry-on-cooler-at-beach-2.jpg", title: "Chill blackberry on cooler at beach (2)", brand: "Leelanau Cellars", aliases: ["Chill Blackberry", "Blackberry Chill"] },
+  { src: "/lifestyle/chill-bottles-on-the-sand-at-the-beach-3.jpg", title: "Chill bottles on the sand at the beach (3)", brand: "Leelanau Cellars", nameContains: ["Chill"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/chill-mango-at-beach-1.jpg", title: "Chill mango at beach (1)", brand: "Leelanau Cellars", aliases: ["Chill Mango", "Mango Chill"] },
+  { src: "/lifestyle/chill-sweet-peach-at-beach-and-water-1.jpg", title: "Chill Sweet Peach at beach and water (1)", brand: "Leelanau Cellars", aliases: ["Chill Sweet Peach", "Sweet Peach Chill", "Chill Peach"] },
+  { src: "/lifestyle/chill-sweet-peach-at-beach-in-the-water-3.jpg", title: "Chill Sweet Peach at beach in the water (3)", brand: "Leelanau Cellars", aliases: ["Chill Sweet Peach", "Sweet Peach Chill", "Chill Peach"] },
+  { src: "/lifestyle/chill-watermelon-madi-taylor-photo-1.jpg", title: "Chill Watermelon - Madi Taylor Photo (1)", brand: "Leelanau Cellars", aliases: ["Chill Watermelon", "Watermelon Chill"] },
+  { src: "/lifestyle/chill-watermelon-madi-taylor-photo-7.jpg", title: "Chill Watermelon - Madi Taylor Photo (7)", brand: "Leelanau Cellars", aliases: ["Chill Watermelon", "Watermelon Chill"] },
+  { src: "/lifestyle/chocolate-cherry-dessert-chocolate-madi-taylor-photo-17.jpg", title: "Chocolate Cherry Dessert - Chocolate - Madi Taylor Photo (17)", brand: "Leelanau Cellars", aliases: ["Chocolate Cherry Dessert", "Chocolate Cherry Red Wine", "The Kicker"] },
+  { src: "/lifestyle/chocolate-cherry-dessert-holiday-madi-taylor-11.jpg", title: "Chocolate Cherry Dessert - Holiday - Madi Taylor (11)", brand: "Leelanau Cellars", aliases: ["Chocolate Cherry Dessert", "Chocolate Cherry Red Wine", "The Kicker"] },
+  { src: "/lifestyle/chocolate-cherry-dessert-holiday-madi-taylor-6.jpg", title: "Chocolate Cherry Dessert - Holiday - Madi Taylor (6)", brand: "Leelanau Cellars", aliases: ["Chocolate Cherry Dessert", "Chocolate Cherry Red Wine", "The Kicker"] },
+  { src: "/lifestyle/cold-duck-fireplace-madi-taylor-10.jpg", title: "Cold Duck - Fireplace - Madi Taylor (10)", brand: "Leelanau Cellars", aliases: ["Cold Duck"] },
+  { src: "/lifestyle/cold-duck-fireplace-madi-taylor-4.jpg", title: "Cold Duck - Fireplace - Madi Taylor (4)", brand: "Leelanau Cellars", aliases: ["Cold Duck"] },
+  { src: "/lifestyle/cold-duck-snow-madi-taylor-3.jpg", title: "Cold Duck - Snow -Madi Taylor (3)", brand: "Leelanau Cellars", aliases: ["Cold Duck"] },
+  { src: "/lifestyle/country-crush-fruit-wines-all-captured-by-grace-3.jpg", title: "Country Crush fruit wines - all - Captured by Grace (3)", brand: "Country Crush", allBrand: true, aliases: [] },
+  { src: "/lifestyle/country-crush-wine-bottles-rachel-straughen-photography-12.jpg", title: "Country Crush Wine Bottles - Rachel Straughen Photography (12)", brand: "Country Crush", allBrand: true, aliases: [] },
+  { src: "/lifestyle/country-crush-wine-bottles-rachel-straughen-photography-2.jpg", title: "Country Crush Wine Bottles - Rachel Straughen Photography (2)", brand: "Country Crush", allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-raspberry-bubbly-moscato-2.jpg", title: "Farm Fresh Raspberry Bubbly Moscato (2)", brand: "Farm Fresh", aliases: ["Raspberry Bubbly Moscato", "Raspberry Sparkling Moscato", "Farm Fresh Raspberry Bubbly Moscato", "Farm Fresh Raspberry Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-raspberry-bubbly-moscato-77.jpg", title: "Farm Fresh Raspberry Bubbly Moscato (77)", brand: "Farm Fresh", aliases: ["Raspberry Bubbly Moscato", "Raspberry Sparkling Moscato", "Farm Fresh Raspberry Bubbly Moscato", "Farm Fresh Raspberry Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-apple-wine-grace-hudson-photography-1.jpg", title: "Farm Fresh Apple Wine - Grace Hudson Photography (1)", brand: "Farm Fresh", aliases: ["Apple Wine", "Apple Fruit Wine", "Farm Fresh Apple Wine", "Farm Fresh Apple Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-apple-with-apples-captured-by-grace-5.jpg", title: "Farm Fresh Apple with Apples - Captured by Grace (5)", brand: "Farm Fresh", aliases: ["Apple Wine", "Apple Fruit Wine", "Farm Fresh Apple Wine", "Farm Fresh Apple Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-blackberry-bubbly-moscato-rachel-straughen-photography-3.jpg", title: "Farm Fresh Blackberry Bubbly Moscato - Rachel Straughen Photography (3)", brand: "Farm Fresh", aliases: ["Blackberry Bubbly Moscato", "Blackberry Sparkling Moscato", "Farm Fresh Blackberry Bubbly Moscato", "Farm Fresh Blackberry Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-blackberry-can-rachel-straughen-photography.jpg", title: "Farm fresh Blackberry Can - Rachel Straughen Photography", brand: "Farm Fresh", aliases: ["Blackberry Can", "Blackberry Bubbly Can", "Farm Fresh Blackberry Can", "Farm Fresh Blackberry Bubbly Can"] },
+  { src: "/lifestyle/farm-fresh-blackberry-moscato-rachel-straughen-photography-2.jpg", title: "Farm Fresh Blackberry Moscato - Rachel Straughen Photography (2)", brand: "Farm Fresh", aliases: ["Blackberry Moscato", "Farm Fresh Blackberry Moscato"] },
+  { src: "/lifestyle/farm-fresh-blackberry-wine-rachel-straughen-photography-1.jpg", title: "Farm Fresh Blackberry Wine - Rachel Straughen Photography (1)", brand: "Farm Fresh", aliases: ["Blackberry Wine", "Blackberry Fruit Wine", "Farm Fresh Blackberry Wine", "Farm Fresh Blackberry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-blackberry-wine-woman-on-bike-rachel-straughen-1.jpg", title: "Farm Fresh Blackberry Wine - woman on bike - Rachel Straughen (1)", brand: "Farm Fresh", aliases: ["Blackberry Wine", "Blackberry Fruit Wine", "Farm Fresh Blackberry Wine", "Farm Fresh Blackberry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-blueberry-women-in-winter-clothes-captured-by-grace-2.jpg", title: "Farm Fresh Blueberry - Women in winter clothes - Captured by Grace (2)", brand: "Farm Fresh", nameContains: ["Blueberry"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-blueberry-bubbly-moscato-rachel-straughen-photography-4.jpg", title: "Farm Fresh Blueberry Bubbly Moscato - Rachel Straughen Photography (4)", brand: "Farm Fresh", aliases: ["Blueberry Bubbly Moscato", "Blueberry Sparkling Moscato", "Farm Fresh Blueberry Bubbly Moscato", "Farm Fresh Blueberry Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-blueberry-can-rachel-straughen-photography-2.jpg", title: "Farm Fresh Blueberry Can - - Rachel Straughen Photography 2", brand: "Farm Fresh", aliases: ["Blueberry Can", "Blueberry Bubbly Can", "Farm Fresh Blueberry Can", "Farm Fresh Blueberry Bubbly Can"] },
+  { src: "/lifestyle/farm-fresh-blueberry-can-creehanphotography-11-1.jpg", title: "Farm Fresh Blueberry Can - CreehanPhotography 11 (1)", brand: "Farm Fresh", aliases: ["Blueberry Can", "Blueberry Bubbly Can", "Farm Fresh Blueberry Can", "Farm Fresh Blueberry Bubbly Can"] },
+  { src: "/lifestyle/farm-fresh-blueberry-moscato-rachel-straughen-photography-3.jpg", title: "Farm Fresh Blueberry Moscato - - Rachel Straughen Photography (3)", brand: "Farm Fresh", aliases: ["Blueberry Moscato", "Farm Fresh Blueberry Moscato"] },
+  { src: "/lifestyle/farm-fresh-blueberry-wine-rachel-straughen-photography-3.jpg", title: "Farm Fresh Blueberry Wine - Rachel Straughen Photography (3)", brand: "Farm Fresh", aliases: ["Blueberry Wine", "Blueberry Fruit Wine", "Farm Fresh Blueberry Wine", "Farm Fresh Blueberry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-cherry-wine-cherry-picking-captured-by-grace-70.jpg", title: "Farm Fresh Cherry Wine - Cherry Picking - Captured by Grace (70)", brand: "Farm Fresh", aliases: ["Cherry Wine", "Cherry Fruit Wine", "Farm Fresh Cherry Wine", "Farm Fresh Cherry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-cherry-wine-cherry-picking-captured-by-grace-76.jpg", title: "Farm Fresh Cherry Wine - Cherry Picking - Captured by Grace (76)", brand: "Farm Fresh", aliases: ["Cherry Wine", "Cherry Fruit Wine", "Farm Fresh Cherry Wine", "Farm Fresh Cherry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-cherry-wine-rachel-straughen-photography-4.jpg", title: "Farm Fresh Cherry Wine - Rachel Straughen Photography (4)", brand: "Farm Fresh", aliases: ["Cherry Wine", "Cherry Fruit Wine", "Farm Fresh Cherry Wine", "Farm Fresh Cherry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-cranberry-holiday-madi-taylor-7.jpg", title: "Farm Fresh Cranberry - Holiday - Madi Taylor (7)", brand: "Farm Fresh", nameContains: ["Cranberry"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-cranberry-snow-madi-taylor-11.jpg", title: "Farm Fresh Cranberry  Snow - Madi Taylor (11)", brand: "Farm Fresh", nameContains: ["Cranberry"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-cranberry-snow-madi-taylor-5.jpg", title: "Farm Fresh Cranberry  Snow - Madi Taylor (5)", brand: "Farm Fresh", nameContains: ["Cranberry"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-cranberry-moscato-captured-by-grace-2.jpg", title: "Farm Fresh Cranberry Moscato - Captured by Grace (2)", brand: "Farm Fresh", aliases: ["Cranberry Moscato", "Farm Fresh Cranberry Moscato"] },
+  { src: "/lifestyle/farm-fresh-cranberry-moscato-snow-madi-taylor-11.jpg", title: "Farm Fresh Cranberry Moscato - Snow - Madi Taylor (11)", brand: "Farm Fresh", aliases: ["Cranberry Moscato", "Farm Fresh Cranberry Moscato"] },
+  { src: "/lifestyle/farm-fresh-cranberry-wine-rachel-straughen-photography-1.jpg", title: "Farm Fresh Cranberry Wine - Rachel Straughen Photography (1)", brand: "Farm Fresh", aliases: ["Cranberry Wine", "Cranberry Fruit Wine", "Farm Fresh Cranberry Wine", "Farm Fresh Cranberry Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-family-shot-rachel-straughen-photography-2.jpg", title: "Farm Fresh Family Shot - Rachel Straughen Photography (2)", brand: "Farm Fresh", allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-mango-fruit-wine-grace-hudson-photography-25.jpg", title: "Farm Fresh Mango Fruit Wine - Grace Hudson Photography (25)", brand: "Farm Fresh", aliases: ["Mango Wine", "Mango Fruit Wine", "Farm Fresh Mango Wine", "Farm Fresh Mango Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-mango-fruit-wine-grace-hudson-photography-38.jpg", title: "Farm Fresh Mango Fruit Wine - Grace Hudson Photography (38)", brand: "Farm Fresh", aliases: ["Mango Wine", "Mango Fruit Wine", "Farm Fresh Mango Wine", "Farm Fresh Mango Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-mango-moscato-rachel-straughen-photography-1.jpg", title: "Farm Fresh Mango Moscato - Rachel Straughen Photography (1)", brand: "Farm Fresh", aliases: ["Mango Moscato", "Farm Fresh Mango Moscato"] },
+  { src: "/lifestyle/farm-fresh-mango-moscato-rachel-straughen-photography-2-copy.jpg", title: "Farm Fresh Mango Moscato - Rachel Straughen Photography (2) copy", brand: "Farm Fresh", aliases: ["Mango Moscato", "Farm Fresh Mango Moscato"] },
+  { src: "/lifestyle/farm-fresh-peach-bubbly-moscato-rachel-straughen-photography-1.jpg", title: "Farm Fresh Peach Bubbly Moscato - - Rachel Straughen Photography (1)", brand: "Farm Fresh", aliases: ["Peach Bubbly Moscato", "Peach Sparkling Moscato", "Farm Fresh Peach Bubbly Moscato", "Farm Fresh Peach Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-peach-bubbly-moscato-rachel-straughen-photography-4.jpg", title: "Farm Fresh Peach Bubbly Moscato - - Rachel Straughen Photography (4)", brand: "Farm Fresh", aliases: ["Peach Bubbly Moscato", "Peach Sparkling Moscato", "Farm Fresh Peach Bubbly Moscato", "Farm Fresh Peach Sparkling Moscato"] },
+  { src: "/lifestyle/farm-fresh-peach-can-creehanphotography-05.jpg", title: "Farm Fresh Peach Can - CreehanPhotography 05", brand: "Farm Fresh", aliases: ["Peach Can", "Peach Bubbly Can", "Farm Fresh Peach Can", "Farm Fresh Peach Bubbly Can"] },
+  { src: "/lifestyle/farm-fresh-peach-family-copy.jpg", title: "Farm Fresh Peach Family copy", brand: "Farm Fresh", nameContains: ["Peach"], allBrand: true, aliases: [] },
+  { src: "/lifestyle/farm-fresh-peach-wine-grace-hudson-photography-33.jpg", title: "Farm Fresh Peach Wine - Grace Hudson Photography (33)", brand: "Farm Fresh", aliases: ["Peach Wine", "Peach Fruit Wine", "Farm Fresh Peach Wine", "Farm Fresh Peach Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-peach-wine-rachel-straughen-photography-3.jpg", title: "Farm Fresh Peach Wine - Rachel Straughen Photography (3)", brand: "Farm Fresh", aliases: ["Peach Wine", "Peach Fruit Wine", "Farm Fresh Peach Wine", "Farm Fresh Peach Fruit Wine"] },
+  { src: "/lifestyle/farm-fresh-raspberry-bubbly-moscato-can-best-of-class.jpg", title: "Farm Fresh Raspberry Bubbly Moscato Can Best Of Class", brand: "Farm Fresh", aliases: ["Raspberry Bubbly Moscato Can", "Raspberry Sparkling Moscato Can", "Farm Fresh Raspberry Bubbly Moscato Can", "Farm Fresh Raspberry Sparkling Moscato Can"] },
+  { src: "/lifestyle/farm-fresh-raspberry-moscato-5.jpg", title: "Farm Fresh Raspberry Moscato (5)", brand: "Farm Fresh", aliases: ["Raspberry Moscato", "Farm Fresh Raspberry Moscato"] },
+  { src: "/lifestyle/farm-fresh-raspberry-moscato-rachel-straughen-photography-5.jpg", title: "Farm Fresh Raspberry Moscato - Rachel Straughen Photography (5)", brand: "Farm Fresh", aliases: ["Raspberry Moscato", "Farm Fresh Raspberry Moscato"] },
+  { src: "/lifestyle/festivus-holiday-photoshoot-captured-by-grace-11.jpg", title: "Festivus - Holiday photoshoot - Captured by Grace (11)", brand: "Leelanau Cellars", aliases: ["Festivus"] },
+  { src: "/lifestyle/festivus-holidays-madi-taylor-1.jpg", title: "Festivus - Holidays - Madi Taylor (1)", brand: "Leelanau Cellars", aliases: ["Festivus"] },
+  { src: "/lifestyle/festivus-holidays-madi-taylor-12.jpg", title: "Festivus - Holidays - Madi Taylor (12)", brand: "Leelanau Cellars", aliases: ["Festivus"] },
+  { src: "/lifestyle/festivus-rachel-straughen-photography-1.jpg", title: "Festivus - Rachel Straughen Photography (1)", brand: "Leelanau Cellars", aliases: ["Festivus"] },
 ];
 
 const normalize = (value = '') => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -106,6 +179,9 @@ export function lifestyleAssetsForWine(wine: WineRecord): WineLifestyleAsset[] {
       const target = normalize(rule.collection);
       if (!collection.includes(target) && !wineName.includes(target)) return false;
     }
+    if (rule.vintage && normalize(String(wine.vintage || '')) !== normalize(rule.vintage)) return false;
+    if (rule.nameContains?.length && !rule.nameContains.every((part) => wineName.includes(normalize(part)))) return false;
+    if (rule.allBrand) return true;
     return rule.aliases.some((alias) => keys.has(normalize(alias)));
   }).map(({ src, title }) => ({ src, title }));
 }

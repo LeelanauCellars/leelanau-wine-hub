@@ -154,3 +154,7 @@ Wine profile Asset pages now include a dedicated **Wine Lifestyle Images** secti
 - Tech Sheet Builder now includes optional **Cost (Retailer)** and **Cost (Distributor)** fields.
 - Both start blank and appear on the finished tech sheet only when filled in.
 - On the tech sheet, they appear between UPC and SRP.
+
+## v15 lifestyle asset update
+
+The second supplied Wine Lifestyle Images ZIP is now included in `public/lifestyle` and mapped through `lib/lifestyle-assets.ts`. Product-specific images attach to the matching wine; named group/family photos attach to the corresponding brand/flavor group.

@@ -44,6 +44,7 @@ export type WineRecord = {
   staffPitch: string;
   pairings: string;
   highlights: string[];
+  commerce7CopyLines?: string[];
   productionNotes?: string;
   vineyardNotes?: string;
   awards: Award[];
@@ -56,6 +57,7 @@ export type TechSheetDraft = {
   wineName: string;
   tastingNotes: string;
   highlights: string[];
+  commerce7CopyLines?: string[];
   abv: string;
   casePack: string;
   upc: string;
