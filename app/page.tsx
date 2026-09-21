@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { SEED_WINES } from '@/lib/seed';
 import type { Award, TechSheetDraft, WineRecord } from '@/lib/types';
 import { casePackagingForWine } from '@/lib/case-packaging';
+import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -51,6 +52,85 @@ const formatUpc = (value = '') => {
   if (digits.length === 12) return `${digits.slice(0, 1)}-${digits.slice(1, 6)}-${digits.slice(6, 11)}-${digits.slice(11)}`;
   return value;
 };
+
+const cleanSentence = (value = '') => value.replace(/^\s*(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish)\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
+
+function shortenToWords(value: string, max = 155) {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const slice = clean.slice(0, max + 1);
+  const cut = slice.lastIndexOf(' ');
+  const shortened = slice.slice(0, cut > max * .65 ? cut : max).replace(/[,:;\-–—\s]+$/g, '');
+  return `${shortened}.`;
+}
+
+function shortCommerce7TastingNotes(wine?: WineRecord) {
+  if (!wine) return '';
+  const flavorPattern = /^(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish)\s*:/i;
+  const flavorLines = (wine.highlights || []).filter((item) => flavorPattern.test(item)).map(cleanSentence).filter(Boolean);
+  const source = flavorLines.length ? flavorLines.join(' ') : (wine.tastingNotes || wine.shortDescription || '');
+  const sentences = source.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => cleanSentence(sentence)).filter(Boolean) || [cleanSentence(source)];
+  let result = '';
+  for (const sentence of sentences) {
+    const candidate = result ? `${result} ${sentence}` : sentence;
+    if (candidate.length <= 155 || !result) result = candidate;
+    if (result.length >= 105) break;
+  }
+  return shortenToWords(result || source, 155);
+}
+
+function wineImageAssets(wine: WineRecord) {
+  if (wine.imageAssets?.length) return [...wine.imageAssets].sort((a, b) => a.sortOrder - b.sortOrder);
+  return wine.bottleImage ? [{ id: `${wine.id}-front`, src: wine.bottleImage, sortOrder: 0, role: 'front' as const }] : [];
+}
+
+function assetFileBase(wine: WineRecord, role: string, index: number) {
+  const vintage = wine.vintage && wine.vintage !== 'NV' ? `-${wine.vintage}` : '';
+  const suffix = role === 'front' ? 'Front' : role === 'back' ? 'Back' : `Image-${index + 1}`;
+  return `${wine.name}${vintage}-${suffix}`.replace(/[^a-z0-9._-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+async function downloadImageAsFormat(src: string, format: 'png' | 'jpeg', filenameBase: string) {
+  try {
+    const response = await fetch(colorSampleImageUrl(src));
+    if (!response.ok) throw new Error(`Image request failed (${response.status})`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas is unavailable.');
+        if (format === 'jpeg') {
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        context.drawImage(image, 0, 0);
+        canvas.toBlob((output) => {
+          if (!output) return;
+          const downloadUrl = URL.createObjectURL(output);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = `${filenameBase}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        }, format === 'jpeg' ? 'image/jpeg' : 'image/png', .94);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    image.onerror = () => URL.revokeObjectURL(objectUrl);
+    image.src = objectUrl;
+  } catch (error) {
+    console.error('Unable to download asset', error);
+    window.alert('Wine Hub could not prepare that image for download.');
+  }
+}
 
 
 function rgbToHex(r: number, g: number, b: number) {
@@ -574,7 +654,37 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
 
     {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock></div>}
 
-    {tab === 'assets' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Bottle image">{isEditing ? <EditField label="Image URL" value={shown.bottleImage || ''} onChange={(value) => update('bottleImage', value)} /> : shown.bottleImage ? <div className="flex min-h-80 items-center justify-center rounded-xl bg-[#f3f5f7]"><img src={shown.bottleImage} alt="" className="max-h-80 max-w-full object-contain p-4" /></div> : <p className="text-sm text-black/40">No bottle image attached.</p>}</ProfileBlock><ProfileBlock title="Links">{isEditing ? <EditField label="Product URL" value={shown.productUrl || ''} onChange={(value) => update('productUrl', value)} /> : <div className="space-y-3">{shown.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={shown.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Asset management is intentionally separate from document overrides, so changing a tech-sheet image never has to change the master record.</p></div>}</ProfileBlock></div>}
+    {tab === 'assets' && <WineProfileAssets wine={shown} />}
+  </div>;
+}
+
+function WineProfileAssets({ wine }: { wine: WineRecord }) {
+  const images = wineImageAssets(wine);
+  const lifestyleImages = lifestyleAssetsForWine(wine);
+  return <div className="space-y-5">
+    <ProfileBlock title="Bottle images" badge={images.length ? `${images.length} image${images.length === 1 ? '' : 's'}` : undefined}>
+      {images.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{images.map((asset, index) => {
+        const label = asset.role === 'front' ? 'Front bottle image' : asset.role === 'back' ? 'Back bottle image' : `Additional bottle image ${index + 1}`;
+        const filename = assetFileBase(wine, asset.role, index);
+        return <div key={asset.id || `${asset.src}-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="flex h-72 items-center justify-center bg-[#f3f5f7] p-4"><img src={asset.src} alt={`${wine.name} ${label}`} className="h-full w-full object-contain" /></div>
+          <div className="p-4"><p className="text-sm font-black">{label}</p><p className="mt-1 text-[10px] leading-4 text-black/45">Download a clean copy in the format your sales or design team needs.</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(asset.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(asset.src, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
+        </div>;
+      })}</div> : <p className="text-sm text-black/40">No bottle images are attached to this Commerce7 product.</p>}
+    </ProfileBlock>
+
+    <ProfileBlock title="Wine Lifestyle Images" badge={lifestyleImages.length ? `${lifestyleImages.length} image${lifestyleImages.length === 1 ? '' : 's'}` : undefined}>
+      {lifestyleImages.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{lifestyleImages.map((asset, index) => {
+        const vintage = wine.vintage && wine.vintage !== 'NV' ? `-${wine.vintage}` : '';
+        const filename = `${wine.name}${vintage}-Lifestyle-${index + 1}`.replace(/[^a-z0-9._-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        return <div key={`${asset.src}-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white">
+          <a href={asset.src} target="_blank" rel="noreferrer" className="block aspect-[4/3] overflow-hidden bg-[#f3f5f7]"><img src={asset.src} alt={`${wine.name} lifestyle image ${index + 1}`} className="h-full w-full object-cover transition duration-200 hover:scale-[1.015]" /></a>
+          <div className="p-4"><p className="text-sm font-black">Lifestyle image {index + 1}</p><p className="mt-1 line-clamp-2 text-[10px] leading-4 text-black/45">{asset.title}</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(asset.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(asset.src, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
+        </div>;
+      })}</div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><ImageIcon className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No lifestyle images added yet.</p><p className="mt-1 text-xs text-black/35">This section is ready for approved photography tied to this wine.</p></div>}
+    </ProfileBlock>
+
+    <ProfileBlock title="Links"><div className="space-y-3">{wine.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={wine.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Wine Hub reads the product photo gallery from Commerce7 for bottle photography. Approved lifestyle photography is matched to the wine by product name and brand.</p></div></ProfileBlock>
   </div>;
 }
 
@@ -734,7 +844,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
   const [colorStatus, setColorStatus] = useState('');
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
-  const commerce7TastingNotes = activeWine?.tastingNotes || activeWine?.shortDescription || '';
+  const commerce7TastingNotes = shortCommerce7TastingNotes(activeWine);
   const commerce7Highlights = activeWine?.highlights || [];
 
   const setWine = (id: string) => {
@@ -820,9 +930,9 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Tasting notes</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your tasting notes here — or click the button below to bring in the Commerce7 tasting notes.</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your own notes here — or let Wine Hub condense the Commerce7 copy into a short, flavor-focused 2–3 line tasting note.</p>
             <div className="mt-3"><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
-            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use Commerce7 tasting notes</button>
+            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use short Commerce7 tasting notes</button>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
@@ -1012,6 +1122,6 @@ function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine:
 }
 
 function AssetsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const assets = wines.filter((wine) => wine.bottleImage);
-  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10"><PageHeader eyebrow="Approved creative" title="Asset Library" description="Bottle images and product links stay attached to their wine record, keeping sales materials and staff resources pointed at the same assets." /><section className="mb-7 rounded-2xl border border-black/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><img src="/lwc-logo.png" alt="" className="h-20 w-20 border border-black" /><div><p className="text-sm font-black">Leelanau Cellars square logo</p><p className="mt-1 text-xs text-black/45">Used automatically on the sales tech-sheet template.</p></div></div></section><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{assets.map((wine) => <button onClick={() => openWine(wine)} key={wine.id} className="overflow-hidden rounded-2xl border border-black/10 bg-white text-left shadow-sm hover:shadow-md"><div className="flex h-52 items-center justify-center bg-[#f2f4f6]"><img src={wine.bottleImage} alt="" className="h-full w-full object-contain p-4" /></div><div className="p-4"><p className="font-black">{wine.name}</p><p className="mt-1 text-xs text-black/40">{wine.vintage} · Bottle image</p></div></button>)}</div></div>;
+  const assets = wines.filter((wine) => wineImageAssets(wine).length || lifestyleAssetsForWine(wine).length);
+  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10"><PageHeader eyebrow="Approved creative" title="Asset Library" description="Bottle photography from Commerce7 plus approved lifestyle photography, all downloadable as PNG or JPEG." /><section className="mb-7 rounded-2xl border border-black/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><img src="/lwc-logo.png" alt="" className="h-20 w-20 border border-black" /><div><p className="text-sm font-black">Leelanau Cellars square logo</p><p className="mt-1 text-xs text-black/45">Used automatically on the sales tech-sheet template.</p></div></div></section><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{assets.map((wine) => { const images = wineImageAssets(wine); const lifestyle = lifestyleAssetsForWine(wine); const preview = images[0]?.src || lifestyle[0]?.src; return <div key={wine.id} className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm"><button onClick={() => openWine(wine)} className="block w-full text-left"><div className="flex h-52 items-center justify-center bg-[#f2f4f6]">{preview && <img src={preview} alt="" className="h-full w-full object-contain p-4" />}</div><div className="p-4"><p className="font-black">{wine.name}</p><p className="mt-1 text-xs text-black/40">{wine.vintage} · {images.length} bottle image{images.length === 1 ? '' : 's'} · {lifestyle.length} lifestyle image{lifestyle.length === 1 ? '' : 's'}</p></div></button><div className="flex border-t border-black/10 p-2"><button onClick={() => openWine(wine)} className="flex-1 rounded-lg px-3 py-2 text-xs font-bold text-[#326eac] hover:bg-[#eaf3fb]">View / download assets</button></div></div>; })}</div></div>;
 }

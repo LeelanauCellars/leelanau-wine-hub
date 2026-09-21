@@ -14,6 +14,7 @@ type C7Product = {
   id: string;
   title: string;
   image?: string | null;
+  images?: { id?: string | null; src?: string | null; sortOrder?: number | null }[] | null;
   teaser?: string | null;
   content?: string | null;
   type?: string | null;
@@ -194,6 +195,23 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
   const vintage = product.wine?.vintage ? String(product.wine.vintage) : 'NV';
   const category = product.wine?.type || product.type || 'Wine';
   const brand = inferBrand(product, meta);
+  const orderedImages = (product.images || [])
+    .filter((image) => Boolean(image?.src))
+    .map((image, index) => ({
+      id: image.id || `image-${product.id}-${index}`,
+      src: image.src as string,
+      sortOrder: typeof image.sortOrder === 'number' ? image.sortOrder : index,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (!orderedImages.length && product.image) orderedImages.push({ id: `image-${product.id}-primary`, src: product.image, sortOrder: 0 });
+  const imageAssets = orderedImages.map((image, index) => {
+    const fileHint = image.src.toLowerCase();
+    const isBack = /(?:^|[-_./])(back|rear)(?:[-_./]|$)/.test(fileHint);
+    return {
+      ...image,
+      role: (index === 0 ? 'front' : (isBack || index === 1 ? 'back' : 'additional')) as 'front' | 'back' | 'additional',
+    };
+  });
 
   return {
     id: `c7-${product.id}`,
@@ -208,7 +226,8 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
     varietal: product.wine?.varietal ? decodeHtmlEntities(product.wine.varietal) : undefined,
     appellation: product.wine?.appellation ? decodeHtmlEntities(product.wine.appellation) : undefined,
     region: product.wine?.region ? decodeHtmlEntities(product.wine.region) : undefined,
-    bottleImage: product.image || undefined,
+    bottleImage: imageAssets[0]?.src || product.image || undefined,
+    imageAssets,
     productUrl: product.slug ? `https://www.lwc.wine/product/${product.slug}/` : undefined,
     price,
     upc: variant.upcCode || undefined,

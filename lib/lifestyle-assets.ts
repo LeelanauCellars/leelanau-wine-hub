@@ -1,0 +1,111 @@
+import type { WineRecord } from '@/lib/types';
+
+export type WineLifestyleAsset = { src: string; title: string };
+
+type LifestyleRule = WineLifestyleAsset & { brand?: string; collection?: string; aliases: string[] };
+
+const RULES: LifestyleRule[] = [
+  { src: "/lifestyle/basketball-peach-sparkling-moscato.jpg", title: "Basketball Peach Sparkling Moscato", brand: "Lakeshore Farms", aliases: ["Peach Sparkling Moscato", "Sparkling Peach Moscato", "Lakeshore Farms Peach Sparkling Moscato"] },
+  { src: "/lifestyle/great-lakes-red-beach-madi-taylor-photo-3.jpg", title: "Great Lakes Red - Beach - Madi Taylor Photo (3)", brand: "Leelanau Cellars", aliases: ["Great Lakes Red"] },
+  { src: "/lifestyle/great-lakes-red-grant-summer-shoot-2.jpg", title: "Great Lakes Red - Grant Summer Shoot (2)", brand: "Leelanau Cellars", aliases: ["Great Lakes Red"] },
+  { src: "/lifestyle/great-lakes-red-bubbly-grace-hudson.jpg", title: "Great Lakes Red Bubbly - Grace Hudson", brand: "Leelanau Cellars", aliases: ["Great Lakes Red Bubbly"] },
+  { src: "/lifestyle/great-lakes-red-bubbly-can-madi-taylor-photo-3.jpg", title: "Great Lakes Red Bubbly Can - Madi Taylor Photo (3)", brand: "Leelanau Cellars", aliases: ["Great Lakes Red Bubbly Can", "Great Lakes Red Bubbly Cans", "Great Lakes Red Bubbly 12oz Can", "Great Lakes Red Bubbly 12oz Cans"] },
+  { src: "/lifestyle/great-lakes-red-bubbly-cans-taco-captured-by-grace-2.jpg", title: "Great Lakes Red Bubbly Cans - Taco - Captured by Grace (2)", brand: "Leelanau Cellars", aliases: ["Great Lakes Red Bubbly Can", "Great Lakes Red Bubbly Cans", "Great Lakes Red Bubbly 12oz Can", "Great Lakes Red Bubbly 12oz Cans"] },
+  { src: "/lifestyle/great-lakes-red-bubbly-gold-coins-grace-hudson-17.jpg", title: "Great Lakes Red Bubbly Gold Coins - Grace Hudson (17)", brand: "Leelanau Cellars", aliases: ["Great Lakes Red Bubbly"] },
+  { src: "/lifestyle/lakeshore-collection-moscato-and-lwc-gear-valentine-s-captured-by-grace-13.jpg", title: "Lakeshore Collection Moscato and LWC Gear - Valentine's - Captured by Grace (13)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Moscato", "Moscato"] },
+  { src: "/lifestyle/lakeshore-collection-moscato-lights-and-drink-grace-hudson-15.jpg", title: "Lakeshore Collection Moscato lights and drink - Grace Hudson (15)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Moscato", "Moscato"] },
+  { src: "/lifestyle/lakeshore-collection-pinot-grigio-flowers-inside-madi-taylor-photo-1.jpg", title: "Lakeshore Collection Pinot Grigio - Flowers inside - Madi Taylor Photo (1)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Pinot Grigio", "Pinot Grigio"] },
+  { src: "/lifestyle/lakeshore-collection-pinot-grigio-ice-skating-captured-by-grace-1.jpg", title: "Lakeshore Collection Pinot Grigio - Ice Skating - Captured by Grace (1)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Pinot Grigio", "Pinot Grigio"] },
+  { src: "/lifestyle/lakeshore-collection-pinot-grigio-glass-and-lights-grace-hudson-14.jpg", title: "Lakeshore Collection Pinot Grigio glass and lights- Grace Hudson (14)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Pinot Grigio", "Pinot Grigio"] },
+  { src: "/lifestyle/lakeshore-collection-red-blend-dock-by-lake-captured-by-grace-1-1.jpg", title: "Lakeshore Collection Red Blend - Dock by lake - Captured by Grace (1) (1)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Red Blend", "Red Blend"] },
+  { src: "/lifestyle/lakeshore-collection-red-blend-holiday-photoshoot-captured-by-grace-5.jpg", title: "Lakeshore Collection Red Blend - Holiday photoshoot - Captured by Grace (5)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Red Blend", "Red Blend"] },
+  { src: "/lifestyle/lakeshore-collection-riesling-on-beach-5.jpg", title: "Lakeshore Collection Riesling on beach (5)", collection: "Lakeshore Collection", aliases: ["Lakeshore Collection Riesling", "Riesling"] },
+  { src: "/lifestyle/lakeshore-farms-apple-fruit-wine-4.jpg", title: "Lakeshore Farms Apple Fruit Wine (4)", brand: "Lakeshore Farms", aliases: ["Apple Fruit Wine", "Lakeshore Farms Apple Fruit Wine", "Apple Wine", "Lakeshore Farms Apple Wine"] },
+  { src: "/lifestyle/lakeshore-farms-apple-fruit-wine-7.jpg", title: "Lakeshore Farms Apple Fruit Wine (7)", brand: "Lakeshore Farms", aliases: ["Apple Fruit Wine", "Lakeshore Farms Apple Fruit Wine", "Apple Wine", "Lakeshore Farms Apple Wine"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-fruit-wine-2.jpg", title: "Lakeshore Farms Blackberry Fruit Wine (2)", brand: "Lakeshore Farms", aliases: ["Blackberry Fruit Wine", "Lakeshore Farms Blackberry Fruit Wine", "Blackberry Wine", "Lakeshore Farms Blackberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-fruit-wine-6.jpg", title: "Lakeshore Farms Blackberry Fruit Wine (6)", brand: "Lakeshore Farms", aliases: ["Blackberry Fruit Wine", "Lakeshore Farms Blackberry Fruit Wine", "Blackberry Wine", "Lakeshore Farms Blackberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-moscato-2.jpg", title: "Lakeshore Farms Blackberry Moscato 2", brand: "Lakeshore Farms", aliases: ["Blackberry Moscato", "Lakeshore Farms Blackberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-moscato.jpg", title: "Lakeshore Farms Blackberry Moscato", brand: "Lakeshore Farms", aliases: ["Blackberry Moscato", "Lakeshore Farms Blackberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-sparkling-fruit-moscato-grace-hudson-5.jpg", title: "Lakeshore Farms Blackberry Sparkling Fruit Moscato - Grace Hudson (5)", brand: "Lakeshore Farms", aliases: ["Blackberry Sparkling Fruit Moscato", "Lakeshore Farms Blackberry Sparkling Fruit Moscato", "Blackberry Sparkling Moscato", "Lakeshore Farms Blackberry Sparkling Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-blackberry-sparkling-moscato-rachel-straughen-2.jpg", title: "Lakeshore Farms Blackberry Sparkling Moscato - Rachel Straughen (2)", brand: "Lakeshore Farms", aliases: ["Blackberry Sparkling Moscato", "Lakeshore Farms Blackberry Sparkling Moscato", "Blackberry Sparkling Fruit Moscato", "Lakeshore Farms Blackberry Sparkling Fruit Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-blueberry-fruit-wine-11.jpg", title: "Lakeshore Farms Blueberry Fruit Wine (11)", brand: "Lakeshore Farms", aliases: ["Blueberry Fruit Wine", "Lakeshore Farms Blueberry Fruit Wine", "Blueberry Wine", "Lakeshore Farms Blueberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-blueberry-fruit-wine-5.jpg", title: "Lakeshore Farms Blueberry Fruit Wine (5)", brand: "Lakeshore Farms", aliases: ["Blueberry Fruit Wine", "Lakeshore Farms Blueberry Fruit Wine", "Blueberry Wine", "Lakeshore Farms Blueberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-blueberry-moscato-2.jpg", title: "Lakeshore Farms Blueberry Moscato (2)", brand: "Lakeshore Farms", aliases: ["Blueberry Moscato", "Lakeshore Farms Blueberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-blueberry-moscato.jpg", title: "Lakeshore Farms Blueberry Moscato", brand: "Lakeshore Farms", aliases: ["Blueberry Moscato", "Lakeshore Farms Blueberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-cherry-fruit-wine-28.jpg", title: "Lakeshore Farms Cherry Fruit Wine (28)", brand: "Lakeshore Farms", aliases: ["Cherry Fruit Wine", "Lakeshore Farms Cherry Fruit Wine", "Cherry Wine", "Lakeshore Farms Cherry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-cherry-fruit-wine-33.jpg", title: "Lakeshore Farms Cherry Fruit Wine (33)", brand: "Lakeshore Farms", aliases: ["Cherry Fruit Wine", "Lakeshore Farms Cherry Fruit Wine", "Cherry Wine", "Lakeshore Farms Cherry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-cranberry-holiday-madi-taylor-6.jpg", title: "Lakeshore Farms Cranberry - Holiday - Madi Taylor (6)", brand: "Lakeshore Farms", aliases: ["Cranberry Fruit Wine", "Lakeshore Farms Cranberry Fruit Wine", "Cranberry Wine", "Lakeshore Farms Cranberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-cranberry-snow-madi-taylor-10.jpg", title: "Lakeshore Farms Cranberry - Snow - Madi Taylor (10)", brand: "Lakeshore Farms", aliases: ["Cranberry Fruit Wine", "Lakeshore Farms Cranberry Fruit Wine", "Cranberry Wine", "Lakeshore Farms Cranberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-cranberry-snow-madi-taylor-7.jpg", title: "Lakeshore Farms Cranberry - Snow - Madi Taylor (7)", brand: "Lakeshore Farms", aliases: ["Cranberry Fruit Wine", "Lakeshore Farms Cranberry Fruit Wine", "Cranberry Wine", "Lakeshore Farms Cranberry Wine"] },
+  { src: "/lifestyle/lakeshore-farms-peach-fruit-moscato-rachel-straughen-1.jpg", title: "Lakeshore Farms Peach Fruit Moscato - Rachel Straughen (1)", brand: "Lakeshore Farms", aliases: ["Peach Fruit Moscato", "Lakeshore Farms Peach Fruit Moscato", "Peach Moscato", "Lakeshore Farms Peach Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-peach-fruit-moscato-rachel-straughen-4.jpg", title: "Lakeshore Farms Peach Fruit Moscato - Rachel Straughen (4)", brand: "Lakeshore Farms", aliases: ["Peach Fruit Moscato", "Lakeshore Farms Peach Fruit Moscato", "Peach Moscato", "Lakeshore Farms Peach Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-peach-fruit-wine-14.jpg", title: "Lakeshore Farms Peach Fruit Wine (14)", brand: "Lakeshore Farms", aliases: ["Peach Fruit Wine", "Lakeshore Farms Peach Fruit Wine", "Peach Wine", "Lakeshore Farms Peach Wine"] },
+  { src: "/lifestyle/lakeshore-farms-peach-fruit-wine-22.jpg", title: "Lakeshore Farms Peach Fruit Wine (22)", brand: "Lakeshore Farms", aliases: ["Peach Fruit Wine", "Lakeshore Farms Peach Fruit Wine", "Peach Wine", "Lakeshore Farms Peach Wine"] },
+  { src: "/lifestyle/lakeshore-farms-peach-fruit-wine-5.jpg", title: "Lakeshore Farms Peach Fruit Wine (5)", brand: "Lakeshore Farms", aliases: ["Peach Fruit Wine", "Lakeshore Farms Peach Fruit Wine", "Peach Wine", "Lakeshore Farms Peach Wine"] },
+  { src: "/lifestyle/lakeshore-farms-peach-sparkling-moscato-lifestyle-5.jpg", title: "Lakeshore Farms Peach Sparkling Moscato Lifestyle (5)", brand: "Lakeshore Farms", aliases: ["Peach Sparkling Moscato", "Lakeshore Farms Peach Sparkling Moscato", "Peach Sparkling Fruit Moscato", "Lakeshore Farms Peach Sparkling Fruit Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-raspberry-fruit-moscato-rachel-straughen-11.jpg", title: "Lakeshore Farms Raspberry Fruit Moscato - Rachel Straughen (11)", brand: "Lakeshore Farms", aliases: ["Raspberry Fruit Moscato", "Lakeshore Farms Raspberry Fruit Moscato", "Raspberry Moscato", "Lakeshore Farms Raspberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-raspberry-fruit-moscato-rachel-straughen-12.jpg", title: "Lakeshore Farms Raspberry Fruit Moscato - Rachel Straughen (12)", brand: "Lakeshore Farms", aliases: ["Raspberry Fruit Moscato", "Lakeshore Farms Raspberry Fruit Moscato", "Raspberry Moscato", "Lakeshore Farms Raspberry Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-raspberry-sparkling-moscato-st-patricks-day-beads-grace-hudson-14.jpg", title: "Lakeshore Farms Raspberry Sparkling Moscato  St Patricks Day Beads - Grace Hudson (14)", brand: "Lakeshore Farms", aliases: ["Raspberry Sparkling Moscato", "Lakeshore Farms Raspberry Sparkling Moscato", "Raspberry Sparkling Fruit Moscato", "Lakeshore Farms Raspberry Sparkling Fruit Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-raspberry-sparkling-moscato-rachel-straughen-2.jpg", title: "Lakeshore Farms Raspberry Sparkling Moscato - Rachel Straughen (2)", brand: "Lakeshore Farms", aliases: ["Raspberry Sparkling Moscato", "Lakeshore Farms Raspberry Sparkling Moscato", "Raspberry Sparkling Fruit Moscato", "Lakeshore Farms Raspberry Sparkling Fruit Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-raspberry-sparkling-moscato-rachel-straughen-5.jpg", title: "Lakeshore Farms Raspberry Sparkling Moscato - Rachel Straughen (5)", brand: "Lakeshore Farms", aliases: ["Raspberry Sparkling Moscato", "Lakeshore Farms Raspberry Sparkling Moscato", "Raspberry Sparkling Fruit Moscato", "Lakeshore Farms Raspberry Sparkling Fruit Moscato"] },
+  { src: "/lifestyle/lakeshore-farms-sparkling-peach-moscato-2.jpg", title: "Lakeshore Farms Sparkling Peach Moscato (2)", brand: "Lakeshore Farms", aliases: ["Peach Sparkling Moscato", "Sparkling Peach Moscato", "Lakeshore Farms Peach Sparkling Moscato"] },
+  { src: "/lifestyle/winter-white-march-2026-madi-taylor-photo-2.jpg", title: "Winter White - March 2026 - Madi Taylor Photo (2)", brand: "Leelanau Cellars", aliases: ["Winter White"] },
+  { src: "/lifestyle/winter-white-march-2026-madi-taylor-photo-9.jpg", title: "Winter White - March 2026 - Madi Taylor Photo (9)", brand: "Leelanau Cellars", aliases: ["Winter White"] },
+  { src: "/lifestyle/winter-white-new-label-snow-madi-taylor-photo-11.jpg", title: "Winter White - New Label - Snow - Madi Taylor Photo (11)", brand: "Leelanau Cellars", aliases: ["Winter White"] },
+  { src: "/lifestyle/winter-white-new-label-snow-madi-taylor-photo-2.jpg", title: "Winter White - New Label - Snow - Madi Taylor Photo (2)", brand: "Leelanau Cellars", aliases: ["Winter White"] },
+  { src: "/lifestyle/winter-white-bubbly-grace-hudson-5.jpg", title: "Winter White Bubbly - Grace Hudson (5)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly"] },
+  { src: "/lifestyle/winter-white-bubbly-can-cheers-captured-by-grace-4.jpg", title: "Winter White Bubbly Can - Cheers - Captured by Grace (4)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly Can", "Winter White Bubbly Cans", "Winter White Bubbly 12oz Can", "Winter White Bubbly 12oz Cans"] },
+  { src: "/lifestyle/winter-white-bubbly-can-cheers-captured-by-grace-8.jpg", title: "Winter White Bubbly Can - Cheers - Captured by Grace (8)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly Can", "Winter White Bubbly Cans", "Winter White Bubbly 12oz Can", "Winter White Bubbly 12oz Cans"] },
+  { src: "/lifestyle/winter-white-bubbly-can-ice-skating-captured-by-grace-14.jpg", title: "Winter White Bubbly Can - Ice Skating - Captured by Grace (14)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly Can", "Winter White Bubbly Cans", "Winter White Bubbly 12oz Can", "Winter White Bubbly 12oz Cans"] },
+  { src: "/lifestyle/winter-white-bubbly-snow-and-winter-captured-by-grace-2-1.jpg", title: "Winter White Bubbly snow and winter - Captured by Grace (2) (1)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly"] },
+  { src: "/lifestyle/witches-brew-fall-vibes-madi-taylor-3-3.jpg", title: "Witches Brew - Fall Vibes - Madi Taylor (3) (3)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
+  { src: "/lifestyle/witches-brew-witches-madi-taylor-4-2.jpg", title: "Witches Brew - Witches - Madi Taylor (4) (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
+  { src: "/lifestyle/witches-brew-og-on-the-dark-ground-outside-rachel-straughen.jpg", title: "Witches Brew OG on the dark ground outside - Rachel Straughen", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-crockpot-madi-taylor-2-1.jpg", title: "Witches Brew Pumpkin Spice - Crockpot - Madi Taylor (2) (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-donuts-madi-taylor-10.jpg", title: "Witches Brew Pumpkin Spice - Donuts - Madi Taylor (10)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-picnic-grace-hudson-2.jpg", title: "Witches Brew Pumpkin Spice - picnic - Grace Hudson (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-pumpkin-madi-taylor-1.jpg", title: "Witches Brew Pumpkin Spice - Pumpkin - Madi Taylor (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
+  { src: "/lifestyle/witches-brew-red-dark-photo-rachel-straughen-9.jpg", title: "Witches Brew red - dark photo - Rachel Straughen (9)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
+  { src: "/lifestyle/witches-brew-red-by-candle-grace-hudson-6.jpg", title: "Witches Brew red by candle - Grace Hudson (6)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-apples-captured-by-grace-7.jpg", title: "Witches Brew Spiced Apple - Apples - Captured by Grace (7)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-picnic-grace-hudson-1.jpg", title: "Witches Brew Spiced Apple - Picnic - Grace Hudson (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-witches-madi-taylor-19.jpg", title: "Witches Brew Spiced Apple - Witches - Madi Taylor (19)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
+  { src: "/lifestyle/zilly-cabernet-sauvignon-girls-tv-night-captured-by-grace-24.jpg", title: "Zilly Cabernet Sauvignon - Girls TV Night - Captured by Grace (24)", brand: "Zilly", aliases: ["Cabernet Sauvignon", "Zilly Cabernet Sauvignon"] },
+  { src: "/lifestyle/zilly-cabernet-sauvignon-holiday-photoshoot-captured-by-grace-7.jpg", title: "Zilly Cabernet Sauvignon - Holiday photoshoot - Captured by Grace (7)", brand: "Zilly", aliases: ["Cabernet Sauvignon", "Zilly Cabernet Sauvignon"] },
+  { src: "/lifestyle/zilly-chardonnay-3-women-in-winter-clothes-captured-by-grace-2.jpg", title: "Zilly Chardonnay - 3 women in winter clothes - Captured by Grace (2)", brand: "Zilly", aliases: ["Chardonnay", "Zilly Chardonnay"] },
+  { src: "/lifestyle/zilly-chardonnay-madi-taylor-photo-4.jpg", title: "Zilly Chardonnay - Madi Taylor Photo (4)", brand: "Zilly", aliases: ["Chardonnay", "Zilly Chardonnay"] },
+  { src: "/lifestyle/zilly-chardonnay-women-outside-in-winter-time-deck-and-fire-captured-by-grace-10.jpg", title: "Zilly Chardonnay - women outside in winter time - deck and fire - Captured by Grace (10)", brand: "Zilly", aliases: ["Chardonnay", "Zilly Chardonnay"] },
+  { src: "/lifestyle/zilly-pinot-grigio-artwork-captured-by-grace.jpg", title: "Zilly Pinot Grigio - Artwork - Captured by Grace", brand: "Zilly", aliases: ["Pinot Grigio", "Zilly Pinot Grigio"] },
+  { src: "/lifestyle/zilly-pinot-grigio-blue-and-bath-framing-madi-taylor-photo-1.jpg", title: "Zilly Pinot Grigio - Blue and Bath Framing - Madi Taylor Photo (1)", brand: "Zilly", aliases: ["Pinot Grigio", "Zilly Pinot Grigio"] },
+  { src: "/lifestyle/zilly-pinot-grigio-by-water.jpg", title: "Zilly Pinot Grigio by water", brand: "Zilly", aliases: ["Pinot Grigio", "Zilly Pinot Grigio"] },
+  { src: "/lifestyle/zilly-sauvignon-blanc-artwork-captured-by-grace-1.jpg", title: "Zilly Sauvignon Blanc - Artwork - Captured by Grace (1)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
+  { src: "/lifestyle/zilly-sauvignon-blanc-christmas-table-decor-captured-by-grace-2.jpg", title: "Zilly Sauvignon Blanc - Christmas Table Decor - Captured by Grace (2)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
+  { src: "/lifestyle/zilly-sauvignon-blanc-overlooking-back-deck-captured-by-grace-3.jpg", title: "Zilly Sauvignon Blanc - overlooking back deck - Captured by Grace (3)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
+  { src: "/lifestyle/zilly-sauvignon-blanc-pretzels-captured-by-grace-2.jpg", title: "Zilly Sauvignon Blanc - Pretzels - Captured by Grace (2)", brand: "Zilly", aliases: ["Sauvignon Blanc", "Zilly Sauvignon Blanc"] },
+];
+
+const normalize = (value = '') => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+const stripVintage = (value = '') => value.replace(/\b20\d{2}\b/g, ' ').replace(/\s+/g, ' ').trim();
+function wineNameKeys(wine: WineRecord) {
+  const names = new Set<string>();
+  const raw = [wine.name, stripVintage(wine.name)];
+  const escapedBrand = (wine.brand || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const brandPrefix = escapedBrand ? new RegExp(`^${escapedBrand}\\s+`, 'i') : null;
+  if (brandPrefix) raw.push(wine.name.replace(brandPrefix, '').trim(), stripVintage(wine.name.replace(brandPrefix, '').trim()));
+  for (const value of raw) if (value) names.add(normalize(value));
+  return names;
+}
+export function lifestyleAssetsForWine(wine: WineRecord): WineLifestyleAsset[] {
+  const brand = normalize(wine.brand || '');
+  const collection = normalize(wine.collection || '');
+  const wineName = normalize(stripVintage(wine.name));
+  const keys = wineNameKeys(wine);
+  return RULES.filter((rule) => {
+    if (rule.brand && normalize(rule.brand) !== brand && !wineName.startsWith(normalize(rule.brand))) return false;
+    if (rule.collection) {
+      const target = normalize(rule.collection);
+      if (!collection.includes(target) && !wineName.includes(target)) return false;
+    }
+    return rule.aliases.some((alias) => keys.has(normalize(alias)));
+  }).map(({ src, title }) => ({ src, title }));
+}

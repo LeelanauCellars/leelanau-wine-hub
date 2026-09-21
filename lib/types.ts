@@ -1,3 +1,10 @@
+export type WineImageAsset = {
+  id: string;
+  src: string;
+  sortOrder: number;
+  role: 'front' | 'back' | 'additional';
+};
+
 export type Award = {
   id: string;
   year: number;
@@ -20,6 +27,7 @@ export type WineRecord = {
   appellation?: string;
   region?: string;
   bottleImage?: string;
+  imageAssets?: WineImageAsset[];
   productUrl?: string;
   price?: number;
   upc?: string;

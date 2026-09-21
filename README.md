@@ -130,3 +130,15 @@ Tech sheets automatically switch the header logo for Farm Fresh, Country Crush, 
 - Zilly wines → Zilly case
 - Products/collections containing “Lakeshore Collection” → Lakeshore Collection case
 - Products/collections containing “Chill” → Chill Wine case
+
+## v10 updates
+
+- Tech Sheet Builder keeps tasting notes blank by default, but **Use short Commerce7 tasting notes** now condenses flavor-focused Commerce7 copy into a concise note intended to fit roughly 2–3 lines on the sheet.
+- Wine profiles now read the full Commerce7 product photo gallery (`images[]`), not only the primary `image` field.
+- The Assets tab exposes primary/front, back (second Commerce7 product photo when present), and additional product images.
+- Every bottle asset can be downloaded as either PNG or JPEG directly from Wine Hub.
+- No Wine Specs behavior was changed.
+
+## Lifestyle image assets
+
+Wine profile Asset pages now include a dedicated **Wine Lifestyle Images** section. The approved photography supplied in `Wine Lifestyle Images for Hub.zip` is bundled under `public/lifestyle/` and matched automatically to the correct Commerce7 wine by wine name, brand, and collection. Lifestyle assets can be opened full-size or downloaded as PNG/JPEG from the Wine Hub.
