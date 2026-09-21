@@ -151,10 +151,16 @@ Wine profile Asset pages now include a dedicated **Wine Lifestyle Images** secti
 - The main Asset Library now indicates when a wine has case packaging and/or a valid downloadable UPC in addition to bottle and lifestyle images.
 
 ## v13 update
-- Tech Sheet Builder now includes optional **Cost (Retailer)** and **Cost (Distributor)** fields.
+- Tech Sheet Builder now includes optional **Cost (Distributor)** and **Cost (Retailer)** fields, with Distributor shown first.
 - Both start blank and appear on the finished tech sheet only when filled in.
 - On the tech sheet, they appear between UPC and SRP.
 
 ## v15 lifestyle asset update
 
 The second supplied Wine Lifestyle Images ZIP is now included in `public/lifestyle` and mapped through `lib/lifestyle-assets.ts`. Product-specific images attach to the matching wine; named group/family photos attach to the corresponding brand/flavor group.
+
+## v18 tech-sheet formatting and display update
+
+- Tasting Notes and Highlights now include lightweight formatting controls for **bold**, underline, and highlighted text. Select text in the editor, click a formatting button, and the finished tech sheet renders the styling. A live preview appears below each editor.
+- Tech sheets now support an optional **Display** merchandising image. When Case Packaging is present, Display appears beside it. When there is no Case Packaging, Display slides into the left-side packaging area by itself.
+- Display images can be supplied by URL or uploaded directly for the current tech sheet and remain document-only overrides.

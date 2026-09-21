@@ -68,6 +68,7 @@ export type TechSheetDraft = {
   awardGraphic?: string;
   includeCasePackaging: boolean;
   casePackagingImage?: string;
+  displayImage?: string;
   bottleScale: number;
   headerColor: string;
   autoHeaderColor: boolean;

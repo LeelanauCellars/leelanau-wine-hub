@@ -54,6 +54,27 @@ const formatUpc = (value = '') => {
   return value;
 };
 
+function escapeHtml(value = '') {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formattedCopyHtml(value = '') {
+  let html = escapeHtml(value);
+  html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([\s\S]+?)__/g, '<u>$1</u>');
+  html = html.replace(/==([\s\S]+?)==/g, '<mark style="background:#fff1a8;color:inherit;padding:0 .08em;border-radius:.08em;-webkit-box-decoration-break:clone;box-decoration-break:clone">$1</mark>');
+  return html.replace(/\n/g, '<br />');
+}
+
+function FormattedCopy({ text, className = '' }: { text: string; className?: string }) {
+  return <span className={className} dangerouslySetInnerHTML={{ __html: formattedCopyHtml(text) }} />;
+}
+
 const cleanSentence = (value = '') => value.replace(/^\s*(?:flavor profile|tasting notes?|aroma|palate|taste|texture|finish|style|the flavor|flavor|notes?)\s*:\s*/i, '').replace(/\s+/g, ' ').trim();
 
 function shortenToWords(value: string, max = 175) {
@@ -75,7 +96,11 @@ const sensoryTerms = [
 ];
 
 const marketingTerms = [
-  'official', 'tradition', 'celebration', 'award', 'winner', 'america', 'favorite', 'perfect for', 'occasion', 'party', 'gathering', 'season', 'fall tradition', 'stockpile', 'customers', 'purchase', 'benefits', 'support',
+  'official', 'tradition', 'celebration', 'award', 'winner', 'perfect for', 'occasion', 'party', 'gathering', 'stockpile', 'customers', 'purchase', 'benefits', 'support',
+];
+
+const servingTerms = [
+  'enjoy', 'serve', 'served', 'chilled', 'room temperature', 'warm', 'warmed', 'hot', 'over ice', 'crockpot', 'cocktail', 'mug',
 ];
 
 function sensoryScore(value: string) {
@@ -94,11 +119,48 @@ function sentenceParts(value = '') {
     .filter((part) => part.length > 18);
 }
 
+function cleanCommerce7Copy(value = '') {
+  return value
+    .replace(/^\s*#{1,6}\s*/, '')
+    .replace(/^\s*[-*•]\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/__+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function simplifySalesSentence(value = '') {
+  return cleanCommerce7Copy(value)
+    .replace(/^\s*(?:incredible|amazing|ultimate)\s+versatility\s*:\s*/i, '')
+    .replace(/^\s*versatility\s*:\s*/i, '')
+    .replace(/\b(?:incredibly|deeply|wonderfully|beautifully|delightfully|perfectly)\b\s*/gi, '')
+    .replace(/\ba heartwarming medley of\b/gi, '')
+    .replace(/\bheartwarming medley of\b/gi, '')
+    .replace(/\brich\s+(?=cinnamon|clove|ginger|nutmeg)/gi, '')
+    .replace(/\bearthy\s+(?=cinnamon|clove|ginger|nutmeg)/gi, '')
+    .replace(/\bzesty\s+(?=cinnamon|clove|ginger|nutmeg)/gi, '')
+    .replace(/\bversatile sweet red blend\b/gi, 'versatile red blend')
+    .replace(/\bclassic spices:\s*/gi, 'classic spices of ')
+    .replace(/\bchilled on a warm [^,.!?]*(?:afternoon|day)\b/gi, 'chilled')
+    .replace(/\bin a mug on a chilly [^,.!?]*(?:night|evening)\b/gi, 'in a mug')
+    .replace(/\s+([,.;!?])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function firstUsefulOpening(wine: WineRecord) {
+  const source = wine.tastingNotes || wine.shortDescription || wine.commerce7CopyLines?.[0] || '';
+  return sentenceParts(cleanCommerce7Copy(source))[0] || cleanCommerce7Copy(source);
+}
+
+function servingScore(value: string) {
+  const lower = value.toLowerCase();
+  return servingTerms.reduce((score, term) => score + (lower.includes(term) ? 1 : 0), 0);
+}
+
 function shortCommerce7TastingNotes(wine?: WineRecord) {
   if (!wine) return '';
 
-  // Search all of the Commerce7 description copy, not just the opening paragraph.
-  // This keeps a marketing-first opener from hiding the actual flavor details farther down the product copy.
   const rawCandidates = [
     ...(wine.commerce7CopyLines || []),
     ...(wine.highlights || []),
@@ -107,29 +169,82 @@ function shortCommerce7TastingNotes(wine?: WineRecord) {
   ].filter(Boolean);
 
   const candidates = rawCandidates
-    .flatMap(sentenceParts)
-    .map((text, index) => ({ text, index, score: sensoryScore(text) }))
-    .filter(({ text }, index, array) => array.findIndex((candidate) => normalize(candidate.text) === normalize(text)) === index);
+    .flatMap((line) => sentenceParts(cleanCommerce7Copy(line)))
+    .map((text, index) => ({ text: simplifySalesSentence(text), index }))
+    .filter(({ text }) => text.length > 18)
+    .filter(({ text }, index, array) => array.findIndex((candidate) => normalize(candidate.text) === normalize(text)) === index)
+    .map((candidate) => ({ ...candidate, sensory: sensoryScore(candidate.text), serving: servingScore(candidate.text) }));
 
-  const sensory = candidates
-    .filter((candidate) => candidate.score >= 2)
+  const opening = simplifySalesSentence(firstUsefulOpening(wine));
+  const openingKey = normalize(opening);
+
+  // The sales-sheet pattern is intentionally different from a conventional tasting note:
+  // 1) a short positioning sentence, 2) the clearest flavor sentence, 3) a useful serve/enjoy sentence when Commerce7 provides one.
+  const flavor = candidates
+    .filter((candidate) => normalize(candidate.text) !== openingKey && candidate.sensory >= 2)
+    .sort((a, b) => b.sensory - a.sensory || a.index - b.index)[0]?.text || '';
+
+  const serving = candidates
+    .filter((candidate) => normalize(candidate.text) !== openingKey && normalize(candidate.text) !== normalize(flavor) && candidate.serving >= 2)
+    .sort((a, b) => b.serving - a.serving || a.index - b.index)[0]?.text || '';
+
+  const parts: string[] = [];
+  if (opening) parts.push(shortenToWords(opening, 112));
+  if (flavor) parts.push(shortenToWords(flavor, 145));
+  if (serving) parts.push(shortenToWords(serving, 105));
+
+  if (!parts.length) return '';
+
+  // Keep the finished note compact enough for the one-sheet while allowing the sales-friendly opener + flavor + serving pattern.
+  const joined = parts.join(' ').replace(/\s+/g, ' ').trim();
+  return shortenToWords(joined, 285);
+}
+
+function salesHighlightLabel(value: string) {
+  const cleaned = cleanCommerce7Copy(value);
+  const match = cleaned.match(/^([^:]{2,42}):\s*(.+)$/);
+  if (!match) return { label: '', body: cleaned };
+  let label = match[1].trim();
+  if (/^incredible versatility$/i.test(label)) label = 'Versatility';
+  if (/^the ultimate fall gift$/i.test(label)) label = 'Giftability';
+  return { label, body: simplifySalesSentence(match[2]) };
+}
+
+function highlightScore(value: string) {
+  const lower = value.toLowerCase();
+  let score = 0;
+  if (/award|gold|silver|bronze|best of class|double gold/.test(lower)) score += 8;
+  if (/versatil|serve|enjoy|chilled|room temperature|warm|crockpot|over ice/.test(lower)) score += 7;
+  if (/estate|limited|small lot|cases produced|single vineyard|unique|first/.test(lower)) score += 5;
+  if (/pair|food|pizza|dessert|cheese|grill/.test(lower)) score += 3;
+  if (/gift|party|occasion|gathering|stock up/.test(lower)) score -= 2;
+  return score;
+}
+
+function commerce7SalesHighlights(wine?: WineRecord) {
+  if (!wine) return [];
+  const raw = (wine.highlights || [])
+    .map(cleanCommerce7Copy)
+    .filter(Boolean)
+    .filter((item, index, array) => array.findIndex((candidate) => normalize(candidate) === normalize(item)) === index);
+
+  if (!raw.length) return [];
+
+  const ranked = raw
+    .map((item, index) => ({ item, index, score: highlightScore(item) }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
-  // Prefer actual sensory copy. Add a second complementary flavor sentence when it still fits a 2–3 line note.
-  if (sensory.length) {
-    const selected: string[] = [];
-    for (const candidate of sensory) {
-      if (selected.some((item) => normalize(item) === normalize(candidate.text))) continue;
-      const next = [...selected, candidate.text].join(' ');
-      if (!selected.length || next.length <= 185) selected.push(candidate.text);
-      if (selected.join(' ').length >= 125 || selected.length >= 2) break;
-    }
-    return shortenToWords(selected.join(' '), 175);
-  }
+  const selected = ranked.slice(0, Math.min(2, ranked.length)).sort((a, b) => a.index - b.index);
+  return selected.map(({ item }) => {
+    const { label, body } = salesHighlightLabel(item);
+    return label ? `${label}: ${body}` : shortenToWords(body, 160);
+  });
+}
 
-  // If Commerce7 has no clearly sensory sentence, fall back to its opening copy rather than inventing a tasting note.
-  const fallback = cleanSentence(wine.tastingNotes || wine.shortDescription || rawCandidates[0] || '');
-  return shortenToWords(fallback, 175);
+function HighlightCopy({ item }: { item: string }) {
+  const match = item.match(/^([^:]{2,42}):\s*(.+)$/);
+  if (!match) return <FormattedCopy text={item} />;
+  return <><strong><FormattedCopy text={match[1]} />:</strong> <FormattedCopy text={match[2]} /></>;
 }
 
 function wineImageAssets(wine: WineRecord) {
@@ -377,6 +492,7 @@ function draftFromWine(wine: WineRecord): TechSheetDraft {
     awardGraphic: wine.awards[0]?.graphicUrl,
     includeCasePackaging: Boolean(casePackaging),
     casePackagingImage: casePackaging?.src,
+    displayImage: undefined,
     bottleScale: 2.2,
     headerColor: TECH_COLOR,
     autoHeaderColor: true,
@@ -787,6 +903,50 @@ function ProfileBlock({ title, badge, children }: { title: string; badge?: strin
 function QuickFact({ label, value }: { label: string; value: string }) { return <div><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{value}</dd></div>; }
 function EditField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label><span className="field-label">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="field-input" /></label>; }
 function Textarea({ value, onChange, rows, placeholder }: { value: string; onChange: (value: string) => void; rows: number; placeholder?: string }) { return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} placeholder={placeholder} className="field-input resize-y leading-6 placeholder:text-black/25" />; }
+
+type InlineFormat = 'bold' | 'underline' | 'highlight';
+function FormattedTextarea({ value, onChange, rows, placeholder, previewMode = 'paragraph' }: { value: string; onChange: (value: string) => void; rows: number; placeholder?: string; previewMode?: 'paragraph' | 'highlights' }) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  const applyFormat = (format: InlineFormat) => {
+    const textarea = ref.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? start;
+    const tokens: Record<InlineFormat, string> = { bold: '**', underline: '__', highlight: '==' };
+    const token = tokens[format];
+    const selected = value.slice(start, end);
+    const next = `${value.slice(0, start)}${token}${selected}${token}${value.slice(end)}`;
+    onChange(next);
+    window.requestAnimationFrame(() => {
+      const current = ref.current;
+      if (!current) return;
+      current.focus();
+      const cursorStart = start + token.length;
+      current.setSelectionRange(cursorStart, cursorStart + selected.length);
+    });
+  };
+
+  const buttonClass = 'flex h-8 min-w-8 items-center justify-center rounded-md border border-black/10 bg-white px-2 text-[11px] font-black text-black/70 shadow-sm hover:bg-black/[.04]';
+  const previewHighlights = previewMode === 'highlights' ? safeArray(value) : [];
+
+  return <div>
+    <div className="mb-2 flex items-center gap-1.5">
+      <span className="mr-1 text-[9px] font-black uppercase tracking-[.12em] text-black/35">Format</span>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('bold')} className={buttonClass} title="Bold selected text"><span className="text-sm font-black">B</span></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('underline')} className={buttonClass} title="Underline selected text"><span className="text-sm font-black underline">U</span></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyFormat('highlight')} className={buttonClass} title="Highlight selected text"><span className="rounded-sm bg-[#fff1a8] px-1 text-[10px] font-black">HL</span></button>
+      <span className="ml-1 text-[9px] leading-3 text-black/35">Select text, then choose a format.</span>
+    </div>
+    <textarea ref={ref} value={value} onChange={(event) => onChange(event.target.value)} rows={rows} placeholder={placeholder} className="field-input resize-y leading-6 placeholder:text-black/25" />
+    {value.trim() && <div className="mt-2 rounded-lg border border-black/8 bg-white px-3 py-2">
+      <p className="mb-1 text-[9px] font-black uppercase tracking-[.12em] text-black/30">Formatting preview</p>
+      {previewMode === 'highlights'
+        ? <ul className="list-disc space-y-1 pl-4 text-[11px] leading-5 text-black/65">{previewHighlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul>
+        : <p className="text-[11px] leading-5 text-black/65"><FormattedCopy text={value} /></p>}
+    </div>}
+  </div>;
+}
 function AwardRow({ award }: { award: Award }) {
   const graphic = award.graphicUrl || awardGraphicFor(award);
   return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>;
@@ -938,7 +1098,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
   const commerce7TastingNotes = shortCommerce7TastingNotes(activeWine);
-  const commerce7Highlights = activeWine?.highlights || [];
+  const commerce7Highlights = commerce7SalesHighlights(activeWine);
 
   const setWine = (id: string) => {
     setActiveWineId(id);
@@ -946,7 +1106,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
     if (wine) setDraft(draftFromWine(wine));
   };
 
-  const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage' | 'bottleImage') => {
+  const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage' | 'bottleImage' | 'displayImage') => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
@@ -1023,16 +1183,16 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Tasting notes</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your own notes here — or let Wine Hub pull the most flavor-focused parts of the Commerce7 description into a short 2–3 line tasting note.</p>
-            <div className="mt-3"><Textarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
-            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use flavor-focused Commerce7 notes</button>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Type your own notes here — or let Wine Hub build a short sales-ready note from Commerce7. Select any text to bold, underline, or highlight it on the finished sheet.</p>
+            <div className="mt-3"><FormattedTextarea value={draft.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={6} placeholder="Type your tasting notes here…" /></div>
+            <button onClick={() => update('tastingNotes', commerce7TastingNotes)} disabled={!commerce7TastingNotes} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Build sales-ready Commerce7 notes</button>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Highlights</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Add one sales highlight per line — or bring in the Commerce7 sales highlights and edit them for this sheet.</p>
-            <div className="mt-3"><Textarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} placeholder="Type one highlight per line…" /></div>
-            <button onClick={() => update('highlights', [...commerce7Highlights])} disabled={!commerce7Highlights.length} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Use Commerce7 sales highlights</button>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Add one sales highlight per line — or let Wine Hub pick the two strongest Commerce7 selling points. Select any text to bold, underline, or highlight it on the finished sheet.</p>
+            <div className="mt-3"><FormattedTextarea value={draft.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} placeholder="Type one highlight per line…" previewMode="highlights" /></div>
+            <button onClick={() => update('highlights', [...commerce7Highlights])} disabled={!commerce7Highlights.length} className="mt-2 rounded-md bg-[#009b72] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#007f5e] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35 disabled:shadow-none">Build sales-ready Commerce7 highlights</button>
           </div>
 
           <div>
@@ -1041,8 +1201,8 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
             <div className="mt-3"><EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} /></div>
             <div className="mt-3"><EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} /></div>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <EditField label="Cost (Retailer)" value={draft.retailerCost} onChange={(value) => update('retailerCost', value)} />
               <EditField label="Cost (Distributor)" value={draft.distributorCost} onChange={(value) => update('distributorCost', value)} />
+              <EditField label="Cost (Retailer)" value={draft.retailerCost} onChange={(value) => update('retailerCost', value)} />
             </div>
             <p className="mt-2 text-[10px] leading-4 text-black/40">Optional sales-only fields. Leave either one blank and it will stay off the finished tech sheet.</p>
           </div>
@@ -1070,6 +1230,18 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
             <label className="flex cursor-pointer items-center justify-between gap-3"><div><p className="text-xs font-black">Case Packaging</p><p className="mt-1 text-[10px] leading-4 text-black/45">If Wine Hub has approved case artwork for this wine, Case Packaging starts turned on automatically. You can turn it off for any sheet.</p></div><input type="checkbox" checked={draft.includeCasePackaging} onChange={(event) => setDraft((current) => ({ ...current, includeCasePackaging: event.target.checked, casePackagingImage: event.target.checked && !current.casePackagingImage ? automaticCasePackaging?.src : current.casePackagingImage }))} className="h-4 w-4 accent-black" /></label>
             {automaticCasePackaging && <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-emerald-800">Auto-matched: {automaticCasePackaging.label}</div>}
             {draft.includeCasePackaging && <div className="mt-3 space-y-2">{!automaticCasePackaging && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-amber-800">No automatic case match yet. You can still add an image below.</p>}<EditField label="Packaging image URL · optional override" value={draft.casePackagingImage || ''} onChange={(value) => update('casePackagingImage', value || undefined)} /><div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload different packaging image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'casePackagingImage')} /></label>{automaticCasePackaging && draft.casePackagingImage !== automaticCasePackaging.src && <button onClick={() => update('casePackagingImage', automaticCasePackaging.src)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Use automatic match</button>}</div></div>}
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Display</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Optional. Add a display, floor stack, endcap, or other merchandising image for this tech sheet. If Case Packaging is included, Display appears beside it; otherwise Display slides into that space by itself.</p>
+            <div className="mt-3 space-y-2">
+              <EditField label="Display image URL · optional" value={draft.displayImage || ''} onChange={(value) => update('displayImage', value || undefined)} />
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload display image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'displayImage')} /></label>
+                {draft.displayImage && <button type="button" onClick={() => update('displayImage', undefined)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Remove display</button>}
+              </div>
+            </div>
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
@@ -1172,17 +1344,20 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
   const firstAward = wine?.awards[0];
   const compositeColdDuck = draft.bottleImage?.includes('cold-duck-composite');
   const awardGraphic = draft.awardGraphic || (firstAward ? awardGraphicFor(firstAward) : undefined);
-  const compact = draft.includeCasePackaging;
+  const compact = Boolean(draft.includeCasePackaging || draft.displayImage);
 
   return <article className="tech-sheet-paper relative flex shrink-0 flex-col overflow-hidden bg-white text-black shadow-2xl print:shadow-none">
     <div className="flex h-[132px] shrink-0 items-center justify-center" style={{ backgroundColor: draft.headerColor }}><BrandLogoMark wine={wine} /></div>
     <div className="flex h-[48px] shrink-0 items-center justify-center" style={{ backgroundColor: mixWithWhite(draft.headerColor, .62) }}><h1 className="text-center text-[30px] font-black uppercase tracking-[-.035em]">{draft.wineName}</h1></div>
     <div className="relative flex-1 overflow-hidden bg-white">
       <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
-        <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]">{draft.tastingNotes}</p></SheetSection>
-        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
-        {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className="max-h-[185px] max-w-[350px] object-contain object-left" /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
+        <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]"><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>
+        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
+        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
+        {(draft.includeCasePackaging || draft.displayImage) && <div className={`grid items-start ${draft.includeCasePackaging && draft.displayImage ? 'grid-cols-2 gap-5' : 'grid-cols-1'}`}>
+          {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className={`${draft.displayImage ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
+          {draft.displayImage && <SheetSection title="Display" compact><img src={draft.displayImage} alt="Display" className={`${draft.includeCasePackaging ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /></SheetSection>}
+        </div>}
       </div>
 
       <div className="absolute bottom-0 right-0 top-0 w-[42%] overflow-hidden">
