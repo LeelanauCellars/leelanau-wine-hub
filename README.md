@@ -214,3 +214,10 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 - Bottle images start higher on the finished sheet by default and now include a vertical-position slider in addition to the size slider.
 - The printable tech-sheet layout uses tighter spacing and copy sizing when notes, highlights, Case Packaging, or Display artwork need additional room, keeping the standard automatically generated content on one letter-size page.
 - Wine Library now includes a **Select tech sheets** workflow for choosing multiple wines and printing/saving them together as one multi-page PDF. Batch sheets use the same automatic notes, highlights, awards, case packaging, bottle positioning, and header-color matching as individual sheets.
+
+
+## v23 tasting-room reference updates
+- Staff Notes use `Sheet1 (2)` from the tasting-room wine descriptions workbook when an exact wine/vintage match exists.
+- Wines without a matching row fall back to Commerce7 flavor/style content.
+- Vintage context comes from the 2019–2025 viticulture notes.
+- Quick Facts can be downloaded as PDF or Word; the standalone Sustainable Practices section was removed.

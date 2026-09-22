@@ -114,12 +114,6 @@ export const QUICK_FACTS = {
     red: 'Frontenac, Marquette',
     comingSoon: 'The oldest Baco Noir vineyard was removed in 2022, with that vintage named Baco Noir: The End. Sauvignon Blanc was planned for that Pleasant Hill site in spring 2026, with the first wine from the new planting expected around 2029.',
   },
-  sustainability: [
-    'Compost-based soil enrichment and cover cropping.',
-    'Balanced pruning, sap flow pruning, shoot thinning, hedging and cluster thinning.',
-    'Leaf pulling for airflow and sun exposure, reducing the need for chemicals.',
-    'The objective is to reduce the need for synthetic chemicals.',
-  ],
   vintages: [
     { year: '2019', bullets: ['Harsh winter (-14°F in March) caused severe winterkill.', 'Low yields due to crop loss and labor shortages.', 'Cold, wet growing season with low heat accumulation.'] },
     { year: '2020', bullets: ['Average heat and very wet conditions.', 'Yields slightly below average.', 'Early frost in late September triggered early leaf senescence, though not rapid.'] },
