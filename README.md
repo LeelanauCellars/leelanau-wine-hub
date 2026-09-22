@@ -230,3 +230,11 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 - Wine-list management is collapsed into a dedicated **Manage Staff Notes wine list** panel so it no longer competes with the staff reference layout.
 - The **Tech Sheets** navigation item now opens a searchable wine-card library. Clicking a wine opens that wine's Tech Sheet Builder directly instead of first opening the Wine Profile.
 - The Tech Sheets library includes multi-select/batch PDF support, and the builder now has a **Tech Sheets** back button.
+
+## v25 distribution-wine library update
+- Added a new **Distribution Wines** navigation section built from `Copy of LWC Product Information.xlsm`.
+- The library includes 93 current distribution products plus a separate 9-item discontinued archive.
+- Distribution cards are searchable by product name, UPC, GTIN, retailer IDs, brand/family, grape/composition, and marketing copy.
+- Clicking a product opens a distributor detail page with identity/codes, MI/OH pricing when present, wine specifications, marketing copy, linked distribution assets, and the imperial/metric packaging and pallet measurements supplied in the workbook.
+- When a matching Commerce7 wine is available, its bottle image is reused on the distribution card/detail page; the spreadsheet data itself remains static and independent from Commerce7.
+- Linked asset buttons use the SharePoint locations stored in the workbook and may require Microsoft permissions.

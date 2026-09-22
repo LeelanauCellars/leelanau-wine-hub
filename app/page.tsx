@@ -8,6 +8,7 @@ import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
 import { normalizeUpcA, upcASvg, upcASvgDataUrl } from '@/lib/upc';
 import { CURRENT_TASTING_MENU_LABEL, CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
 import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViticultureForWine, viticulturePracticeForWine } from '@/lib/staff-notes-data';
+import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -17,6 +18,7 @@ const Check = (p: IconProps) => <Icon {...p}><path d="m5 12 4 4L19 6"/></Icon>;
 const ChevronLeft = (p: IconProps) => <Icon {...p}><path d="m15 18-6-6 6-6"/></Icon>;
 const ClipboardList = (p: IconProps) => <Icon {...p}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></Icon>;
 const Database = (p: IconProps) => <Icon {...p}><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></Icon>;
+const Package = (p: IconProps) => <Icon {...p}><path d="m3 7 9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></Icon>;
 const Download = (p: IconProps) => <Icon {...p}><path d="M12 3v12m-4-4 4 4 4-4M5 20h14"/></Icon>;
 const ExternalLink = (p: IconProps) => <Icon {...p}><path d="M14 4h6v6M20 4l-9 9M19 13v6H5V5h6"/></Icon>;
 const FileText = (p: IconProps) => <Icon {...p}><path d="M6 2h8l4 4v16H6zM14 2v5h5M9 12h6M9 16h6"/></Icon>;
@@ -36,7 +38,7 @@ const Save = (p: IconProps) => <Icon {...p}><path d="M4 3h14l2 2v16H4zM8 3v6h8V3
 const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>;
 
 type AccessRole = 'admin' | 'sales' | 'tasting';
-type View = 'library' | 'profile' | 'tasting' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
+type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'tasting' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
 type SyncState = {
@@ -574,6 +576,7 @@ export default function WineHub() {
   const [view, setView] = useState<View>('library');
   const [wines, setWines] = useState<WineRecord[]>(SEED_WINES);
   const [activeWineId, setActiveWineId] = useState(SEED_WINES[0].id);
+  const [activeDistributionId, setActiveDistributionId] = useState(DISTRIBUTION_WINES[0]?.id || '');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [profileTab, setProfileTab] = useState<ProfileTab>('overview');
@@ -590,6 +593,7 @@ export default function WineHub() {
   const [savingMenu, setSavingMenu] = useState(false);
 
   const activeWine = wines.find((wine) => wine.id === activeWineId) ?? wines[0];
+  const activeDistributionWine = DISTRIBUTION_WINES.find((wine) => wine.id === activeDistributionId) ?? DISTRIBUTION_WINES[0];
   const canUseTechSheets = access.role === 'admin' || access.role === 'sales';
   const canUseTastingRoom = access.role === 'admin' || access.role === 'tasting';
 
@@ -723,6 +727,12 @@ export default function WineHub() {
     setMobileNav(false);
   }
 
+  function openDistributionWine(wine: DistributionWine) {
+    setActiveDistributionId(wine.id);
+    setView('distribution-profile');
+    setMobileNav(false);
+  }
+
   function openTech(wine = activeWine) {
     if (!wine || !canUseTechSheets) return;
     setActiveWineId(wine.id);
@@ -828,6 +838,7 @@ export default function WineHub() {
 
           <nav className="space-y-1">
             <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => { setView('library'); setMobileNav(false); }} />
+            <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => { setView('distribution'); setMobileNav(false); }} />
             {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Staff Notes" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
             {canUseTastingRoom && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
             {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech-library'); setMobileNav(false); }} />}
@@ -868,6 +879,12 @@ export default function WineHub() {
         )}
         {view === 'profile' && activeWine && (
           <WineProfile wine={activeWine} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
+        )}
+        {view === 'distribution' && (
+          <DistributionLibrary wines={wines} openWine={openDistributionWine} />
+        )}
+        {view === 'distribution-profile' && activeDistributionWine && (
+          <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => setView('distribution')} />
         )}
         {view === 'tasting' && canUseTastingRoom && (
           <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={access.role as AccessRole} />
@@ -939,6 +956,205 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
 
 function PageHeader({ eyebrow, title, description, right }: { eyebrow: string; title: string; description?: string; right?: React.ReactNode }) {
   return <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div><p className="mb-2 text-xs font-black uppercase tracking-[.22em] text-[#3976b7]">{eyebrow}</p><h1 className="text-3xl font-black tracking-[-.035em] md:text-4xl">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-black/55">{description}</p>}</div>{right}</header>;
+}
+
+
+const DISTRIBUTION_NAME_ALIASES: Record<string, string> = {
+  'witches brew spiced red': 'witches brew',
+  'zilly cabernet': 'zilly cabernet sauvignon',
+  'great lakes red 750ml': 'great lakes red',
+  'great lakes red 1.5l': 'great lakes red',
+  'winter white 750ml': 'winter white',
+  'winter white 1.5l': 'winter white',
+  "summer sunset rose'": 'summer sunset',
+  'lakeshore collection red': 'lakeshore collection red blend',
+};
+
+function simplifiedDistributionName(value = '') {
+  return value
+    .toLowerCase()
+    .replace(/\b(?:750\s*ml|1\.5\s*l|1500\s*ml)\b/g, ' ')
+    .replace(/\b(?:bottle|bottles)\b/g, ' ')
+    .replace(/^estate\s+/i, '')
+    .replace(/^lwc\s+/i, '')
+    .replace(/^chills\b/i, 'chill')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchedDistributionWine(item: DistributionWine, wines: WineRecord[]) {
+  const alias = DISTRIBUTION_NAME_ALIASES[item.name.toLowerCase()] || item.name;
+  const targets = Array.from(new Set([normalize(alias), normalize(simplifiedDistributionName(alias))])).filter(Boolean);
+  let best: { wine: WineRecord; score: number } | undefined;
+
+  for (const wine of wines) {
+    const names = Array.from(new Set([
+      normalize(wine.name),
+      normalize(`${wine.brand} ${wine.name}`),
+      normalize(simplifiedDistributionName(wine.name)),
+    ])).filter(Boolean);
+    let score = 0;
+    for (const target of targets) {
+      for (const name of names) {
+        if (target === name) score = Math.max(score, 100);
+        else if (target.length > 7 && (target.includes(name) || name.includes(target))) score = Math.max(score, 72 - Math.abs(target.length - name.length));
+      }
+    }
+    if (normalize(item.family) === normalize(wine.brand)) score += 4;
+    if (!best || score > best.score) best = { wine, score };
+  }
+  return best && best.score >= 55 ? best.wine : undefined;
+}
+
+function distributionValue(value: unknown) {
+  if (value === undefined || value === null || value === '') return '—';
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) return value.toLocaleString();
+    return value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+  }
+  return String(value);
+}
+
+function distributionPercent(value: string | number | null | undefined) {
+  if (value === undefined || value === null || value === '') return '—';
+  return `${distributionValue(value)}%`;
+}
+
+function DistributionLibrary({ wines, openWine }: { wines: WineRecord[]; openWine: (item: DistributionWine) => void }) {
+  const [query, setQuery] = useState('');
+  const [family, setFamily] = useState('All');
+  const [status, setStatus] = useState<'Current' | 'All' | 'Discontinued'>('Current');
+  const families = useMemo(() => ['All', ...Array.from(new Set(DISTRIBUTION_WINES.filter((item) => !item.discontinued).map((item) => item.family))).sort()], []);
+  const currentCount = DISTRIBUTION_WINES.filter((item) => !item.discontinued).length;
+  const discontinuedCount = DISTRIBUTION_WINES.filter((item) => item.discontinued).length;
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return DISTRIBUTION_WINES.filter((item) => {
+      const statusMatch = status === 'All' || (status === 'Current' ? !item.discontinued : item.discontinued);
+      const familyMatch = family === 'All' || item.family === family;
+      const haystack = `${item.name} ${item.family} ${item.upcFull || ''} ${item.gtin || ''} ${item.meijerPid || ''} ${item.targetDpci || ''} ${item.specs.composition || ''} ${item.marketingCopy || ''}`.toLowerCase();
+      return statusMatch && familyMatch && (!needle || haystack.includes(needle));
+    });
+  }, [query, family, status]);
+
+  return <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
+    <PageHeader eyebrow="Distributor resources" title="Distribution Wines" description="Product codes, technical specifications, packaging measurements, marketing copy and linked sales assets from the LWC Product Information workbook." right={<div className="flex gap-2"><Stat value={currentCount} label="current" /><Stat value={discontinuedCount} label="archived" /></div>} />
+
+    <div className="mb-4 flex flex-wrap gap-2">
+      {(['Current', 'All', 'Discontinued'] as const).map((item) => <button key={item} onClick={() => setStatus(item)} className={`rounded-xl border px-4 py-2.5 text-xs font-black ${status === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55'}`}>{item === 'Discontinued' ? 'Discontinued archive' : item}</button>)}
+    </div>
+
+    <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
+      <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product, UPC, GTIN, brand or grape…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
+      <div className="flex max-w-[720px] gap-2 overflow-x-auto pb-1">{families.map((item) => <button key={item} onClick={() => setFamily(item)} className={`whitespace-nowrap rounded-xl border px-4 py-3 text-xs font-bold ${family === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
+    </div>
+
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {filtered.map((item) => {
+        const match = matchedDistributionWine(item, wines);
+        const description = item.marketingCopy || (item.specs.composition ? `${item.specs.composition}${item.specs.size ? ` · ${item.specs.size}` : ''}` : 'Open for complete distributor product information.');
+        return <article key={item.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+          <button onClick={() => openWine(item)} className="block w-full text-left">
+            <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
+              {match?.bottleImage ? <img src={match.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <DistributionPlaceholder item={item} />}
+              <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{item.family}</span>{item.discontinued && <span className="rounded-full bg-[#7a1f36] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">Discontinued</span>}</div>
+              {item.assets.length > 0 && <span className="absolute bottom-3 left-3 rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">{item.assets.length} asset{item.assets.length === 1 ? '' : 's'}</span>}
+            </div>
+            <div className="p-4"><h2 className="text-lg font-black leading-5">{item.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{item.specs.size || 'Size not listed'}{item.specs.composition ? ` · ${item.specs.composition}` : ''}</p><p className="mt-3 line-clamp-3 min-h-[60px] text-xs leading-5 text-black/55">{description}</p><div className="mt-3 flex items-center justify-between gap-3"><span className="font-mono text-[10px] font-bold text-black/40">{item.upcFull || 'UPC —'}</span><span className="text-[11px] font-black text-[#326eac]">View distributor info →</span></div></div>
+          </button>
+        </article>;
+      })}
+    </div>
+    {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No distribution products match that search.</p></div>}
+  </div>;
+}
+
+function DistributionPlaceholder({ item }: { item: DistributionWine }) {
+  const words = item.name.split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 3).map((word) => word[0]).join('').toUpperCase();
+  return <div className="flex h-full w-full items-center justify-center p-5"><div className="flex h-32 w-24 flex-col items-center justify-center rounded-[28px_28px_14px_14px] border-2 border-black/10 bg-white text-center shadow-sm"><span className="text-2xl font-black tracking-tight">{initials}</span><span className="mt-2 px-2 text-[8px] font-black uppercase leading-3 tracking-[.12em] text-black/35">{item.family}</span></div></div>;
+}
+
+function DistributionWineDetail({ item, wines, back }: { item: DistributionWine; wines: WineRecord[]; back: () => void }) {
+  const match = matchedDistributionWine(item, wines);
+  const pricingPresent = Object.values(item.pricing).some((value) => typeof value === 'number');
+  const specRows = [
+    ['Size', item.specs.size],
+    ['Glass Type', item.specs.glassType],
+    ['ABV', item.specs.abv === null || item.specs.abv === undefined ? null : distributionPercent(item.specs.abv)],
+    ['RS', item.specs.rs === null || item.specs.rs === undefined ? null : distributionPercent(item.specs.rs)],
+    ['pH', item.specs.ph],
+    ['TA', item.specs.ta === null || item.specs.ta === undefined ? null : `${distributionValue(item.specs.ta)} g/L`],
+    ['Composition / Base Grape / Leading Blend', item.specs.composition],
+  ] as const;
+
+  const imperialRows = [
+    ['Height (inches)', item.imperial.height], ['Width (inches)', item.imperial.width], ['Weight (oz)', item.imperial.weightOz], ['Weight (lb)', item.imperial.weightLb], ['Pack', item.imperial.pack],
+    ['Case Height', item.imperial.caseHeight], ['Case Width', item.imperial.caseWidth], ['Case Length', item.imperial.caseLength], ['Case Weight', item.imperial.caseWeight],
+    ['Pallet Cases / Layer', item.imperial.palletCasesPerLayer], ['Pallet Layers', item.imperial.palletLayers], ['Pallet Height', item.imperial.palletHeight], ['Pallet Length', item.imperial.palletLength], ['Pallet Width', item.imperial.palletWidth], ['Pallet Weight', item.imperial.palletWeight],
+  ] as const;
+  const metricRows = [
+    ['Height (cm)', item.metric.heightCm], ['Width (cm)', item.metric.widthCm], ['Weight (gram)', item.metric.weightGram], ['Weight (lb)', item.metric.weightLb], ['Pack', item.metric.pack],
+    ['Case Height', item.metric.caseHeight], ['Case Width', item.metric.caseWidth], ['Case Length', item.metric.caseLength], ['Case Weight', item.metric.caseWeight],
+    ['Pallet Cases / Layer', item.metric.palletCasesPerLayer], ['Pallet Layers', item.metric.palletLayers], ['Pallet Height', item.metric.palletHeight], ['Pallet Length', item.metric.palletLength], ['Pallet Width', item.metric.palletWidth], ['Pallet Weight', item.metric.palletWeight],
+  ] as const;
+
+  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
+    <button onClick={back} className="mb-5 flex items-center gap-1.5 text-xs font-bold text-black/50 hover:text-black"><ChevronLeft className="h-4 w-4" /> Distribution Wines</button>
+    <div className="mb-6 overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-sm">
+      <div className="grid lg:grid-cols-[320px_1fr]">
+        <div className="flex min-h-[340px] items-center justify-center bg-[#eef2f6] p-6">{match?.bottleImage ? <img src={match.bottleImage} alt={item.name} className="max-h-[320px] w-full object-contain" /> : <DistributionPlaceholder item={item} />}</div>
+        <div className="p-6 md:p-8">
+          <div className="flex flex-wrap gap-2"><span className="rounded-full bg-[#edf5fd] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{item.family}</span><span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] ${item.discontinued ? 'bg-[#f7e8ec] text-[#7a1f36]' : 'bg-emerald-50 text-emerald-700'}`}>{item.discontinued ? 'Discontinued' : 'Current distribution'}</span></div>
+          <h1 className="mt-4 text-3xl font-black tracking-[-.035em] md:text-4xl">{item.name}</h1>
+          <p className="mt-2 text-sm font-semibold text-black/45">{item.specs.size || 'Size not listed'}{item.specs.composition ? ` · ${item.specs.composition}` : ''}</p>
+          <p className="mt-5 max-w-3xl text-sm leading-7 text-black/65">{item.marketingCopy || 'No marketing copy is entered for this product in the distribution workbook.'}</p>
+          <div className="mt-5 flex flex-wrap gap-2"><span className="rounded-lg border border-black/10 bg-[#fafbfc] px-3 py-2 font-mono text-xs font-bold">{item.upcFull || 'UPC not listed'}</span>{item.gtin && <span className="rounded-lg border border-black/10 bg-[#fafbfc] px-3 py-2 font-mono text-xs font-bold">GTIN {item.gtin}</span>}</div>
+        </div>
+      </div>
+    </div>
+
+    <div className="grid gap-5 lg:grid-cols-2">
+      <ProfileBlock title="Identity & Codes" badge={`Workbook row ${item.sourceRow}`}>
+        <DistributionFacts rows={[['Item', item.name], ['IRI Description', item.iriDescription], ['UPC Full', item.upcFull], ['UPC 10', item.upc10], ['GTIN', item.gtin], ['Meijer PID', item.meijerPid], ['Target DPCI', item.targetDpci]]} />
+      </ProfileBlock>
+
+      <ProfileBlock title="Wine Specifications">
+        <DistributionFacts rows={specRows} />
+      </ProfileBlock>
+
+      <ProfileBlock title="Pricing">
+        {pricingPresent ? <DistributionFacts rows={[
+          ['MI Pricing (Case)', typeof item.pricing.miCase === 'number' ? money(item.pricing.miCase) : null],
+          ['MI Pricing (Bottle)', typeof item.pricing.miBottle === 'number' ? money(item.pricing.miBottle) : null],
+          ['MI Pricing SRP', typeof item.pricing.miSrp === 'number' ? money(item.pricing.miSrp) : null],
+          ['OH Pricing (Case)', typeof item.pricing.ohCase === 'number' ? money(item.pricing.ohCase) : null],
+          ['OH Pricing (Bottle)', typeof item.pricing.ohBottle === 'number' ? money(item.pricing.ohBottle) : null],
+          ['OH Pricing SRP', typeof item.pricing.ohSrp === 'number' ? money(item.pricing.ohSrp) : null],
+        ]} /> : <p className="text-sm leading-6 text-black/45">No MI or OH pricing is entered for this product in the current workbook.</p>}
+      </ProfileBlock>
+
+      <ProfileBlock title="Marketing Copy">
+        <p className="text-sm leading-7 text-black/65">{item.marketingCopy || 'No marketing copy entered.'}</p>
+      </ProfileBlock>
+    </div>
+
+    <div className="mt-5">
+      <ProfileBlock title="Distribution Assets" badge={item.assets.length ? `${item.assets.length} linked` : undefined}>
+        {item.assets.length ? <><p className="mb-4 text-xs leading-5 text-black/45">These buttons open the asset locations referenced in the distribution workbook. Microsoft / SharePoint access may be required for some files.</p><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{item.assets.map((asset) => <a key={`${item.id}-${asset.label}`} href={asset.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-[#fafbfc] px-4 py-3 text-sm font-black transition hover:border-black/20 hover:bg-white"><span>{asset.label}</span><ExternalLink className="h-4 w-4 shrink-0 text-black/35" /></a>)}</div></> : <p className="text-sm text-black/40">No linked distribution assets are entered for this product.</p>}
+      </ProfileBlock>
+    </div>
+
+    <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <ProfileBlock title="Imperial Measurements"><DistributionFacts rows={imperialRows} /></ProfileBlock>
+      <ProfileBlock title="Metric Measurements"><DistributionFacts rows={metricRows} /></ProfileBlock>
+    </div>
+  </div>;
+}
+
+function DistributionFacts({ rows }: { rows: readonly (readonly [string, unknown])[] }) {
+  return <dl className="grid gap-x-5 gap-y-4 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="min-w-0 border-b border-black/[.06] pb-3"><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{distributionValue(value)}</dd></div>)}</dl>;
 }
 
 function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, openWine, openTech, sync, allowTechSheets }: {
