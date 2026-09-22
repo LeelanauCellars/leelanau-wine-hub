@@ -221,3 +221,12 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 - Wines without a matching row fall back to Commerce7 flavor/style content.
 - Vintage context comes from the 2019–2025 viticulture notes.
 - Quick Facts can be downloaded as PDF or Word; the standalone Sustainable Practices section was removed.
+
+## v24 staff-notes + tech-sheet navigation update
+- Staff Notes now separates **Web View** from **Print Preview** so the on-screen reference can use larger, full-length copy without being constrained by print-page dimensions.
+- Web View groups wines by style/category and uses full-width responsive cards with tasting-room flavor/style content and vintage/vineyard context.
+- Print Preview now uses a cleaner **four wines per landscape page** layout with larger type, more breathing room, three handwritten note lines, and Flavor & Style spanning the full card when no vintage/vineyard context applies.
+- Staff Notes printing injects a landscape page rule only for that print job, avoiding the extra blank page that appeared in the prior PDF.
+- Wine-list management is collapsed into a dedicated **Manage Staff Notes wine list** panel so it no longer competes with the staff reference layout.
+- The **Tech Sheets** navigation item now opens a searchable wine-card library. Clicking a wine opens that wine's Tech Sheet Builder directly instead of first opening the Wine Profile.
+- The Tech Sheets library includes multi-select/batch PDF support, and the builder now has a **Tech Sheets** back button.

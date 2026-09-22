@@ -246,26 +246,26 @@ button { cursor: pointer; }
   }
 }
 
-/* v23 tasting-room staff guide: editorial six-wine landscape layout */
+/* v24 tasting-room staff guide: separate screen and print layouts */
 .staff-guide-page {
-  page: tastingGuide;
   width: min(1056px, 100%);
   aspect-ratio: 11 / 8.5;
   margin: 0 auto;
+  border: 1px solid rgba(0,0,0,.08);
 }
 .staff-guide-grid {
-  height: calc(100% - 112px);
+  height: calc(100% - 118px);
   min-height: 620px;
 }
 .staff-guide-entry {
-  padding: 16px 18px 13px 18px;
-  border-right: 1px solid rgba(0,0,0,.10);
-  border-bottom: 1px solid rgba(0,0,0,.10);
+  padding: 20px 22px 16px 22px;
+  border-right: 1px solid rgba(0,0,0,.09);
+  border-bottom: 1px solid rgba(0,0,0,.09);
 }
 .staff-guide-entry:nth-child(2n) { border-right: 0; }
 .staff-guide-entry:nth-last-child(-n+2) { border-bottom: 0; }
 .staff-guide-label {
-  font-size: 7px;
+  font-size: 7.5px;
   line-height: 1;
   font-weight: 900;
   text-transform: uppercase;
@@ -276,8 +276,8 @@ button { cursor: pointer; }
   border: 1px solid rgba(0,0,0,.08);
   border-radius: 999px;
   background: #f5f7f8;
-  padding: 3px 7px;
-  font-size: 7px;
+  padding: 4px 8px;
+  font-size: 7.5px;
   line-height: 1;
   font-weight: 800;
   color: rgba(0,0,0,.55);
@@ -287,11 +287,11 @@ button { cursor: pointer; }
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
 }
-.staff-guide-viticulture { -webkit-line-clamp: 5; }
+.staff-guide-viticulture { -webkit-line-clamp: 6; }
 .staff-guide-note-lines > div {
-  height: 16px;
+  height: 18px;
   border-bottom: 1px solid rgba(0,0,0,.28);
 }
 
@@ -305,46 +305,49 @@ button { cursor: pointer; }
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
+    break-inside: avoid !important;
     break-after: page !important;
     page-break-after: always !important;
     box-shadow: none !important;
+    border: 0 !important;
   }
   .staff-guide-page:last-child {
     break-after: auto !important;
     page-break-after: auto !important;
   }
   .staff-guide-header {
-    height: .78in !important;
-    padding: .10in .23in !important;
+    height: .82in !important;
+    padding: .11in .28in !important;
   }
-  .staff-guide-header img { width: .48in !important; height: .48in !important; }
-  .staff-guide-header h2 { font-size: 16.5pt !important; line-height: 1 !important; }
+  .staff-guide-header img { width: .50in !important; height: .50in !important; }
+  .staff-guide-header h2 { font-size: 17.5pt !important; line-height: 1 !important; }
   .staff-guide-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0,1fr)) !important;
-    grid-template-rows: repeat(3, minmax(0,1fr)) !important;
-    height: 7.35in !important;
+    grid-template-rows: repeat(2, minmax(0,1fr)) !important;
+    height: 7.29in !important;
     min-height: 0 !important;
   }
   .staff-guide-entry {
     min-height: 0 !important;
-    padding: .11in .17in .08in .18in !important;
+    padding: .16in .23in .12in .25in !important;
     overflow: hidden !important;
   }
-  .staff-guide-category { font-size: 5.5pt !important; }
-  .staff-guide-name { font-size: 10.8pt !important; line-height: 1.04 !important; }
-  .staff-guide-price { font-size: 8.8pt !important; }
-  .staff-guide-chips { margin-top: .055in !important; gap: .035in !important; }
-  .staff-guide-chips > span { padding: .025in .055in !important; font-size: 5.6pt !important; }
-  .staff-guide-label { font-size: 5.6pt !important; }
-  .staff-guide-flavor { font-size: 7.05pt !important; line-height: 1.28 !important; -webkit-line-clamp: 4 !important; }
-  .staff-guide-blend { margin-top: .035in !important; font-size: 5.8pt !important; line-height: 1.22 !important; }
-  .staff-guide-viticulture { font-size: 6.25pt !important; line-height: 1.28 !important; -webkit-line-clamp: 5 !important; }
-  .staff-guide-notes { margin-top: .055in !important; }
-  .staff-guide-note-lines > div { height: .105in !important; }
+  .staff-guide-category { font-size: 6.2pt !important; padding: .035in .075in !important; }
+  .staff-guide-name { font-size: 12.8pt !important; line-height: 1.06 !important; }
+  .staff-guide-price { font-size: 10.2pt !important; }
+  .staff-guide-chips { margin-top: .07in !important; gap: .045in !important; }
+  .staff-guide-chips > span { padding: .03in .06in !important; font-size: 6.2pt !important; }
+  .staff-guide-label { font-size: 6.2pt !important; }
+  .staff-guide-flavor { font-size: 8.1pt !important; line-height: 1.38 !important; -webkit-line-clamp: 5 !important; }
+  .staff-guide-blend { margin-top: .045in !important; font-size: 6.5pt !important; line-height: 1.25 !important; }
+  .staff-guide-viticulture { font-size: 7.2pt !important; line-height: 1.36 !important; -webkit-line-clamp: 6 !important; }
+  .staff-guide-notes { margin-top: .08in !important; }
+  .staff-guide-note-lines > div { height: .14in !important; }
   .staff-guide-footer {
-    height: .37in !important;
-    padding: .055in .23in !important;
-    font-size: 5.6pt !important;
+    height: .39in !important;
+    padding: .06in .28in !important;
+    font-size: 6pt !important;
   }
 }
+
