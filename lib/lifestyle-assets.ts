@@ -166,6 +166,10 @@ function wineNameKeys(wine: WineRecord) {
   const brandPrefix = escapedBrand ? new RegExp(`^${escapedBrand}\\s+`, 'i') : null;
   if (brandPrefix) raw.push(wine.name.replace(brandPrefix, '').trim(), stripVintage(wine.name.replace(brandPrefix, '').trim()));
   for (const value of raw) if (value) names.add(normalize(value));
+  const lower = normalize(stripVintage(wine.name));
+  if (lower === 'estatelateharvestriesling') names.add(normalize('Late Harvest Riesling'));
+  if (lower === 'estatepinotgrigio') names.add(normalize('Pinot Grigio'));
+  if (lower === 'pinotgrigio2022') names.add(normalize('Pinot Grigio'));
   return names;
 }
 export function lifestyleAssetsForWine(wine: WineRecord): WineLifestyleAsset[] {
