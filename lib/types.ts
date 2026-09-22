@@ -3,6 +3,7 @@ export type WineImageAsset = {
   src: string;
   sortOrder: number;
   role: 'front' | 'back' | 'additional';
+  label?: string;
 };
 
 export type Award = {
