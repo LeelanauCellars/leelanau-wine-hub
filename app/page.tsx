@@ -6,6 +6,7 @@ import type { Award, TechSheetDraft, WineRecord } from '@/lib/types';
 import { casePackagingForWine } from '@/lib/case-packaging';
 import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
 import { normalizeUpcA, upcASvg, upcASvgDataUrl } from '@/lib/upc';
+import { CURRENT_TASTING_MENU_LABEL, CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -22,6 +23,10 @@ const ImageIcon = (p: IconProps) => <Icon {...p}><rect x="3" y="4" width="18" he
 const Library = (p: IconProps) => <Icon {...p}><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4l4 1v15l-4-1z"/></Icon>;
 const Loader2 = (p: IconProps) => <Icon {...p}><path d="M21 12a9 9 0 1 1-6.2-8.6"/></Icon>;
 const Menu = (p: IconProps) => <Icon {...p}><path d="M4 7h16M4 12h16M4 17h16"/></Icon>;
+const Lock = (p: IconProps) => <Icon {...p}><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></Icon>;
+const LogOut = (p: IconProps) => <Icon {...p}><path d="M10 17l5-5-5-5M15 12H3M21 19V5a2 2 0 0 0-2-2h-6"/></Icon>;
+const BookOpen = (p: IconProps) => <Icon {...p}><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22zM20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></Icon>;
+const Upload = (p: IconProps) => <Icon {...p}><path d="M12 16V4m-4 4 4-4 4 4M5 20h14"/></Icon>;
 const Pencil = (p: IconProps) => <Icon {...p}><path d="m4 20 4.5-1 10-10-3.5-3.5-10 10zM13.5 7 17 10.5"/></Icon>;
 const Plus = (p: IconProps) => <Icon {...p}><path d="M12 5v14M5 12h14"/></Icon>;
 const Printer = (p: IconProps) => <Icon {...p}><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5h18v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></Icon>;
@@ -29,7 +34,8 @@ const RefreshCw = (p: IconProps) => <Icon {...p}><path d="M20 6v5h-5M4 18v-5h5M1
 const Save = (p: IconProps) => <Icon {...p}><path d="M4 3h14l2 2v16H4zM8 3v6h8V3M8 21v-7h8v7"/></Icon>;
 const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>;
 
-type View = 'library' | 'profile' | 'tasting' | 'tech' | 'awards' | 'assets';
+type AccessRole = 'admin' | 'sales' | 'tasting';
+type View = 'library' | 'profile' | 'tasting' | 'quickfacts' | 'tech' | 'awards' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
 type SyncState = {
@@ -41,6 +47,7 @@ type SyncState = {
 
 const STORAGE_KEY = 'lwc-wine-hub-v2';
 const MENU_KEY = 'lwc-wine-hub-tasting-menu-v1';
+const MENU_VERSION_KEY = 'lwc-wine-hub-tasting-menu-version-v1';
 const TECH_COLOR = '#5BA3F8';
 const TECH_LIGHT = '#BDDAFC';
 const FOOTER = 'Leelanau Cellars | 231-386-5201 | sales@lwc.wine | lwc.wine';
@@ -571,7 +578,9 @@ export default function WineHub() {
   const [profileTab, setProfileTab] = useState<ProfileTab>('overview');
   const [editingWine, setEditingWine] = useState<WineRecord | null>(null);
   const [techDraft, setTechDraft] = useState<TechSheetDraft>(() => draftFromWine(SEED_WINES[0]));
-  const [tastingIds, setTastingIds] = useState<string[]>(() => SEED_WINES.slice(0, 6).map((wine) => wine.id));
+  const [tastingIds, setTastingIds] = useState<string[]>([]);
+  const [needsCurrentMenuSeed, setNeedsCurrentMenuSeed] = useState(false);
+  const [access, setAccess] = useState<{ loading: boolean; enabled: boolean; configured: boolean; role: AccessRole | null }>({ loading: true, enabled: false, configured: false, role: null });
   const [sync, setSync] = useState<SyncState>({ configured: false, loading: false, message: 'Checking Commerce7…' });
   const [mobileNav, setMobileNav] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -580,13 +589,20 @@ export default function WineHub() {
   const [savingMenu, setSavingMenu] = useState(false);
 
   const activeWine = wines.find((wine) => wine.id === activeWineId) ?? wines[0];
+  const canUseTechSheets = access.role === 'admin' || access.role === 'sales';
+  const canUseTastingRoom = access.role === 'admin' || access.role === 'tasting';
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) setWines(JSON.parse(saved));
       const menu = window.localStorage.getItem(MENU_KEY);
-      if (menu) setTastingIds(JSON.parse(menu));
+      const menuVersion = window.localStorage.getItem(MENU_VERSION_KEY);
+      if (menu && menuVersion === CURRENT_TASTING_MENU_VERSION) {
+        setTastingIds(JSON.parse(menu));
+      } else {
+        setNeedsCurrentMenuSeed(true);
+      }
     } catch (error) {
       console.warn('Unable to restore Wine Hub data', error);
     }
@@ -613,8 +629,21 @@ export default function WineHub() {
   }, [wines, hydrated]);
 
   useEffect(() => {
-    void checkCommerce7();
+    if (!hydrated || !needsCurrentMenuSeed || !wines.length) return;
+    const matches = matchMenuText(CURRENT_TASTING_MENU_TEXT, wines);
+    if (!matches.length) return;
+    setTastingIds(matches.map((wine) => wine.id));
+    window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
+    setNeedsCurrentMenuSeed(false);
+  }, [wines, hydrated, needsCurrentMenuSeed]);
+
+  useEffect(() => {
+    void loadAccessSession();
   }, []);
+
+  useEffect(() => {
+    if (access.role) void checkCommerce7();
+  }, [access.role]);
 
   useEffect(() => {
     if (!activeWine) return;
@@ -632,6 +661,23 @@ export default function WineHub() {
       setView('profile');
     }
   }, [wines]);
+
+  async function loadAccessSession() {
+    try {
+      const response = await fetch('/api/auth/session', { cache: 'no-store' });
+      const data = await response.json() as { enabled?: boolean; configured?: boolean; role?: AccessRole | null };
+      setAccess({ loading: false, enabled: Boolean(data.enabled), configured: Boolean(data.configured), role: data.role || 'admin' });
+    } catch {
+      setAccess({ loading: false, enabled: false, configured: false, role: 'admin' });
+    }
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setAccess((current) => ({ ...current, role: current.enabled ? null : 'admin' }));
+    setView('library');
+    setMobileNav(false);
+  }
 
   async function checkCommerce7() {
     try {
@@ -657,8 +703,10 @@ export default function WineHub() {
       const remoteWines = data.wines as WineRecord[];
       const nextWines = mergeCommerce7(wines, remoteWines);
       setWines(nextWines);
-      if (remoteWines.some((wine) => wine.onTastingMenu !== undefined)) {
-        setTastingIds(nextWines.filter((wine) => wine.source === 'commerce7' && wine.onTastingMenu).map((wine) => wine.id));
+      const currentMenuMatches = matchMenuText(CURRENT_TASTING_MENU_TEXT, nextWines);
+      if (currentMenuMatches.length) {
+        setTastingIds(currentMenuMatches.map((wine) => wine.id));
+        window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
       }
       setSync({ configured: true, loading: false, message: `${data.total} wines synced from Commerce7`, lastSynced: new Date().toISOString() });
     } catch (error) {
@@ -675,7 +723,7 @@ export default function WineHub() {
   }
 
   function openTech(wine = activeWine) {
-    if (!wine) return;
+    if (!wine || !canUseTechSheets) return;
     setActiveWineId(wine.id);
     setTechDraft(draftFromWine(wine));
     setView('tech');
@@ -728,6 +776,7 @@ export default function WineHub() {
       }
 
       setWines((current) => current.map((wine) => ({ ...wine, onTastingMenu: tastingIds.includes(wine.id) })));
+      window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Unable to save tasting menu');
     } finally {
@@ -756,6 +805,14 @@ export default function WineHub() {
     });
   }, [wines, query, category]);
 
+  if (access.loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#f5f6f8]"><div className="text-center"><img src="/lwc-logo.png" alt="Leelanau Cellars" className="mx-auto h-16 w-16 border border-black bg-white object-cover" /><Loader2 className="mx-auto mt-5 h-6 w-6 animate-spin text-black/40" /><p className="mt-3 text-sm font-bold text-black/45">Opening Wine Hub…</p></div></div>;
+  }
+
+  if (access.enabled && !access.role) {
+    return <PinGate configured={access.configured} onAccess={(role) => { setAccess({ loading: false, enabled: true, configured: true, role }); setView('library'); }} />;
+  }
+
   return (
     <div className="app-shell min-h-screen bg-[#f5f6f8] text-[#171717]">
       <aside className={`no-print fixed inset-y-0 left-0 z-40 w-[248px] border-r border-black/10 bg-white transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -770,13 +827,21 @@ export default function WineHub() {
 
           <nav className="space-y-1">
             <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => { setView('library'); setMobileNav(false); }} />
-            <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Room" onClick={() => { setView('tasting'); setMobileNav(false); }} />
-            <NavButton active={view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech'); setMobileNav(false); }} />
+            {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Staff Notes" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
+            {canUseTastingRoom && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
+            {canUseTechSheets && <NavButton active={view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech'); setMobileNav(false); }} />}
             <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => { setView('awards'); setMobileNav(false); }} />
             <NavButton active={view === 'assets'} icon={<ImageIcon />} label="Assets" onClick={() => { setView('assets'); setMobileNav(false); }} />
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-black/10 bg-[#f8f9fb] p-3">
+          <div className="mt-auto space-y-3">
+            {access.enabled && <div className="rounded-2xl border border-black/10 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div><p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Access</p><p className="mt-1 text-xs font-black">{access.role === 'admin' ? 'Admin' : access.role === 'sales' ? 'Sales' : 'Tasting Room'}</p></div>
+                <button onClick={() => void logout()} className="flex items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]"><LogOut className="h-3.5 w-3.5" /> Log out</button>
+              </div>
+            </div>}
+            <div className="rounded-2xl border border-black/10 bg-[#f8f9fb] p-3">
             <div className="flex items-start gap-2.5">
               <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${sync.configured ? 'bg-emerald-500' : 'bg-amber-400'}`} />
               <div className="min-w-0"><p className="text-xs font-bold">Data source</p><p className="mt-1 text-[11px] leading-4 text-black/55">{sync.message}</p></div>
@@ -784,6 +849,7 @@ export default function WineHub() {
             <button onClick={() => void syncCommerce7()} disabled={!sync.configured || sync.loading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45">
               {sync.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sync now
             </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -797,15 +863,16 @@ export default function WineHub() {
         </div>
 
         {view === 'library' && (
-          <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} openWine={openWine} openTech={openTech} sync={sync} />
+          <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
         )}
         {view === 'profile' && activeWine && (
-          <WineProfile wine={activeWine} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} />
+          <WineProfile wine={activeWine} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
         )}
-        {view === 'tasting' && (
-          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} />
+        {view === 'tasting' && canUseTastingRoom && (
+          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={access.role as AccessRole} />
         )}
-        {view === 'tech' && (
+        {view === 'quickfacts' && canUseTastingRoom && <QuickFactsView />}
+        {view === 'tech' && canUseTechSheets && (
           <TechSheetBuilder wines={wines} activeWine={activeWine} activeWineId={activeWineId} setActiveWineId={setActiveWineId} draft={techDraft} setDraft={setTechDraft} />
         )}
         {view === 'awards' && <AwardsView wines={wines} openWine={openWine} />}
@@ -813,6 +880,53 @@ export default function WineHub() {
       </main>
     </div>
   );
+}
+
+
+function PinGate({ configured, onAccess }: { configured: boolean; onAccess: (role: AccessRole) => void }) {
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!pin.trim() || loading || !configured) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pin.trim() }),
+      });
+      const data = await response.json() as { role?: AccessRole; error?: string };
+      if (!response.ok || !data.role) throw new Error(data.error || 'Unable to sign in.');
+      onAccess(data.role);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign in.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return <div className="flex min-h-screen items-center justify-center bg-[#f3f5f7] px-5 py-12">
+    <div className="w-full max-w-[430px] rounded-[28px] border border-black/10 bg-white p-7 shadow-2xl shadow-black/10 sm:p-9">
+      <div className="flex items-center gap-4">
+        <img src="/lwc-logo.png" alt="Leelanau Cellars" className="h-16 w-16 border border-black bg-white object-cover" />
+        <div><p className="text-[10px] font-black uppercase tracking-[.24em] text-black/40">Internal access</p><h1 className="mt-1 text-2xl font-black tracking-[-.035em]">Leelanau Cellars Wine Hub</h1></div>
+      </div>
+      <p className="mt-6 text-sm leading-6 text-black/55">Enter your team PIN. Your access determines whether you see Sales tools, Tasting Room tools, or the full Admin hub.</p>
+      {!configured ? <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+        <p className="font-black">PIN access needs to be configured in Vercel.</p>
+        <p className="mt-1">Add <code>WINE_HUB_AUTH_SECRET</code>, <code>WINE_HUB_ADMIN_PIN</code>, <code>WINE_HUB_SALES_PIN</code>, and <code>WINE_HUB_TASTING_PIN</code> as Environment Variables, then redeploy.</p>
+      </div> : <form onSubmit={submit} className="mt-6">
+        <label className="block"><span className="field-label">Team PIN</span><input type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} autoFocus placeholder="Enter PIN" className="field-input mt-1 text-lg tracking-[.18em]" /></label>
+        {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p>}
+        <button type="submit" disabled={!pin.trim() || loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} {loading ? 'Opening Wine Hub…' : 'Access Wine Hub'}</button>
+      </form>}
+      <p className="mt-5 text-center text-[10px] leading-4 text-black/35">Access remains remembered on this device for 30 days unless you log out.</p>
+    </div>
+  </div>;
 }
 
 function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
@@ -823,8 +937,8 @@ function PageHeader({ eyebrow, title, description, right }: { eyebrow: string; t
   return <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div><p className="mb-2 text-xs font-black uppercase tracking-[.22em] text-[#3976b7]">{eyebrow}</p><h1 className="text-3xl font-black tracking-[-.035em] md:text-4xl">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-black/55">{description}</p>}</div>{right}</header>;
 }
 
-function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, openWine, openTech, sync }: {
-  wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState;
+function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, openWine, openTech, sync, allowTechSheets }: {
+  wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState; allowTechSheets: boolean;
 }) {
   const [batchMode, setBatchMode] = useState(false);
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
@@ -848,7 +962,7 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
 
   return <>
     <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-      <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Search a wine once and find the product facts, sales language, awards, assets and printable documents your team needs." right={<div className="flex flex-wrap items-center justify-end gap-2"><button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select tech sheets'}</button><Stat value={allWines.length} label="wines" /></div>} />
+      <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Search a wine once and find the product facts, sales language, awards, assets and printable documents your team needs." right={<div className="flex flex-wrap items-center justify-end gap-2">{allowTechSheets && <button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select tech sheets'}</button>}<Stat value={allWines.length} label="wines" /></div>} />
 
       <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
         <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search wine, vintage, varietal or style…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
@@ -868,12 +982,12 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
       {!sync.configured && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm"><Database className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><div><strong>Demo catalog is active.</strong> Connect the Commerce7 environment variables and the library will populate from your live Product catalog automatically. Any Wine Hub copy you edit is preserved when product facts sync.</div></div>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {wines.map((wine) => <WineCard key={wine.id} wine={wine} open={() => openWine(wine)} tech={() => openTech(wine)} batchMode={batchMode} selected={selectedTechIds.includes(wine.id)} toggleSelected={() => toggleSelected(wine.id)} />)}
+        {wines.map((wine) => <WineCard key={wine.id} wine={wine} open={() => openWine(wine)} tech={() => openTech(wine)} batchMode={allowTechSheets && batchMode} selected={selectedTechIds.includes(wine.id)} toggleSelected={() => toggleSelected(wine.id)} allowTechSheet={allowTechSheets} />)}
       </div>
       {!wines.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
     </div>
 
-    {batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">
+    {allowTechSheets && batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">
       {selectedWines.map((wine) => {
         const batchDraft = { ...draftFromWine(wine), headerColor: batchColors[wine.id] || TECH_COLOR };
         return <div key={`batch-${wine.id}`} className="batch-tech-page"><TechSheetPaper draft={batchDraft} wine={wine} /></div>;
@@ -886,7 +1000,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   return <div className="min-w-20 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-center shadow-sm"><strong className="block text-lg leading-5">{value}</strong><span className="text-[10px] font-bold uppercase tracking-[.14em] text-black/40">{label}</span></div>;
 }
 
-function WineCard({ wine, open, tech, batchMode = false, selected = false, toggleSelected }: { wine: WineRecord; open: () => void; tech: () => void; batchMode?: boolean; selected?: boolean; toggleSelected?: () => void }) {
+function WineCard({ wine, open, tech, batchMode = false, selected = false, toggleSelected, allowTechSheet = true }: { wine: WineRecord; open: () => void; tech: () => void; batchMode?: boolean; selected?: boolean; toggleSelected?: () => void; allowTechSheet?: boolean }) {
   const award = wine.awards[0];
   return <article className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}>
     <button onClick={() => batchMode ? toggleSelected?.() : open()} className="block w-full text-left" aria-label={batchMode ? `${selected ? 'Deselect' : 'Select'} ${wine.name} for batch tech sheets` : `Open ${wine.name}`}>
@@ -899,7 +1013,7 @@ function WineCard({ wine, open, tech, batchMode = false, selected = false, toggl
     </button>
     <div className="flex flex-wrap border-t border-black/8 p-2">
       {batchMode && <label className={`mr-1 flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-black ${selected ? 'bg-[#eaf3fb] text-[#326eac]' : 'hover:bg-black/[.04]'}`}><input type="checkbox" checked={selected} onChange={() => toggleSelected?.()} className="h-3.5 w-3.5 accent-[#326eac]" /> PDF</label>}
-      <button onClick={open} className="min-w-[92px] flex-1 rounded-lg px-3 py-2 text-xs font-bold hover:bg-black/[.04]">View profile</button><button onClick={tech} className="min-w-[82px] flex-1 rounded-lg px-3 py-2 text-xs font-bold text-[#326eac] hover:bg-[#eaf3fb]">Tech sheet</button>
+      <button onClick={open} className="min-w-[92px] flex-1 rounded-lg px-3 py-2 text-xs font-bold hover:bg-black/[.04]">View profile</button>{allowTechSheet && <button onClick={tech} className="min-w-[82px] flex-1 rounded-lg px-3 py-2 text-xs font-bold text-[#326eac] hover:bg-[#eaf3fb]">Tech sheet</button>}
     </div>
   </article>;
 }
@@ -909,8 +1023,8 @@ function WinePlaceholder({ wine }: { wine: WineRecord }) {
   return <div className="flex h-full items-center justify-center"><div className="flex h-24 w-16 items-center justify-center rounded-t-2xl rounded-b-lg border-2 border-black/15 bg-white text-xl font-black text-black/35 shadow-xl"><span>{letters}</span></div></div>;
 }
 
-function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, saveNotice, addAward, back, openTech }: {
-  wine: WineRecord; tab: ProfileTab; setTab: (tab: ProfileTab) => void; editing: WineRecord | null; setEditing: (wine: WineRecord | null) => void; save: () => void | Promise<void>; saving: boolean; saveNotice: string; addAward: () => void; back: () => void; openTech: () => void;
+function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, saveNotice, addAward, back, openTech, allowTechSheets }: {
+  wine: WineRecord; tab: ProfileTab; setTab: (tab: ProfileTab) => void; editing: WineRecord | null; setEditing: (wine: WineRecord | null) => void; save: () => void | Promise<void>; saving: boolean; saveNotice: string; addAward: () => void; back: () => void; openTech: () => void; allowTechSheets: boolean;
 }) {
   const shown = editing ?? wine;
   const isEditing = Boolean(editing);
@@ -924,7 +1038,7 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
         <div className="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white">{shown.bottleImage ? <img src={shown.bottleImage} alt="" className="h-full w-full object-contain p-2" /> : <WinePlaceholder wine={shown} />}</div>
         <div><div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#e8f2fb] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{shown.category}</span><span className="rounded-full bg-black/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-black/45">{shown.status}</span>{shown.source === 'commerce7' && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Synced from Commerce7</span>}</div><h1 className="text-4xl font-black tracking-[-.04em]">{shown.name}</h1><p className="mt-2 text-sm font-semibold text-black/45">{shown.vintage} · {shown.varietal || 'Varietal not set'} · {shown.appellation || 'Appellation not set'}</p></div>
       </div>
-      <div className="flex flex-col items-start gap-2 lg:items-end"><button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button><p className="max-w-sm text-right text-[11px] leading-4 text-black/40">Product and master wine information is managed in Commerce7.</p></div>
+      <div className="flex flex-col items-start gap-2 lg:items-end">{allowTechSheets && <button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button>}<p className="max-w-sm text-right text-[11px] leading-4 text-black/40">Product and master wine information is managed in Commerce7.</p></div>
     </div>
 
     <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-black/10 bg-white p-1.5">{(['overview','sales','specs','assets'] as ProfileTab[]).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-lg px-4 py-2 text-xs font-black capitalize ${tab === item ? 'bg-black text-white' : 'text-black/45 hover:bg-black/[.04]'}`}>{item}</button>)}</div>
@@ -1127,6 +1241,45 @@ function AwardRow({ award }: { award: Award }) {
 }
 function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (patch: Partial<Award>) => void; onRemove: () => void }) { return <div className="rounded-xl border border-[#ead9b4] bg-[#fffaf0] p-3"><div className="grid gap-2 sm:grid-cols-[90px_1fr]"><label><span className="field-label">Year</span><input type="number" value={award.year} onChange={(event) => onChange({ year: Number(event.target.value) || new Date().getFullYear() })} className="field-input" /></label><EditField label="Result" value={award.result} onChange={(value) => onChange({ result: value })} /></div><div className="mt-2"><EditField label="Competition" value={award.competition} onChange={(value) => onChange({ competition: value })} /></div><div className="mt-2"><EditField label="Award graphic URL (optional)" value={award.graphicUrl || ''} onChange={(value) => onChange({ graphicUrl: value || undefined })} /></div><button onClick={onRemove} className="mt-3 text-[11px] font-black text-red-600 hover:text-red-700">Remove award</button></div>; }
 
+
+function QuickFactsView() {
+  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
+    <PageHeader eyebrow="Tasting room" title="Leelanau Cellars Quick Facts" description="A staff reference for the winery story, northern Michigan growing conditions, vineyard sites, grape varieties, sustainability practices and recent vintages." />
+
+    <div className="grid gap-5 xl:grid-cols-[1.08fr_.92fr]">
+      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf5fd] text-[#326eac]"><BookOpen className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Company</p><h2 className="text-xl font-black">{QUICK_FACTS.story.title}</h2></div></div>
+        <ul className="mt-5 space-y-3 text-sm leading-6 text-black/68">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-sm font-black">{brand}</p><p className="mt-1 text-xs leading-5 text-black/58">{detail}</p></div>)}</div>
+      </section>
+
+      <div className="grid gap-5">
+        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6"><h2 className="text-xl font-black">{section.title}</h2><ul className="mt-4 space-y-2.5 text-sm leading-6 text-black/65">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
+      </div>
+    </div>
+
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">68.5 total acres</p><h2 className="text-xl font-black">Our Vineyard Sites</h2></div><p className="max-w-xl text-xs leading-5 text-black/45">{QUICK_FACTS.vineyardNote}</p></div>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.14em] text-black/40"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3 pr-4 font-black">{item.site}</td><td className="py-3 pr-4 text-black/62">{item.features}</td><td className="py-3 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
+    </section>
+
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
+      <h2 className="text-xl font-black">Grape Varieties Grown</h2>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead><tr className="border-b border-black/10 text-[9px] font-black uppercase tracking-[.13em] text-black/40"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3 pr-4 font-black">{item.variety}</td><td className="py-3 pr-4 text-black/55">{item.type}</td><td className="py-3 pr-4 font-bold">{item.acreage}</td><td className="py-3 pr-4 text-black/55">{item.locations}</td><td className="py-3 text-black/55">{item.notes}</td></tr>)}</tbody></table></div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-3"><FactMini title="Hilltop white hybrid trial" text={QUICK_FACTS.trials.white} /><FactMini title="Hilltop red hybrid trial" text={QUICK_FACTS.trials.red} /><FactMini title="Coming Soon" text={QUICK_FACTS.trials.comingSoon} /></div>
+    </section>
+
+    <div className="mt-5 grid gap-5 xl:grid-cols-[.75fr_1.25fr]">
+      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6"><h2 className="text-xl font-black">Sustainable Practices</h2><ul className="mt-4 space-y-3 text-sm leading-6 text-black/65">{QUICK_FACTS.sustainability.map((item) => <li key={item} className="flex gap-3"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /><span>{item}</span></li>)}</ul></section>
+      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6"><h2 className="text-xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-lg font-black">{vintage.year}</p><ul className="mt-2 space-y-1.5 text-[11px] leading-4 text-black/58">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
+    </div>
+  </div>;
+}
+
+function FactMini({ title, text }: { title: string; text: string }) {
+  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-xs font-black">{title}</p><p className="mt-1.5 text-[11px] leading-5 text-black/55">{text}</p></div>;
+}
+
 function menuCandidates(wine: WineRecord) {
   const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
   const withoutVintage = withoutBrand.replace(/^20\d{2}\s+|\s+20\d{2}$/g, '').trim();
@@ -1144,19 +1297,29 @@ function matchMenuText(text: string, wines: WineRecord[]) {
   }));
 }
 
-function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingMenu, commerce7Connected }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; saveMenu: () => void | Promise<void>; savingMenu: boolean; commerce7Connected: boolean }) {
+function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingMenu, commerce7Connected, role }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; saveMenu: () => void | Promise<void>; savingMenu: boolean; commerce7Connected: boolean; role: AccessRole }) {
   const [q, setQ] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [menuText, setMenuText] = useState('');
   const [importNotice, setImportNotice] = useState('');
+  const [menuInfo, setMenuInfo] = useState<{ filename: string; updatedAt: string; source: string; storageConfigured: boolean; canReplace: boolean; downloadUrl: string; viewUrl: string } | null>(null);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuUploading, setMenuUploading] = useState(false);
+  const [menuUploadNotice, setMenuUploadNotice] = useState('');
   const chosen = wines.filter((wine) => selected.includes(wine.id));
   const available = wines.filter((wine) => `${wine.name} ${wine.vintage} ${wine.category}`.toLowerCase().includes(q.toLowerCase()));
   const toggle = (id: string) => setSelected(selected.includes(id) ? selected.filter((wineId) => wineId !== id) : [...selected, id]);
   const autoSelect = (text = menuText) => {
     const matches = matchMenuText(text, wines);
     setSelected(matches.map((wine) => wine.id));
-    setImportNotice(matches.length ? `Matched ${matches.length} wines: ${matches.map((wine) => wine.name).join(', ')}` : 'No wine names matched yet. Try pasting the menu text or use Add / change wines.');
+    setImportNotice(matches.length ? `Matched ${matches.length} wines from the menu.` : 'No wine names matched yet. Try pasting the menu text or use Add / change wines.');
+  };
+  const useOfficialMenu = () => {
+    const matches = matchMenuText(CURRENT_TASTING_MENU_TEXT, wines);
+    setSelected(matches.map((wine) => wine.id));
+    setImportNotice(matches.length ? `Loaded ${matches.length} wines from the current tasting-room menu.` : 'Wine Hub could not match the current menu against the catalog yet.');
+    window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
   };
   const readMenuFile = async (file?: File) => {
     if (!file) return;
@@ -1167,19 +1330,71 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
       autoSelect(text);
       return;
     }
-    setImportNotice('This version can auto-match pasted text, TXT, CSV, Markdown and HTML menus. PDF/photo OCR is the next step once we test it against your actual menu format.');
+    setImportNotice('Use the Current Tasting Room Menu card above for the official PDF. For a separate auto-match, paste menu text here or upload TXT, CSV, Markdown, or HTML.');
   };
 
+  async function loadMenuInfo() {
+    setMenuLoading(true);
+    try {
+      const response = await fetch('/api/tasting-room/menu', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to load menu information.');
+      setMenuInfo(data);
+    } catch (error) {
+      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to load current menu.');
+    } finally {
+      setMenuLoading(false);
+    }
+  }
+
+  async function replaceOfficialMenu(file?: File) {
+    if (!file || menuUploading) return;
+    setMenuUploading(true);
+    setMenuUploadNotice('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
+      setMenuUploadNotice('Current menu PDF updated. Update the Staff Notes wine list below if the wines changed.');
+      await loadMenuInfo();
+    } catch (error) {
+      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to replace the current menu.');
+    } finally {
+      setMenuUploading(false);
+    }
+  }
+
+  useEffect(() => { void loadMenuInfo(); }, []);
+
+  const menuDate = menuInfo?.updatedAt ? new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(menuInfo.updatedAt)) : CURRENT_TASTING_MENU_LABEL;
+
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="Keep one current menu, print a clean staff guide, and update the wine list without digging through the full catalog every time." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save current menu'}</button><button onClick={() => printWithTitle(`Leelanau Cellars - Tasting Room Wine Guide - ${new Date().toISOString().slice(0, 10)}`)} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print staff guide</button></div>} /></div>
+    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Staff Notes" description="The current tasting-room menu drives the staff wine list, so everyone has quick talking points for the wines being poured right now." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save Staff Notes list'}</button><button onClick={() => printWithTitle(`Leelanau Cellars - Tasting Room Staff Notes - ${new Date().toISOString().slice(0, 10)}`)} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print Staff Notes</button></div>} /></div>
+
+    <section className="no-print mb-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#edf5fd] text-[#326eac]"><FileText className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Official PDF</p><h2 className="mt-1 text-xl font-black">Current Tasting Room Menu</h2><p className="mt-1 text-xs leading-5 text-black/48">{menuLoading ? 'Loading menu…' : `${menuInfo?.source === 'vercel-blob' ? 'Uploaded' : CURRENT_TASTING_MENU_LABEL} · ${menuDate}`}</p></div></div>
+        <div className="flex flex-wrap gap-2">
+          <a href={menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1'} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><ExternalLink className="h-4 w-4" /> View PDF</a>
+          <a href={menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1'} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><Download className="h-4 w-4" /> Download PDF</a>
+          <button onClick={useOfficialMenu} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-4 py-3 text-xs font-black text-white"><ClipboardList className="h-4 w-4" /> Use menu for Staff Notes</button>
+          {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-black text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+        </div>
+      </div>
+      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-900"><strong>The current September menu is already bundled and downloadable.</strong> To replace the PDF from inside Wine Hub later, connect Vercel Blob to the project. Until then, you can replace the bundled menu in a future app update.</p>}
+      {menuUploadNotice && <p className="mt-3 rounded-xl bg-[#f6f7f8] px-3 py-2.5 text-[11px] font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+    </section>
+
     <div className="no-print grid gap-5 xl:grid-cols-[390px_1fr]">
       <aside className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-        <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared menu enabled.' : 'Demo mode.'}</strong> {commerce7Connected ? 'Save the menu once and the current selection follows the team.' : 'The menu is saved in this browser until Commerce7 is connected.'}</div>
-        <div className="mb-3 flex items-center justify-between"><div><h2 className="font-black">Current menu</h2><p className="text-xs text-black/45">{selected.length} wines selected</p></div>{selected.length > 0 && <button onClick={() => setSelected([])} className="text-xs font-bold text-black/40 hover:text-black">Clear</button>}</div>
-        <div className="space-y-2">{chosen.length ? chosen.map((wine) => <div key={wine.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#eef5fb] px-3 py-2.5"><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[10px] text-black/40">{wine.vintage === 'NV' ? wine.category : `${wine.vintage} · ${wine.category}`}</p></div><button onClick={() => toggle(wine.id)} aria-label={`Remove ${wine.name}`} className="rounded-full p-1 text-black/35 hover:bg-white hover:text-black"><X className="h-3.5 w-3.5" /></button></div>) : <div className="rounded-xl border border-dashed border-black/15 p-5 text-center text-xs leading-5 text-black/40">No wines selected yet.</div>}</div>
-        <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Import menu</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change</button></div>
+        <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared Staff Notes list enabled.' : 'Local Staff Notes list.'}</strong> {commerce7Connected ? 'Save the list once and the current selection follows the team.' : 'The wine selection is saved in this browser until Commerce7 is connected.'}</div>
+        <div className="mb-3 flex items-center justify-between"><div><h2 className="font-black">Wines on Staff Notes</h2><p className="text-xs text-black/45">{selected.length} wines selected</p></div>{selected.length > 0 && <button onClick={() => setSelected([])} className="text-xs font-bold text-black/40 hover:text-black">Clear</button>}</div>
+        <div className="space-y-2">{chosen.length ? chosen.map((wine) => <div key={wine.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#eef5fb] px-3 py-2.5"><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[10px] text-black/40">{wine.vintage === 'NV' ? wine.category : `${wine.vintage} · ${wine.category}`}</p></div><button onClick={() => toggle(wine.id)} aria-label={`Remove ${wine.name}`} className="rounded-full p-1 text-black/35 hover:bg-white hover:text-black"><X className="h-3.5 w-3.5" /></button></div>) : <div className="rounded-xl border border-dashed border-black/15 p-5 text-center text-xs leading-5 text-black/40">No wines selected yet. Use the official current menu above to build this list in one click.</div>}</div>
+        <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Match text</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change</button></div>
 
-        {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-3"><p className="text-xs font-black">Auto-select from your menu</p><p className="mt-1 text-[11px] leading-4 text-black/45">Paste the current menu or upload a text-based menu. Wine Hub matches the names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste the current tasting menu here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload menu file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
+        {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-3"><p className="text-xs font-black">Auto-select from menu text</p><p className="mt-1 text-[11px] leading-4 text-black/45">Paste a wine list or upload a text-based menu. Wine Hub matches names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste a tasting-room wine list here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload text file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
 
         {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="max-h-[430px] space-y-1 overflow-auto pr-1">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 ${selected.includes(wine.id) ? 'bg-[#eaf3fb]' : 'hover:bg-black/[.035]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/40">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
       </aside>
@@ -1240,7 +1455,7 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
             <img src="/lwc-logo.png" alt="" className="h-12 w-12 border border-black bg-white object-cover" />
             <div>
               <p className="text-[8px] font-black uppercase tracking-[.23em] text-[#3976b7]">Leelanau Cellars · Staff Reference</p>
-              <h2 className="mt-0.5 text-[23px] font-black tracking-[-.035em]">Tasting Room Wine Guide</h2>
+              <h2 className="mt-0.5 text-[23px] font-black tracking-[-.035em]">Tasting Room Staff Notes</h2>
             </div>
           </div>
           <div className="text-right">
@@ -1248,7 +1463,7 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
             <p className="mt-1 text-[8px] font-semibold text-black/35">{chosen.length} wines · Page {pageIndex + 1} of {pages.length}</p>
           </div>
         </header>
-        {!pageWines.length ? <div className="flex min-h-[560px] items-center justify-center p-10 text-center text-sm text-black/40">Add the wines on the current tasting menu to build the staff guide.</div> : <div className="field-guide-body grid grid-cols-2 divide-x divide-black/10">
+        {!pageWines.length ? <div className="flex min-h-[560px] items-center justify-center p-10 text-center text-sm text-black/40">Use the current tasting-room menu to build the Staff Notes list.</div> : <div className="field-guide-body grid grid-cols-2 divide-x divide-black/10">
           <div className="field-guide-column grid grid-rows-5 px-5 py-3">{left.map(renderWine)}</div>
           <div className="field-guide-column grid grid-rows-5 px-5 py-3">{right.map(renderWine)}</div>
         </div>}

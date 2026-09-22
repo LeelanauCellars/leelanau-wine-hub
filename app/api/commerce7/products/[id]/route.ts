@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { WineRecord } from '@/lib/types';
+import { sessionRole } from '@/lib/auth';
 
 type ProductResponse = { product?: { metaData?: Record<string, unknown> | null } };
 
@@ -31,6 +32,9 @@ const metadataPatch = (wine: WineRecord) => ({
 });
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const role = await sessionRole();
+  if (!role) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['admin', 'sales'].includes(role)) return NextResponse.json({ error: 'Sales or Admin access required' }, { status: 403 });
   const creds = credentials();
   if (!creds) return NextResponse.json({ error: 'Commerce7 is not configured' }, { status: 503 });
 

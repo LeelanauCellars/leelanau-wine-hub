@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sessionRole } from '@/lib/auth';
 
 function credentials() {
   const appId = process.env.COMMERCE7_APP_ID;
@@ -9,6 +10,9 @@ function credentials() {
 }
 
 export async function POST(request: NextRequest) {
+  const role = await sessionRole();
+  if (!role) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['admin', 'tasting'].includes(role)) return NextResponse.json({ error: 'Tasting Room or Admin access required' }, { status: 403 });
   const creds = credentials();
   if (!creds) return NextResponse.json({ error: 'Commerce7 is not configured' }, { status: 503 });
   const body = await request.json() as { changes?: Array<{ commerce7Id: string; onTastingMenu: boolean }> };

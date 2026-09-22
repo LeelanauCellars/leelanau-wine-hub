@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sessionRole } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,7 @@ function blockedHostname(hostname: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!await sessionRole()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const raw = request.nextUrl.searchParams.get('url');
   if (!raw) return NextResponse.json({ error: 'Missing image URL.' }, { status: 400 });
 

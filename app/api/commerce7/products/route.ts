@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { WineRecord } from '@/lib/types';
 import { loadCurrentWebsiteAwards, matchWebsiteAwards } from '@/lib/website-awards';
+import { sessionRole } from '@/lib/auth';
 
 type C7Variant = {
   upcCode?: string | null;
@@ -267,6 +268,7 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
 };
 
 export async function GET() {
+  if (!await sessionRole()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const appId = process.env.COMMERCE7_APP_ID;
   const secret = process.env.COMMERCE7_APP_SECRET;
   const tenant = process.env.COMMERCE7_TENANT_ID;
