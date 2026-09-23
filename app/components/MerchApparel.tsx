@@ -80,10 +80,12 @@ function issueSummary(variant: MerchVariant, duplicateUpcs: Set<string>) {
 function MerchLabel({ variant }: { variant: MerchVariant }) {
   const barcode = code128SvgDataUrl(variant.upcCode);
   return <div className="merch-label-page">
-    <div className="merch-label-price">{labelPrice(variant.price ?? 0)}</div>
-    <div className="merch-label-barcode"><img src={barcode} alt="" /></div>
-    <div className="merch-label-upc">{variant.upcCode}</div>
-    <div className="merch-label-sku">{variant.sku}</div>
+    <div className="merch-label-design">
+      <div className="merch-label-price">{labelPrice(variant.price ?? 0)}</div>
+      <div className="merch-label-barcode"><img src={barcode} alt="" /></div>
+      <div className="merch-label-upc">{variant.upcCode}</div>
+      <div className="merch-label-sku">{variant.sku}</div>
+    </div>
   </div>;
 }
 
@@ -255,8 +257,8 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(165px,.85fr)_minmax(120px,.75fr)_minmax(132px,.8fr)_90px_230px] items-center gap-4 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-black uppercase tracking-[.13em] text-black/35 lg:grid">
-              <span>Item</span><span>Variant / Size</span><span>SKU</span><span>UPC</span><span>Price</span><span className="text-right">Actions</span>
+            <div className="hidden grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] items-center gap-5 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-black uppercase tracking-[.13em] text-black/35 lg:grid">
+              <span>Item</span><span>Variant / Size</span><span>Price</span><span className="text-right">Actions</span>
             </div>
 
             <div className="divide-y divide-black/[.07]">
@@ -269,13 +271,16 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                   const issues = selected ? issueSummary(selected, duplicateUpcs) : [];
                   const ready = selected ? readyToPrint(selected, duplicateUpcs) : false;
                   return <article key={product.id} className="px-4 py-4 transition hover:bg-[#fafbfd] md:px-5">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.4fr)_minmax(165px,.85fr)_minmax(120px,.75fr)_minmax(132px,.8fr)_90px_230px] lg:items-center lg:gap-4">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] lg:items-center lg:gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-[15px] font-black leading-5">{product.name}</h2>
                           {!ready && selected && <StatusPill tone={issues.includes('Missing UPC') || issues.includes('Duplicate UPC') ? 'bad' : 'warn'}>{issues[0] || 'Issue'}</StatusPill>}
                         </div>
-                        <p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-[#3976b7]">{product.category}</p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-black/45">
+                          <span><strong className="font-black text-black/55">SKU:</strong> {selected?.sku || '—'}</span>
+                          <span className="font-mono"><strong className="font-sans font-black text-black/55">UPC:</strong> {selected?.upcCode || '—'}</span>
+                        </div>
                       </div>
 
                       <div>
@@ -283,30 +288,20 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                         {product.variants.length > 1 ? <select
                           value={selected?.id || ''}
                           onChange={(event) => setSelectedByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
-                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[12px] font-bold outline-none focus:border-black/30"
+                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[15px] font-black outline-none focus:border-[#5ba3f8]"
                         >
                           {product.variants.map((variant) => <option key={variant.id} value={variant.id}>{variantLabel(variant.variantName)}</option>)}
-                        </select> : <div className="text-[12px] font-bold text-black/60">{selected ? variantLabel(selected.variantName) : '—'}</div>}
-                      </div>
-
-                      <div className="min-w-0">
-                        <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">SKU</span>
-                        <p className="break-all text-[11px] font-black">{selected?.sku || '—'}</p>
-                      </div>
-
-                      <div className="min-w-0">
-                        <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">UPC</span>
-                        <p className="break-all font-mono text-[10px] font-bold text-black/70">{selected?.upcCode || '—'}</p>
+                        </select> : <div className="text-[15px] font-black leading-5 text-black/80">{selected ? variantLabel(selected.variantName) : '—'}</div>}
                       </div>
 
                       <div>
                         <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
-                        <p className="text-[13px] font-black">{selected ? money(selected.price) : '—'}</p>
+                        <p className="text-[15px] font-black">{selected ? money(selected.price) : '—'}</p>
                       </div>
 
                       <div className="flex gap-2 lg:justify-end">
-                        <button disabled={!ready || !selected} onClick={() => selected && startPrint([selected])} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[.04em] text-white disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PrinterIcon className="h-3.5 w-3.5" /> Print Price Tag</button>
-                        <button disabled={!ready || !selected} onClick={() => selected && addToQueue(selected)} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PlusIcon /> Queue</button>
+                        <button disabled={!ready || !selected} onClick={() => selected && startPrint([selected])} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[10px] font-black uppercase tracking-[.04em] text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PrinterIcon className="h-3.5 w-3.5" /> Print Price Tag</button>
+                        <button disabled={!ready || !selected} onClick={() => selected && addToQueue(selected)} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[10px] font-black text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PlusIcon /> Queue</button>
                       </div>
                     </div>
 
@@ -327,9 +322,10 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
               <div className="mt-3 flex items-center justify-between"><span className="font-mono text-[9px] text-black/40">{item.variant.upcCode}</span><div className="flex items-center gap-1"><button onClick={() => changeQuantity(item.variant.id, -1)} className="rounded-lg border border-black/10 bg-white p-1.5"><MinusIcon /></button><span className="min-w-7 text-center text-xs font-black">{item.quantity}</span><button onClick={() => changeQuantity(item.variant.id, 1)} className="rounded-lg border border-black/10 bg-white p-1.5"><PlusIcon /></button></div></div>
             </div>)}</div>
             {!queue.length && <div className="mt-4 rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-4 py-10 text-center"><p className="text-sm font-black text-black/35">Queue is empty</p><p className="mt-1 text-[10px] leading-4 text-black/30">Add a ready-to-print variant from any merchandise row.</p></div>}
-            <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
+            <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-black text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
             <p className="mt-4 text-[10px] leading-4 text-black/35">Choose a variant in the list, then print it immediately or add it to the queue for batch printing.</p>
+            <div className="mt-3 rounded-lg border border-[#cfe0f1] bg-[#f3f8fd] px-3 py-2 text-[10px] leading-4 text-[#285f96]"><strong>DYMO orientation fix enabled.</strong> Keep the paper size set to 30334. The browser preview may appear rotated because Wine Hub now compensates for the DYMO driver rotating the physical label.</div>
           </div>
         </aside>
       </div>
