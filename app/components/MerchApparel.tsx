@@ -409,7 +409,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <div className="hidden grid-cols-[minmax(320px,1.55fr)_minmax(150px,.75fr)_90px_190px] items-center gap-4 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
+            <div className="hidden grid-cols-[minmax(0,1fr)_minmax(110px,150px)_72px_180px] items-center gap-3 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
               <span>Item</span><span>Variant / Size</span><span>Price</span><span className="text-right">Actions</span>
             </div>
 
@@ -423,7 +423,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                   const issues = selected ? issueSummary(selected, duplicateUpcs) : [];
                   const ready = selected ? readyToPrint(selected, duplicateUpcs) : false;
                   return <article key={product.id} className="px-4 py-4 transition hover:bg-[#fafbfd] md:px-5">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(320px,1.55fr)_minmax(150px,.75fr)_90px_190px] lg:items-center lg:gap-4">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(110px,150px)_72px_180px] lg:items-center lg:gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-[15px] font-medium leading-5">{product.name}</h2>
@@ -435,7 +435,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                         </div>
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         {product.variants.length > 1 && <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Variant / Size</span>}
                         {product.variants.length > 1 ? <select
                           value={selected?.id || ''}
@@ -446,12 +446,12 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                         </select> : <div aria-hidden="true" className="h-10" />}
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
-                        <p className="text-[15px] font-medium">{selected ? money(selected.price) : '—'}</p>
+                        <p className="whitespace-nowrap text-[15px] font-medium">{selected ? money(selected.price) : '—'}</p>
                       </div>
 
-                      <div className="flex gap-1.5 lg:justify-end">
+                      <div className="flex min-w-0 gap-1.5 lg:justify-end">
                         <button
                           disabled={!ready || !selected || dymoStatus !== 'ready' || !selectedPrinter}
                           onClick={() => selected && void startPrint([selected])}
