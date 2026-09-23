@@ -812,6 +812,12 @@ export default function WineHub() {
         ...current[next.id],
         name: next.name,
         family: next.family,
+        iriDescription: next.iriDescription,
+        upcFull: next.upcFull,
+        upc10: next.upc10,
+        gtin: next.gtin,
+        meijerPid: next.meijerPid,
+        targetDpci: next.targetDpci,
         marketingCopy: next.marketingCopy,
         specs: next.specs,
         pricing: next.pricing,
@@ -1196,22 +1202,46 @@ function DistributionWineDetail({ item, wines, back, canEdit, saveItem }: { item
     </div>
 
     {editing && canEdit && <div className="mb-5 grid gap-5 lg:grid-cols-2">
-      <ProfileBlock title="Edit Distribution Record">
-        <div className="grid gap-3">
-          <EditField label="Display Name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-          <EditField label="Family" value={draft.family} onChange={(value) => setDraft({ ...draft, family: value })} />
-          <EditField label="Bottle Size" value={draft.specs.size || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, size: value } })} />
-          <EditField label="Glass Type" value={draft.specs.glassType || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, glassType: value } })} />
-          <EditField label="ABV" value={draft.specs.abv === null || draft.specs.abv === undefined ? '' : String(draft.specs.abv)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, abv: value } })} />
-          <EditField label="RS" value={draft.specs.rs === null || draft.specs.rs === undefined ? '' : String(draft.specs.rs)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, rs: value } })} />
-          <EditField label="pH" value={draft.specs.ph === null || draft.specs.ph === undefined ? '' : String(draft.specs.ph)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, ph: value } })} />
-          <EditField label="TA (g/L)" value={draft.specs.ta === null || draft.specs.ta === undefined ? '' : String(draft.specs.ta)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, ta: value } })} />
-          <EditField label="Composition" value={draft.specs.composition || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, composition: value } })} />
-        </div>
-      </ProfileBlock>
-      <ProfileBlock title="Marketing Copy">
-        <Textarea value={draft.marketingCopy || ''} onChange={(value) => setDraft({ ...draft, marketingCopy: value })} rows={12} placeholder="Add marketing copy that should appear in Distribution Wines." />
-      </ProfileBlock>
+      <div className="space-y-5">
+        <ProfileBlock title="Edit Distribution Record">
+          <div className="grid gap-3">
+            <EditField label="Display Name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+            <EditField label="Family" value={draft.family} onChange={(value) => setDraft({ ...draft, family: value })} />
+            <EditField label="Bottle Size" value={draft.specs.size || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, size: value } })} />
+            <EditField label="Glass Type" value={draft.specs.glassType || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, glassType: value } })} />
+            <EditField label="ABV" value={draft.specs.abv === null || draft.specs.abv === undefined ? '' : String(draft.specs.abv)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, abv: value } })} />
+            <EditField label="RS" value={draft.specs.rs === null || draft.specs.rs === undefined ? '' : String(draft.specs.rs)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, rs: value } })} />
+            <EditField label="pH" value={draft.specs.ph === null || draft.specs.ph === undefined ? '' : String(draft.specs.ph)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, ph: value } })} />
+            <EditField label="TA (g/L)" value={draft.specs.ta === null || draft.specs.ta === undefined ? '' : String(draft.specs.ta)} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, ta: value } })} />
+            <EditField label="Composition" value={draft.specs.composition || ''} onChange={(value) => setDraft({ ...draft, specs: { ...draft.specs, composition: value } })} />
+          </div>
+        </ProfileBlock>
+        <ProfileBlock title="Identity & Codes" badge="Admin editable">
+          <div className="grid gap-3">
+            <EditField label="IRI Description" value={draft.iriDescription || ''} onChange={(value) => setDraft({ ...draft, iriDescription: value || null })} />
+            <EditField label="UPC Full" value={draft.upcFull || ''} onChange={(value) => setDraft({ ...draft, upcFull: value || null })} />
+            <EditField label="UPC 10" value={draft.upc10 || ''} onChange={(value) => setDraft({ ...draft, upc10: value || null })} />
+            <EditField label="GTIN" value={draft.gtin || ''} onChange={(value) => setDraft({ ...draft, gtin: value || null })} />
+            <EditField label="Meijer PID" value={draft.meijerPid || ''} onChange={(value) => setDraft({ ...draft, meijerPid: value || null })} />
+            <EditField label="Target DPCI" value={draft.targetDpci || ''} onChange={(value) => setDraft({ ...draft, targetDpci: value || null })} />
+          </div>
+        </ProfileBlock>
+      </div>
+      <div className="space-y-5">
+        <ProfileBlock title="Marketing Copy">
+          <Textarea value={draft.marketingCopy || ''} onChange={(value) => setDraft({ ...draft, marketingCopy: value })} rows={12} placeholder="Add marketing copy that should appear in Distribution Wines." />
+        </ProfileBlock>
+        <ProfileBlock title="Pricing" badge="Admin editable">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <EditField label="MI Case" value={draft.pricing.miCase === null || draft.pricing.miCase === undefined ? '' : String(draft.pricing.miCase)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, miCase: value ? Number(value) : null } })} />
+            <EditField label="MI Bottle" value={draft.pricing.miBottle === null || draft.pricing.miBottle === undefined ? '' : String(draft.pricing.miBottle)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, miBottle: value ? Number(value) : null } })} />
+            <EditField label="MI SRP" value={draft.pricing.miSrp === null || draft.pricing.miSrp === undefined ? '' : String(draft.pricing.miSrp)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, miSrp: value ? Number(value) : null } })} />
+            <EditField label="OH Case" value={draft.pricing.ohCase === null || draft.pricing.ohCase === undefined ? '' : String(draft.pricing.ohCase)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, ohCase: value ? Number(value) : null } })} />
+            <EditField label="OH Bottle" value={draft.pricing.ohBottle === null || draft.pricing.ohBottle === undefined ? '' : String(draft.pricing.ohBottle)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, ohBottle: value ? Number(value) : null } })} />
+            <EditField label="OH SRP" value={draft.pricing.ohSrp === null || draft.pricing.ohSrp === undefined ? '' : String(draft.pricing.ohSrp)} onChange={(value) => setDraft({ ...draft, pricing: { ...draft.pricing, ohSrp: value ? Number(value) : null } })} />
+          </div>
+        </ProfileBlock>
+      </div>
     </div>}
 
     <div className="grid gap-5 lg:grid-cols-2">

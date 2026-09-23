@@ -101,6 +101,12 @@ function fillMissingText(current: string | null | undefined, fallback?: string |
   return current;
 }
 
+function formatDistributionUpcFull(value?: string | null) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 12) return `${digits.slice(0, 1)}-${digits.slice(1, 6)}-${digits.slice(6, 11)}-${digits.slice(11)}`;
+  return value || null;
+}
+
 function asAssets(...entries: { src: string; role?: 'front' | 'back' | 'additional'; label?: string }[]): WineImageAsset[] {
   return entries.map((entry, index) => ({
     id: `${entry.src}-${entry.role || 'additional'}-${index}`,
@@ -310,6 +316,7 @@ export function buildDistributionCatalog(
       const next: DistributionWine = {
         ...item,
         name: maybeRenameDistribution(item.name, matched),
+        upcFull: item.id === 'sweet-red' && matched?.upc ? formatDistributionUpcFull(matched.upc) : item.upcFull,
         assets: [],
         specs: {
           ...item.specs,
