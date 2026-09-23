@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { code128Svg } from '@/lib/code128';
 import type { MerchCategory, MerchProduct, MerchVariant } from '@/lib/merch-types';
-import { inspectDymoEnvironment, printDymoRecords, type DymoPrinter } from '@/lib/dymo-connect';
 
 type QueueItem = {
   variant: MerchVariant;
@@ -97,10 +96,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('all');
   const [selectedByProduct, setSelectedByProduct] = useState<Record<string, string>>({});
   const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [dymoPrinters, setDymoPrinters] = useState<DymoPrinter[]>([]);
-  const [selectedPrinter, setSelectedPrinter] = useState('');
-  const [dymoStatus, setDymoStatus] = useState<'checking' | 'ready' | 'unavailable' | 'printing'>('checking');
-  const [dymoMessage, setDymoMessage] = useState('Checking DYMO Connect…');
+  const [printLayout, setPrintLayout] = useState<'standard' | 'rotated'>('standard');
 
   async function loadMerch() {
     setLoading(true);
@@ -119,29 +115,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  async function refreshDymo() {
-    setDymoStatus('checking');
-    setDymoMessage('Checking DYMO Connect…');
-    const environment = await inspectDymoEnvironment();
-    setDymoPrinters(environment.printers);
-    if (!environment.ready) {
-      setDymoStatus('unavailable');
-      setDymoMessage(environment.message);
-      return;
-    }
-
-    const remembered = window.localStorage.getItem('lwc-dymo-printer') || '';
-    const preferred = environment.printers.find((printer) => printer.name === remembered)
-      || environment.printers.find((printer) => /dymo\s*-?\s*ecom/i.test(printer.name))
-      || environment.printers.find((printer) => /labelwriter|dymo/i.test(`${printer.name} ${printer.modelName || ''}`))
-      || environment.printers[0];
-    setSelectedPrinter(preferred?.name || '');
-    setDymoStatus('ready');
-    setDymoMessage(preferred ? `Ready · ${preferred.name}` : environment.message);
-  }
-
   useEffect(() => { void loadMerch(); }, []);
-  useEffect(() => { void refreshDymo(); }, []);
 
   const allVariants = useMemo(() => products.flatMap((product) => product.variants), [products]);
   const duplicateUpcs = useMemo(() => {
@@ -207,7 +181,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
 
     const popup = window.open('', '_blank', 'popup=yes,width=720,height=520');
     if (!popup) {
-      window.alert('The label print window was blocked. Please allow pop-ups for Wine Hub and try again.');
+      window.alert('The label print window was blocked. Please allow pop-ups for Leelanau Cellars Central and try again.');
       return;
     }
 
@@ -217,6 +191,12 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;');
+
+    const rotated = printLayout === 'rotated';
+    const pageWidth = rotated ? '1.25in' : '2.25in';
+    const pageHeight = rotated ? '2.25in' : '1.25in';
+    const labelTop = rotated ? '2.25in' : '0';
+    const labelTransform = rotated ? 'rotate(-90deg)' : 'none';
 
     const labels = variants.map((variant) => {
       const barcode = code128Svg(variant.upcCode);
@@ -238,14 +218,14 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
   <meta charset="utf-8" />
   <title>${variants.length === 1 ? escapeHtml(`${variants[0].sku || 'Merch'} - DYMO Label`) : `${variants.length} DYMO Labels`}</title>
   <style>
-    @page { size: 1.25in 2.25in; margin: 0; }
+    @page { size: ${pageWidth} ${pageHeight}; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 1.25in; margin: 0; padding: 0; background: #fff; }
+    html, body { width: ${pageWidth}; margin: 0; padding: 0; background: #fff; }
     body { font-family: Arial, Helvetica, sans-serif; }
     .page {
       position: relative;
-      width: 1.25in;
-      height: 2.25in;
+      width: ${pageWidth};
+      height: ${pageHeight};
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -256,7 +236,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     .page:last-child { break-after: auto; page-break-after: auto; }
     .label {
       position: absolute;
-      top: 2.25in;
+      top: ${labelTop};
       left: 0;
       width: 2.25in;
       height: 1.25in;
@@ -265,7 +245,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       overflow: hidden;
       background: #fff;
       color: #000;
-      transform: rotate(-90deg);
+      transform: ${labelTransform};
       transform-origin: top left;
     }
     .price {
@@ -319,16 +299,8 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       white-space: nowrap;
     }
     @media print {
-      html, body { width: 1.25in !important; margin: 0 !important; padding: 0 !important; }
-      .page { width: 1.25in !important; height: 2.25in !important; margin: 0 !important; padding: 0 !important; }
-      .label {
-        top: 2.25in !important;
-        left: 0 !important;
-        width: 2.25in !important;
-        height: 1.25in !important;
-        transform: rotate(-90deg) !important;
-        transform-origin: top left !important;
-      }
+      html, body { width: ${pageWidth} !important; margin: 0 !important; padding: 0 !important; }
+      .page { width: ${pageWidth} !important; height: ${pageHeight} !important; }
     }
   </style>
 </head>
@@ -344,32 +316,9 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     popup.document.close();
   }
 
-  async function startPrint(variants: MerchVariant[]) {
-    if (!variants.length || dymoStatus === 'printing') return;
-    if (dymoStatus !== 'ready' || !selectedPrinter) {
-      setDymoMessage('DYMO Connect is not ready. Use the browser fallback only for troubleshooting.');
-      return;
-    }
-
-    setDymoStatus('printing');
-    setDymoMessage(`Printing ${variants.length} label${variants.length === 1 ? '' : 's'} to ${selectedPrinter}…`);
-    try {
-      await printDymoRecords(selectedPrinter, variants.map((variant) => ({
-        price: labelPrice(variant.price ?? 0),
-        upc: variant.upcCode,
-        sku: variant.sku,
-      })));
-      setDymoStatus('ready');
-      setDymoMessage(`Sent ${variants.length} label${variants.length === 1 ? '' : 's'} to ${selectedPrinter}`);
-    } catch (error) {
-      setDymoStatus('unavailable');
-      setDymoMessage(error instanceof Error ? error.message : 'DYMO Connect print failed.');
-    }
-  }
-
   function printQueue() {
     const labels = queue.flatMap((item) => Array.from({ length: item.quantity }, () => item.variant));
-    void startPrint(labels);
+    startBrowserPrint(labels);
   }
 
   return <>
@@ -378,7 +327,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
         <div>
           <p className="mb-2 text-xs font-black uppercase tracking-[.22em] text-[#3976b7]">Tasting Room · Operations</p>
           <h1 className="text-3xl font-black tracking-[-.04em] md:text-4xl">Merch / Apparel</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-black/52">Search Commerce7 merchandise, choose the exact size or variant, and print a DYMO 30334 price/barcode label without changing the stored UPC.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-black/52">Search Commerce7 merchandise, choose the exact variant, then print from your browser. No DYMO browser plugin is required.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-bold text-black/55 shadow-sm">{message}</div>
@@ -453,9 +402,9 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
 
                       <div className="flex min-w-0 gap-1.5 lg:justify-end">
                         <button
-                          disabled={!ready || !selected || dymoStatus !== 'ready' || !selectedPrinter}
-                          onClick={() => selected && void startPrint([selected])}
-                          title={dymoStatus === 'ready' ? `Print to ${selectedPrinter}` : dymoMessage}
+                          disabled={!ready || !selected}
+                          onClick={() => selected && startBrowserPrint([selected])}
+                          title="Open browser print dialog"
                           className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[12px] font-medium text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:w-[92px] lg:flex-none"
                         ><PrinterIcon className="h-3.5 w-3.5" /> Print</button>
                         <button disabled={!ready || !selected} onClick={() => selected && addToQueue(selected)} className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[12px] font-medium text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:w-[86px] lg:flex-none"><PlusIcon /> Queue</button>
@@ -473,32 +422,15 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
 
         <aside className="self-start 2xl:sticky 2xl:top-6">
           <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#3976b7]">DYMO 30334</p><h2 className="mt-1 text-xl font-semibold">Label Queue</h2><p className="mt-1 text-xs leading-5 text-black/45">2¼″ × 1¼″ · exact DYMO template printing</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white">{totalQueue}</span></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#3976b7]">DYMO 30334</p><h2 className="mt-1 text-xl font-semibold">Label Queue</h2><p className="mt-1 text-xs leading-5 text-black/45">2¼″ × 1¼″ · browser printing</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white">{totalQueue}</span></div>
 
-            <div className={`mt-4 rounded-xl border p-3 ${dymoStatus === 'ready' ? 'border-emerald-200 bg-emerald-50' : dymoStatus === 'printing' ? 'border-blue-200 bg-blue-50' : dymoStatus === 'checking' ? 'border-black/10 bg-[#fafbfc]' : 'border-amber-200 bg-amber-50'}`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${dymoStatus === 'ready' ? 'bg-emerald-500' : dymoStatus === 'printing' ? 'bg-[#5ba3f8]' : dymoStatus === 'checking' ? 'bg-black/25' : 'bg-amber-500'}`} />
-                    <p className="text-[10px] font-semibold uppercase tracking-[.1em] text-black/55">DYMO Connect</p>
-                  </div>
-                  <p className="mt-1 truncate text-[10px] leading-4 text-black/50" title={dymoMessage}>{dymoMessage}</p>
-                </div>
-                <button onClick={() => void refreshDymo()} disabled={dymoStatus === 'checking' || dymoStatus === 'printing'} className="rounded-lg border border-black/10 bg-white p-2 text-black/45 shadow-sm disabled:opacity-35" title="Reconnect to DYMO"><RefreshIcon spin={dymoStatus === 'checking'} /></button>
-              </div>
-              {dymoPrinters.length > 0 && <select
-                value={selectedPrinter}
-                onChange={(event) => {
-                  setSelectedPrinter(event.target.value);
-                  window.localStorage.setItem('lwc-dymo-printer', event.target.value);
-                  setDymoMessage(`Ready · ${event.target.value}`);
-                  setDymoStatus('ready');
-                }}
-                className="mt-3 h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-[11px] font-medium outline-none focus:border-[#5ba3f8]"
-              >
-                {dymoPrinters.map((printer) => <option key={printer.name} value={printer.name}>{printer.name}</option>)}
-              </select>}
-              {dymoStatus === 'unavailable' && <p className="mt-2 text-[9px] leading-4 text-black/45">Open DYMO Connect on this computer, make sure the LabelWriter is available there, then click reconnect.</p>}
+            <div className="mt-4 rounded-xl border border-black/10 bg-[#fafbfc] p-3">
+              <label htmlFor="label-layout" className="block text-[10px] font-semibold uppercase tracking-[.1em] text-black/55">Print layout</label>
+              <select id="label-layout" value={printLayout} onChange={(event) => setPrintLayout(event.target.value as 'standard' | 'rotated')} className="mt-2 h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs">
+                <option value="standard">Standard 2¼″ × 1¼″</option>
+                <option value="rotated">Rotated 1¼″ × 2¼″</option>
+              </select>
+              <p className="mt-2 text-[10px] leading-4 text-black/50">Start with Standard and print one test label. If the driver turns it sideways, try Rotated. The choice stays here while this page is open.</p>
             </div>
 
             <div className="mt-4 space-y-3">{queue.map((item) => <div key={item.variant.id} className="rounded-xl border border-black/[.08] bg-[#fafbfc] p-3">
@@ -506,10 +438,9 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
               <div className="mt-3 flex items-center justify-between"><span className="font-mono text-[9px] text-black/40">{item.variant.upcCode}</span><div className="flex items-center gap-1"><button onClick={() => changeQuantity(item.variant.id, -1)} className="rounded-lg border border-black/10 bg-white p-1.5"><MinusIcon /></button><span className="min-w-7 text-center text-xs font-black">{item.quantity}</span><button onClick={() => changeQuantity(item.variant.id, 1)} className="rounded-lg border border-black/10 bg-white p-1.5"><PlusIcon /></button></div></div>
             </div>)}</div>
             {!queue.length && <div className="mt-4 rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-4 py-10 text-center"><p className="text-sm font-black text-black/35">Queue is empty</p><p className="mt-1 text-[10px] leading-4 text-black/30">Add a ready-to-print variant from any merchandise row.</p></div>}
-            <button disabled={!totalQueue || dymoStatus !== 'ready' || !selectedPrinter} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
+            <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
-            <p className="mt-4 text-[10px] leading-4 text-black/35">Print now sends the label directly through DYMO Connect using the same <strong>Small30334 / Portrait</strong> layout as your working DYMO project files. There is no browser orientation setting to adjust.</p>
-            {isAdmin && queue.length > 0 && <button onClick={() => startBrowserPrint(queue.flatMap((item) => Array.from({ length: item.quantity }, () => item.variant)))} className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-medium text-black/45">Browser print fallback</button>}
+            <p className="mt-4 text-[10px] leading-4 text-black/45">Choose the 30334 paper size, 100% scale, no margins, and turn off headers and footers in the browser print dialog. You can also choose Save as PDF there.</p>
           </div>
         </aside>
       </div>

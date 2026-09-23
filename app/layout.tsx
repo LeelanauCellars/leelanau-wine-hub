@@ -3,7 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Leelanau Cellars Wine Hub',
+  title: 'Leelanau Cellars Central',
   description: 'Wine knowledge, tasting-room guides and sales tech sheets for Leelanau Cellars.',
 };
 
