@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { WineRecord } from '@/lib/types';
 import { loadCurrentWebsiteAwards, matchWebsiteAwards } from '@/lib/website-awards';
 import { sessionRole } from '@/lib/auth';
+import { commerce7Config, fetchCommerce7Products } from '@/lib/commerce7-server';
 
 type C7Variant = {
   upcCode?: string | null;
@@ -269,46 +270,15 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
 
 export async function GET() {
   if (!await sessionRole()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const appId = process.env.COMMERCE7_APP_ID;
-  const secret = process.env.COMMERCE7_APP_SECRET;
-  const tenant = process.env.COMMERCE7_TENANT_ID;
-
-  if (!appId || !secret || !tenant) {
+  if (!commerce7Config().configured) {
     return NextResponse.json(
       { error: 'Commerce7 is not configured', configured: false },
       { status: 503 },
     );
   }
 
-  const auth = Buffer.from(`${appId}:${secret}`).toString('base64');
-  const products: C7Product[] = [];
-  let page = 1;
-  let total = Number.POSITIVE_INFINITY;
-
   try {
-    while (products.length < total && page <= 100) {
-      const response = await fetch(`https://api.commerce7.com/v1/product?page=${page}&limit=50&adminStatus=Available`, {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          tenant,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(`Commerce7 returned ${response.status}: ${message.slice(0, 250)}`);
-      }
-
-      const data = await response.json() as { products?: C7Product[]; total?: number };
-      const batch = data.products ?? [];
-      products.push(...batch);
-      total = data.total ?? products.length;
-      if (!batch.length) break;
-      page += 1;
-    }
-
+    const { products } = await fetchCommerce7Products<C7Product>();
     const websiteAwards = await loadCurrentWebsiteAwards();
     const wines = products
       .filter((product) => product.type === 'Wine')

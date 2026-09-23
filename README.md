@@ -238,3 +238,9 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 - Clicking a product opens a distributor detail page with identity/codes, MI/OH pricing when present, wine specifications, marketing copy, linked distribution assets, and the imperial/metric packaging and pallet measurements supplied in the workbook.
 - When a matching Commerce7 wine is available, its bottle image is reused on the distribution card/detail page; the spreadsheet data itself remains static and independent from Commerce7.
 - Linked asset buttons use the SharePoint locations stored in the workbook and may require Microsoft permissions.
+
+## Merch / Apparel label printing
+
+The Tasting Room and Admin portals include **Merch/Apparel**, backed by the existing server-side Commerce7 connection. It reads General Merchandise/Apparel products and variants and prints the exact Commerce7 `upcCode` as Code 128 without UPC-A check-digit validation or mutation.
+
+DYMO print target: **30334 Medium Multipurpose, 2.25in × 1.25in**. The print stylesheet uses a named `@page` at the exact physical label size and hides all non-label UI during printing.

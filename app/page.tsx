@@ -10,6 +10,7 @@ import { CURRENT_TASTING_MENU_LABEL, CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_
 import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViticultureForWine, viticulturePracticeForWine } from '@/lib/staff-notes-data';
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
+import MerchApparel from '@/app/components/MerchApparel';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -43,7 +44,7 @@ const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>
 type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
-type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'tasting' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
+type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'tasting' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
 type SyncState = {
@@ -608,6 +609,7 @@ export default function WineHub() {
   const canUseDistribution = portalRole === 'admin' || portalRole === 'sales' || portalRole === 'distribution';
   const canUseTechSheets = portalRole === 'admin' || portalRole === 'sales';
   const canUseTastingRoom = portalRole === 'admin' || portalRole === 'tasting';
+  const canUseMerch = portalRole === 'admin' || portalRole === 'tasting';
   const canUseQuickFacts = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
   const canUseAwards = portalRole === 'admin' || portalRole === 'sales';
   const canUseAssets = portalRole === 'admin' || portalRole === 'sales';
@@ -906,8 +908,9 @@ export default function WineHub() {
           </div>
 
           <nav className="space-y-1">
-            {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => { setView('library'); setMobileNav(false); }} />}
+            {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label={portalRole === 'tasting' ? 'Wines' : 'Wine Library'} onClick={() => { setView('library'); setMobileNav(false); }} />}
             {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => { setView('distribution'); setMobileNav(false); }} />}
+            {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => { setView('merch'); setMobileNav(false); }} />}
             {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Staff Notes" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
             {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
             {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech-library'); setMobileNav(false); }} />}
@@ -956,6 +959,7 @@ export default function WineHub() {
         {view === 'distribution-profile' && canUseDistribution && activeDistributionWine && (
           <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => setView('distribution')} canEdit={isPortalAdmin} saveItem={saveDistributionWine} />
         )}
+        {view === 'merch' && canUseMerch && <MerchApparel isAdmin={isPortalAdmin} />}
         {view === 'tasting' && canUseTastingRoom && (
           <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
         )}
@@ -989,7 +993,7 @@ function WelcomePage({ onEnter }: { onEnter: () => void }) {
 function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => void; onBack: () => void }) {
   const options: { role: PortalRole; label: string; description: string; icon: React.ReactNode }[] = [
     { role: 'admin', label: 'Admin', description: 'Full Wine Hub access and editing tools', icon: <Lock className="h-8 w-8" /> },
-    { role: 'tasting', label: 'Tasting Room', description: 'Wine Library, Staff Notes and Quick Facts', icon: <ClipboardList className="h-8 w-8" /> },
+    { role: 'tasting', label: 'Tasting Room', description: 'Wines, Merch/Apparel, Staff Notes and Quick Facts', icon: <ClipboardList className="h-8 w-8" /> },
     { role: 'sales', label: 'Sales', description: 'Sales sheets, distribution info, awards and assets', icon: <Briefcase className="h-8 w-8" /> },
     { role: 'distribution', label: 'Distributors', description: 'Direct access to Distribution Wines', icon: <Store className="h-8 w-8" /> },
   ];
