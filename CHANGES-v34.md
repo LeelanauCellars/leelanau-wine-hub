@@ -1,11 +1,7 @@
 # Wine Hub v34
 
-- Simplified Merch/Apparel row typography.
-- Product names are no longer heavy bold.
-- SKU/UPC metadata is lighter and quieter underneath the item name.
-- Variant selectors use normal-weight text.
-- Price uses the same visual scale as the product name without heavy bolding.
-- Products with only one Commerce7 variant now leave the Variant / Size area blank.
-- Variant / Size controls only appear when there are multiple variants to choose from.
-- Existing blue #5ba3f8 Print and Queue buttons remain unchanged.
-- Existing DYMO print-window fix remains unchanged.
+- Corrected the DYMO 30334 print geometry based on the physical v33 output.
+- The print-only popup now sends a 1.25in x 2.25in portrait page so one browser page maps to one physical 30334 label instead of spanning two labels.
+- The 2.25in x 1.25in label artwork is pre-rotated 90 degrees counterclockwise inside that portrait page.
+- Individual and batch labels use the same corrected page geometry.
+- Merch/Apparel list styling from v32 remains unchanged.

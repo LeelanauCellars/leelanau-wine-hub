@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { code128Svg } from '@/lib/code128';
 import type { MerchCategory, MerchProduct, MerchVariant } from '@/lib/merch-types';
+import { inspectDymoEnvironment, printDymoRecords, type DymoPrinter } from '@/lib/dymo-connect';
 
 type QueueItem = {
   variant: MerchVariant;
@@ -96,6 +97,10 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('all');
   const [selectedByProduct, setSelectedByProduct] = useState<Record<string, string>>({});
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [dymoPrinters, setDymoPrinters] = useState<DymoPrinter[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState('');
+  const [dymoStatus, setDymoStatus] = useState<'checking' | 'ready' | 'unavailable' | 'printing'>('checking');
+  const [dymoMessage, setDymoMessage] = useState('Checking DYMO Connect…');
 
   async function loadMerch() {
     setLoading(true);
@@ -114,7 +119,29 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
+  async function refreshDymo() {
+    setDymoStatus('checking');
+    setDymoMessage('Checking DYMO Connect…');
+    const environment = await inspectDymoEnvironment();
+    setDymoPrinters(environment.printers);
+    if (!environment.ready) {
+      setDymoStatus('unavailable');
+      setDymoMessage(environment.message);
+      return;
+    }
+
+    const remembered = window.localStorage.getItem('lwc-dymo-printer') || '';
+    const preferred = environment.printers.find((printer) => printer.name === remembered)
+      || environment.printers.find((printer) => /dymo\s*-?\s*ecom/i.test(printer.name))
+      || environment.printers.find((printer) => /labelwriter|dymo/i.test(`${printer.name} ${printer.modelName || ''}`))
+      || environment.printers[0];
+    setSelectedPrinter(preferred?.name || '');
+    setDymoStatus('ready');
+    setDymoMessage(preferred ? `Ready · ${preferred.name}` : environment.message);
+  }
+
   useEffect(() => { void loadMerch(); }, []);
+  useEffect(() => { void refreshDymo(); }, []);
 
   const allVariants = useMemo(() => products.flatMap((product) => product.variants), [products]);
   const duplicateUpcs = useMemo(() => {
@@ -175,7 +202,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       .filter((item) => item.quantity > 0));
   }
 
-  function startPrint(variants: MerchVariant[]) {
+  function startBrowserPrint(variants: MerchVariant[]) {
     if (!variants.length) return;
 
     const popup = window.open('', '_blank', 'popup=yes,width=720,height=520');
@@ -194,11 +221,13 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     const labels = variants.map((variant) => {
       const barcode = code128Svg(variant.upcCode);
       return `
-        <section class="label">
-          <div class="price">${escapeHtml(labelPrice(variant.price ?? 0))}</div>
-          <div class="barcode">${barcode}</div>
-          <div class="upc">${escapeHtml(variant.upcCode)}</div>
-          <div class="sku">${escapeHtml(variant.sku)}</div>
+        <section class="page">
+          <div class="label">
+            <div class="price">${escapeHtml(labelPrice(variant.price ?? 0))}</div>
+            <div class="barcode">${barcode}</div>
+            <div class="upc">${escapeHtml(variant.upcCode)}</div>
+            <div class="sku">${escapeHtml(variant.sku)}</div>
+          </div>
         </section>`;
     }).join('');
 
@@ -209,12 +238,26 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
   <meta charset="utf-8" />
   <title>${variants.length === 1 ? escapeHtml(`${variants[0].sku || 'Merch'} - DYMO Label`) : `${variants.length} DYMO Labels`}</title>
   <style>
-    @page { size: 2.25in 1.25in; margin: 0; }
+    @page { size: 1.25in 2.25in; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: #fff; }
+    html, body { width: 1.25in; margin: 0; padding: 0; background: #fff; }
     body { font-family: Arial, Helvetica, sans-serif; }
-    .label {
+    .page {
       position: relative;
+      width: 1.25in;
+      height: 2.25in;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #fff;
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .label {
+      position: absolute;
+      top: 2.25in;
+      left: 0;
       width: 2.25in;
       height: 1.25in;
       margin: 0;
@@ -222,10 +265,9 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       overflow: hidden;
       background: #fff;
       color: #000;
-      break-after: page;
-      page-break-after: always;
+      transform: rotate(-90deg);
+      transform-origin: top left;
     }
-    .label:last-child { break-after: auto; page-break-after: auto; }
     .price {
       position: absolute;
       top: .035in;
@@ -277,8 +319,16 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       white-space: nowrap;
     }
     @media print {
-      html, body { width: 2.25in; margin: 0 !important; padding: 0 !important; }
-      .label { width: 2.25in !important; height: 1.25in !important; margin: 0 !important; }
+      html, body { width: 1.25in !important; margin: 0 !important; padding: 0 !important; }
+      .page { width: 1.25in !important; height: 2.25in !important; margin: 0 !important; padding: 0 !important; }
+      .label {
+        top: 2.25in !important;
+        left: 0 !important;
+        width: 2.25in !important;
+        height: 1.25in !important;
+        transform: rotate(-90deg) !important;
+        transform-origin: top left !important;
+      }
     }
   </style>
 </head>
@@ -294,9 +344,32 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     popup.document.close();
   }
 
+  async function startPrint(variants: MerchVariant[]) {
+    if (!variants.length || dymoStatus === 'printing') return;
+    if (dymoStatus !== 'ready' || !selectedPrinter) {
+      setDymoMessage('DYMO Connect is not ready. Use the browser fallback only for troubleshooting.');
+      return;
+    }
+
+    setDymoStatus('printing');
+    setDymoMessage(`Printing ${variants.length} label${variants.length === 1 ? '' : 's'} to ${selectedPrinter}…`);
+    try {
+      await printDymoRecords(selectedPrinter, variants.map((variant) => ({
+        price: labelPrice(variant.price ?? 0),
+        upc: variant.upcCode,
+        sku: variant.sku,
+      })));
+      setDymoStatus('ready');
+      setDymoMessage(`Sent ${variants.length} label${variants.length === 1 ? '' : 's'} to ${selectedPrinter}`);
+    } catch (error) {
+      setDymoStatus('unavailable');
+      setDymoMessage(error instanceof Error ? error.message : 'DYMO Connect print failed.');
+    }
+  }
+
   function printQueue() {
     const labels = queue.flatMap((item) => Array.from({ length: item.quantity }, () => item.variant));
-    startPrint(labels);
+    void startPrint(labels);
   }
 
   return <>
@@ -333,10 +406,10 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
 
       {!loading && !products.length && <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900"><strong>Merchandise could not be loaded.</strong> {message} This feature only reads merchandise from the existing server-side Commerce7 connection.</div>}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <div className="hidden grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] items-center gap-5 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
+            <div className="hidden grid-cols-[minmax(320px,1.55fr)_minmax(150px,.75fr)_90px_190px] items-center gap-4 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
               <span>Item</span><span>Variant / Size</span><span>Price</span><span className="text-right">Actions</span>
             </div>
 
@@ -350,37 +423,42 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                   const issues = selected ? issueSummary(selected, duplicateUpcs) : [];
                   const ready = selected ? readyToPrint(selected, duplicateUpcs) : false;
                   return <article key={product.id} className="px-4 py-4 transition hover:bg-[#fafbfd] md:px-5">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] lg:items-center lg:gap-5">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(320px,1.55fr)_minmax(150px,.75fr)_90px_190px] lg:items-center lg:gap-4">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-[15px] font-medium leading-5 text-black/90">{product.name}</h2>
+                          <h2 className="text-[15px] font-medium leading-5">{product.name}</h2>
                           {!ready && selected && <StatusPill tone={issues.includes('Missing UPC') || issues.includes('Duplicate UPC') ? 'bad' : 'warn'}>{issues[0] || 'Issue'}</StatusPill>}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-normal text-black/45">
-                          <span><span className="text-black/55">SKU:</span> {selected?.sku || '—'}</span>
-                          <span className="font-mono"><span className="font-sans text-black/55">UPC:</span> {selected?.upcCode || '—'}</span>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-normal text-black/45">
+                          <span><strong className="font-medium text-black/55">SKU:</strong> {selected?.sku || '—'}</span>
+                          <span className="font-mono"><strong className="font-sans font-medium text-black/55">UPC:</strong> {selected?.upcCode || '—'}</span>
                         </div>
                       </div>
 
                       <div>
-                        <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">Variant / Size</span>
+                        {product.variants.length > 1 && <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Variant / Size</span>}
                         {product.variants.length > 1 ? <select
                           value={selected?.id || ''}
                           onChange={(event) => setSelectedByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
-                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[15px] font-normal text-black/85 outline-none focus:border-[#5ba3f8]"
+                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[15px] font-medium outline-none focus:border-[#5ba3f8]"
                         >
                           {product.variants.map((variant) => <option key={variant.id} value={variant.id}>{variantLabel(variant.variantName)}</option>)}
-                        </select> : <div className="h-5 text-[15px] font-normal leading-5 text-black/80" aria-label="No variant selection needed" />}
+                        </select> : <div aria-hidden="true" className="h-10" />}
                       </div>
 
                       <div>
-                        <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
-                        <p className="text-[15px] font-medium text-black/90">{selected ? money(selected.price) : '—'}</p>
+                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
+                        <p className="text-[15px] font-medium">{selected ? money(selected.price) : '—'}</p>
                       </div>
 
-                      <div className="flex gap-2 lg:justify-end">
-                        <button disabled={!ready || !selected} onClick={() => selected && startPrint([selected])} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[10px] font-black uppercase tracking-[.04em] text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PrinterIcon className="h-3.5 w-3.5" /> Print Price Tag</button>
-                        <button disabled={!ready || !selected} onClick={() => selected && addToQueue(selected)} className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[10px] font-black text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:flex-none"><PlusIcon /> Queue</button>
+                      <div className="flex gap-1.5 lg:justify-end">
+                        <button
+                          disabled={!ready || !selected || dymoStatus !== 'ready' || !selectedPrinter}
+                          onClick={() => selected && void startPrint([selected])}
+                          title={dymoStatus === 'ready' ? `Print to ${selectedPrinter}` : dymoMessage}
+                          className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[12px] font-medium text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:w-[92px] lg:flex-none"
+                        ><PrinterIcon className="h-3.5 w-3.5" /> Print</button>
+                        <button disabled={!ready || !selected} onClick={() => selected && addToQueue(selected)} className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-[#5ba3f8] px-3 py-2 text-[12px] font-medium text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-25 lg:w-[86px] lg:flex-none"><PlusIcon /> Queue</button>
                       </div>
                     </div>
 
@@ -393,18 +471,45 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
           {!loading && products.length > 0 && !filteredProducts.length && <div className="rounded-2xl border border-dashed border-black/15 bg-white py-20 text-center"><p className="font-black">No merchandise matches those filters.</p><button onClick={() => { setQuery(''); setCategory('All'); setIssueFilter('all'); }} className="mt-3 text-xs font-black text-[#326eac]">Clear filters</button></div>}
         </div>
 
-        <aside className="self-start xl:sticky xl:top-6">
+        <aside className="self-start 2xl:sticky 2xl:top-6">
           <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#3976b7]">DYMO 30334</p><h2 className="mt-1 text-xl font-black">Label Queue</h2><p className="mt-1 text-xs leading-5 text-black/45">2¼″ × 1¼″ · one label page per quantity</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-black text-white">{totalQueue}</span></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#3976b7]">DYMO 30334</p><h2 className="mt-1 text-xl font-semibold">Label Queue</h2><p className="mt-1 text-xs leading-5 text-black/45">2¼″ × 1¼″ · exact DYMO template printing</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white">{totalQueue}</span></div>
+
+            <div className={`mt-4 rounded-xl border p-3 ${dymoStatus === 'ready' ? 'border-emerald-200 bg-emerald-50' : dymoStatus === 'printing' ? 'border-blue-200 bg-blue-50' : dymoStatus === 'checking' ? 'border-black/10 bg-[#fafbfc]' : 'border-amber-200 bg-amber-50'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${dymoStatus === 'ready' ? 'bg-emerald-500' : dymoStatus === 'printing' ? 'bg-[#5ba3f8]' : dymoStatus === 'checking' ? 'bg-black/25' : 'bg-amber-500'}`} />
+                    <p className="text-[10px] font-semibold uppercase tracking-[.1em] text-black/55">DYMO Connect</p>
+                  </div>
+                  <p className="mt-1 truncate text-[10px] leading-4 text-black/50" title={dymoMessage}>{dymoMessage}</p>
+                </div>
+                <button onClick={() => void refreshDymo()} disabled={dymoStatus === 'checking' || dymoStatus === 'printing'} className="rounded-lg border border-black/10 bg-white p-2 text-black/45 shadow-sm disabled:opacity-35" title="Reconnect to DYMO"><RefreshIcon spin={dymoStatus === 'checking'} /></button>
+              </div>
+              {dymoPrinters.length > 0 && <select
+                value={selectedPrinter}
+                onChange={(event) => {
+                  setSelectedPrinter(event.target.value);
+                  window.localStorage.setItem('lwc-dymo-printer', event.target.value);
+                  setDymoMessage(`Ready · ${event.target.value}`);
+                  setDymoStatus('ready');
+                }}
+                className="mt-3 h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-[11px] font-medium outline-none focus:border-[#5ba3f8]"
+              >
+                {dymoPrinters.map((printer) => <option key={printer.name} value={printer.name}>{printer.name}</option>)}
+              </select>}
+              {dymoStatus === 'unavailable' && <p className="mt-2 text-[9px] leading-4 text-black/45">Open DYMO Connect on this computer, make sure the LabelWriter is available there, then click reconnect.</p>}
+            </div>
+
             <div className="mt-4 space-y-3">{queue.map((item) => <div key={item.variant.id} className="rounded-xl border border-black/[.08] bg-[#fafbfc] p-3">
               <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black leading-4">{item.variant.productName}</p><p className="mt-1 text-[10px] font-bold text-black/45">{variantLabel(item.variant.variantName)} · {item.variant.sku}</p></div><button onClick={() => setQueue((current) => current.filter((candidate) => candidate.variant.id !== item.variant.id))} className="rounded-lg p-1.5 text-black/35 hover:bg-red-50 hover:text-red-600" aria-label="Remove label"><TrashIcon /></button></div>
               <div className="mt-3 flex items-center justify-between"><span className="font-mono text-[9px] text-black/40">{item.variant.upcCode}</span><div className="flex items-center gap-1"><button onClick={() => changeQuantity(item.variant.id, -1)} className="rounded-lg border border-black/10 bg-white p-1.5"><MinusIcon /></button><span className="min-w-7 text-center text-xs font-black">{item.quantity}</span><button onClick={() => changeQuantity(item.variant.id, 1)} className="rounded-lg border border-black/10 bg-white p-1.5"><PlusIcon /></button></div></div>
             </div>)}</div>
             {!queue.length && <div className="mt-4 rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-4 py-10 text-center"><p className="text-sm font-black text-black/35">Queue is empty</p><p className="mt-1 text-[10px] leading-4 text-black/30">Add a ready-to-print variant from any merchandise row.</p></div>}
-            <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-black text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
+            <button disabled={!totalQueue || dymoStatus !== 'ready' || !selectedPrinter || dymoStatus === 'printing'} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
-            <p className="mt-4 text-[10px] leading-4 text-black/35">Choose a variant in the list, then print it immediately or add it to the queue for batch printing.</p>
-            <div className="mt-3 rounded-lg border border-[#cfe0f1] bg-[#f3f8fd] px-3 py-2 text-[10px] leading-4 text-[#285f96]"><strong>DYMO 30334:</strong> use Portrait orientation, 100% scale, and no margins. Wine Hub now opens labels in a clean print-only window so no other Wine Hub print settings can interfere.</div>
+            <p className="mt-4 text-[10px] leading-4 text-black/35">Print now sends the label directly through DYMO Connect using the same <strong>Small30334 / Portrait</strong> layout as your working DYMO project files. There is no browser orientation setting to adjust.</p>
+            {isAdmin && queue.length > 0 && <button onClick={() => startBrowserPrint(queue.flatMap((item) => Array.from({ length: item.quantity }, () => item.variant)))} className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-medium text-black/45">Browser print fallback</button>}
           </div>
         </aside>
       </div>

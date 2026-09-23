@@ -1,0 +1,22 @@
+# Wine Hub v35
+
+- Replaced browser-first DYMO printing with direct DYMO Connect printing.
+- Uses the official DYMO Connect JavaScript framework and the locally installed DYMO Connect/Web Service when available.
+- Built the new Wine Hub price-tag template from the supplied working DYMO projects:
+  - Orientation: Portrait
+  - LabelName: Small30334
+  - Printable label rectangle: 2.17 in x 1.13 in inside the 2.25 in x 1.25 in stock
+- The direct template contains PRICE, UPC and SKU objects and uses Code128Auto for the exact Commerce7 UPC value.
+- Print buttons now send the .dymo template directly to the selected LabelWriter, bypassing Chrome page orientation and scaling.
+- Batch queue uses DYMO LabelSetBuilder when available so multiple labels can be sent as one label set.
+- Added automatic DYMO printer detection, preferred printer memory, reconnect control, and printer selector.
+- Browser printing remains an Admin-only fallback for troubleshooting.
+- Simplified Merch/Apparel rows again:
+  - Product name is regular weight.
+  - SKU and UPC are quiet secondary text under the name.
+  - Variant/Size is blank when the product has only one Commerce7 variant.
+  - Variant selector appears only for products with multiple variants.
+  - Price is regular weight and compact.
+  - Actions are now compact Print / Queue buttons.
+  - Queue moves below the list until very wide (2XL) screens so action buttons no longer overlap price.
+- Included the two uploaded DYMO project files under public/dymo as references plus the combined Wine Hub 30334 template.
