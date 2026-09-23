@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { code128SvgDataUrl } from '@/lib/code128';
+import { code128Svg } from '@/lib/code128';
 import type { MerchCategory, MerchProduct, MerchVariant } from '@/lib/merch-types';
 
 type QueueItem = {
@@ -77,18 +77,6 @@ function issueSummary(variant: MerchVariant, duplicateUpcs: Set<string>) {
   return labels;
 }
 
-function MerchLabel({ variant }: { variant: MerchVariant }) {
-  const barcode = code128SvgDataUrl(variant.upcCode);
-  return <div className="merch-label-page">
-    <div className="merch-label-design">
-      <div className="merch-label-price">{labelPrice(variant.price ?? 0)}</div>
-      <div className="merch-label-barcode"><img src={barcode} alt="" /></div>
-      <div className="merch-label-upc">{variant.upcCode}</div>
-      <div className="merch-label-sku">{variant.sku}</div>
-    </div>
-  </div>;
-}
-
 function StatusPill({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'good' | 'warn' | 'bad' | 'neutral' }) {
   const tones = {
     good: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -108,9 +96,6 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('all');
   const [selectedByProduct, setSelectedByProduct] = useState<Record<string, string>>({});
   const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [printJobs, setPrintJobs] = useState<MerchVariant[]>([]);
-  const [printNonce, setPrintNonce] = useState(0);
-  const [printNotice, setPrintNotice] = useState('');
 
   async function loadMerch() {
     setLoading(true);
@@ -190,30 +175,124 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       .filter((item) => item.quantity > 0));
   }
 
-  function startPrint(variants: MerchVariant[], notice = '') {
+  function startPrint(variants: MerchVariant[]) {
     if (!variants.length) return;
-    setPrintJobs(variants);
-    setPrintNotice(notice);
-    setPrintNonce((value) => value + 1);
-  }
 
-  useEffect(() => {
-    if (!printJobs.length || !printNonce) return;
-    const previousTitle = document.title;
-    document.title = printJobs.length === 1 ? `${printJobs[0].sku || 'Merch'} - DYMO Label` : `${printJobs.length} DYMO Labels`;
-    document.body.classList.add('merch-label-printing');
-    const timer = window.setTimeout(() => window.print(), 120);
-    const cleanup = () => {
-      document.title = previousTitle;
-      document.body.classList.remove('merch-label-printing');
-      setPrintJobs([]);
-    };
-    window.addEventListener('afterprint', cleanup, { once: true });
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('afterprint', cleanup);
-    };
-  }, [printNonce]);
+    const popup = window.open('', '_blank', 'popup=yes,width=720,height=520');
+    if (!popup) {
+      window.alert('The label print window was blocked. Please allow pop-ups for Wine Hub and try again.');
+      return;
+    }
+
+    const escapeHtml = (value: string) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+
+    const labels = variants.map((variant) => {
+      const barcode = code128Svg(variant.upcCode);
+      return `
+        <section class="label">
+          <div class="price">${escapeHtml(labelPrice(variant.price ?? 0))}</div>
+          <div class="barcode">${barcode}</div>
+          <div class="upc">${escapeHtml(variant.upcCode)}</div>
+          <div class="sku">${escapeHtml(variant.sku)}</div>
+        </section>`;
+    }).join('');
+
+    popup.document.open();
+    popup.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${variants.length === 1 ? escapeHtml(`${variants[0].sku || 'Merch'} - DYMO Label`) : `${variants.length} DYMO Labels`}</title>
+  <style>
+    @page { size: 2.25in 1.25in; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { font-family: Arial, Helvetica, sans-serif; }
+    .label {
+      position: relative;
+      width: 2.25in;
+      height: 1.25in;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #fff;
+      color: #000;
+      break-after: page;
+      page-break-after: always;
+    }
+    .label:last-child { break-after: auto; page-break-after: auto; }
+    .price {
+      position: absolute;
+      top: .035in;
+      left: .08in;
+      right: .08in;
+      height: .29in;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22pt;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -.025em;
+      white-space: nowrap;
+    }
+    .barcode {
+      position: absolute;
+      top: .34in;
+      left: .20in;
+      right: .20in;
+      height: .42in;
+      overflow: hidden;
+    }
+    .barcode svg { width: 100%; height: 100%; display: block; shape-rendering: crispEdges; }
+    .upc {
+      position: absolute;
+      top: .79in;
+      left: .08in;
+      right: .08in;
+      text-align: center;
+      font-size: 8pt;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: .045em;
+      white-space: nowrap;
+    }
+    .sku {
+      position: absolute;
+      left: .08in;
+      right: .08in;
+      bottom: .055in;
+      overflow: hidden;
+      text-align: center;
+      font-size: 8.2pt;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: .035em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    @media print {
+      html, body { width: 2.25in; margin: 0 !important; padding: 0 !important; }
+      .label { width: 2.25in !important; height: 1.25in !important; margin: 0 !important; }
+    }
+  </style>
+</head>
+<body>${labels}
+<script>
+  window.addEventListener('load', () => {
+    setTimeout(() => { window.focus(); window.print(); }, 150);
+  });
+  window.addEventListener('afterprint', () => window.close());
+<\/script>
+</body>
+</html>`);
+    popup.document.close();
+  }
 
   function printQueue() {
     const labels = queue.flatMap((item) => Array.from({ length: item.quantity }, () => item.variant));
@@ -325,16 +404,12 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
             <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-black text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
             <p className="mt-4 text-[10px] leading-4 text-black/35">Choose a variant in the list, then print it immediately or add it to the queue for batch printing.</p>
-            <div className="mt-3 rounded-lg border border-[#cfe0f1] bg-[#f3f8fd] px-3 py-2 text-[10px] leading-4 text-[#285f96]"><strong>DYMO orientation fix enabled.</strong> Keep the paper size set to 30334. The browser preview may appear rotated because Wine Hub now compensates for the DYMO driver rotating the physical label.</div>
+            <div className="mt-3 rounded-lg border border-[#cfe0f1] bg-[#f3f8fd] px-3 py-2 text-[10px] leading-4 text-[#285f96]"><strong>DYMO 30334:</strong> use Portrait orientation, 100% scale, and no margins. Wine Hub now opens labels in a clean print-only window so no other Wine Hub print settings can interfere.</div>
           </div>
         </aside>
       </div>
-      {printNotice && <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-xl bg-black px-4 py-3 text-xs font-bold text-white shadow-xl">{printNotice}<button onClick={() => setPrintNotice('')} className="ml-3 text-white/60">×</button></div>}
     </div>
 
-    <div className="merch-print-root" aria-hidden="true">
-      {printJobs.map((variant, index) => <MerchLabel key={`${variant.id}-${index}`} variant={variant} />)}
-    </div>
   </>;
 }
 
