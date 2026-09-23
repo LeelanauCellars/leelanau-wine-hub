@@ -1006,8 +1006,71 @@ function simplifiedDistributionName(value = '') {
     .trim();
 }
 
+function distributionSizeKey(size?: string | null) {
+  const normalized = String(size || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.includes('1.5') || normalized.includes('1500')) return '1500';
+  if (normalized.includes('375')) return '375';
+  if (normalized.includes('750')) return '750';
+  return normalized;
+}
+
+function findDistributionWineByHints(wines: WineRecord[], hints: string[], size?: '375' | '750' | '1500') {
+  const normalizedHints = hints.map((hint) => normalize(hint)).filter(Boolean);
+  return wines.find((wine) => {
+    const wineKey = normalize(wine.name);
+    const nameMatch = normalizedHints.some((hint) => wineKey.includes(hint) || hint.includes(wineKey));
+    if (!nameMatch) return false;
+    if (size === '375') return wine.volumeMl === 375 || /\b375\b/i.test(wine.name) || /\bcan\b/i.test(wine.name);
+    if (size === '750') return wine.volumeMl === 750 || /\b750\b/i.test(wine.name);
+    if (size === '1500') return wine.volumeMl === 1500 || /(?:\b1\.5\b|\b1500\b)/i.test(wine.name);
+    return true;
+  });
+}
+
 function matchedDistributionWine(item: DistributionWine, wines: WineRecord[]) {
+  const size = distributionSizeKey(item.specs.size);
+  if (size === '375') {
+    const itemKey = normalize(item.name);
+    const canMatch = itemKey.includes('greatlakesred')
+      ? findDistributionWineByHints(wines, ['Great Lakes Red 375', 'Great Lakes Red Can', 'Great Lakes Red'], '375')
+      : itemKey.includes('winterwhite')
+        ? findDistributionWineByHints(wines, ['Winter White 375', 'Winter White Can', 'Winter White'], '375')
+        : itemKey.includes('summersunset')
+          ? findDistributionWineByHints(wines, ['Summer Sunset 375', 'Summer Sunset Can', 'Summer Sunset'], '375')
+          : undefined;
+    if (canMatch) return canMatch;
+  }
   return matchWineByName(item.name, wines);
+}
+
+const DISTRIBUTION_IMAGE_OVERRIDES: { pattern: RegExp; size: '1500'; src: string }[] = [
+  { pattern: /great\s*lakes\s*red/i, size: '1500', src: '/bottles/great-lakes-red-front.png' },
+  { pattern: /winter\s*white/i, size: '1500', src: '/bottles/winter-white-front.png' },
+  { pattern: /witches\s*brew/i, size: '1500', src: '/bottles/witches-brew-front.png' },
+  { pattern: /farm\s*fresh\s*blackberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-blackberry-moscato-front.png' },
+  { pattern: /farm\s*fresh\s*raspberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-raspberry-moscato-front.png' },
+  { pattern: /farm\s*fresh\s*cranberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-cranberry-moscato-front.png' },
+  { pattern: /farm\s*fresh\s*peach\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-peach-moscato-front.png' },
+  { pattern: /farm\s*fresh\s*can\s*variety\s*pack/i, size: '1500', src: '/cases/farm-fresh-can-variety-pack.png' },
+];
+
+function distributionImageSrc(item: DistributionWine, match: WineRecord | undefined, wines: WineRecord[]) {
+  const size = distributionSizeKey(item.specs.size);
+  if (/farm\s*fresh\s*can\s*variety\s*pack/i.test(item.name)) {
+    return '/cases/farm-fresh-can-variety-pack.png';
+  }
+  if (size === '1500') {
+    const fromAssets = match ? wineImageAssets(match).find((asset) => asset.role === 'front' && /1\.5\s*l/i.test(asset.label || ''))?.src : undefined;
+    if (fromAssets) return fromAssets;
+    const override = DISTRIBUTION_IMAGE_OVERRIDES.find((entry) => entry.size === '1500' && entry.pattern.test(item.name));
+    if (override) return override.src;
+  }
+  if (size === '375') {
+    const canMatch = matchedDistributionWine(item, wines);
+    if (canMatch?.bottleImage) return canMatch.bottleImage;
+  }
+  return match?.bottleImage;
 }
 
 function distributionValue(value: unknown) {
@@ -1055,7 +1118,7 @@ function DistributionLibrary({ wines, distributionWines, openWine }: { wines: Wi
         return <article key={item.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
           <button onClick={() => openWine(item)} className="block w-full text-left">
             <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
-              {match?.bottleImage ? <img src={match.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <DistributionPlaceholder item={item} />}
+              {distributionImageSrc(item, match, wines) ? <img src={distributionImageSrc(item, match, wines)} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <DistributionPlaceholder item={item} />}
               <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{item.family}</span></div>
               {libraryAssets > 0 && <span className="absolute bottom-3 left-3 rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">{libraryAssets} library asset{libraryAssets === 1 ? '' : 's'}</span>}
             </div>
@@ -1105,12 +1168,17 @@ function DistributionWineDetail({ item, wines, back, canEdit, saveItem }: { item
     ['Case Height', draft.metric.caseHeight], ['Case Width', draft.metric.caseWidth], ['Case Length', draft.metric.caseLength], ['Case Weight', draft.metric.caseWeight],
     ['Pallet Cases / Layer', draft.metric.palletCasesPerLayer], ['Pallet Layers', draft.metric.palletLayers], ['Pallet Height', draft.metric.palletHeight], ['Pallet Length', draft.metric.palletLength], ['Pallet Width', draft.metric.palletWidth], ['Pallet Weight', draft.metric.palletWeight],
   ] as const;
+  const distributionUpcSource = draft.upcFull || draft.upc10 || '';
+  const distributionUpc = normalizeUpcA(distributionUpcSource);
+  const distributionUpcSvg = distributionUpc.valid ? upcASvg(distributionUpcSource) : '';
+  const distributionUpcDataUrl = distributionUpc.valid ? upcASvgDataUrl(distributionUpcSource) : '';
+  const distributionUpcFilename = assetName(`${draft.name}-UPC-${distributionUpc.digits || 'Barcode'}`);
 
   return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
     <button onClick={back} className="mb-5 flex items-center gap-1.5 text-xs font-bold text-black/50 hover:text-black"><ChevronLeft className="h-4 w-4" /> Distribution Wines</button>
     <div className="mb-6 overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-sm">
       <div className="grid lg:grid-cols-[320px_1fr]">
-        <div className="flex min-h-[340px] items-center justify-center bg-[#eef2f6] p-6">{match?.bottleImage ? <img src={match.bottleImage} alt={draft.name} className="max-h-[320px] w-full object-contain" /> : <DistributionPlaceholder item={draft} />}</div>
+        <div className="flex min-h-[340px] items-center justify-center bg-[#eef2f6] p-6">{distributionImageSrc(draft, match, wines) ? <img src={distributionImageSrc(draft, match, wines)} alt={draft.name} className="max-h-[320px] w-full object-contain" /> : <DistributionPlaceholder item={draft} />}</div>
         <div className="p-6 md:p-8">
           <div className="flex flex-wrap gap-2"><span className="rounded-full bg-[#edf5fd] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{draft.family}</span><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Current distribution</span></div>
           <h1 className="mt-4 text-3xl font-black tracking-[-.035em] md:text-4xl">{draft.name}</h1>
@@ -1168,6 +1236,13 @@ function DistributionWineDetail({ item, wines, back, canEdit, saveItem }: { item
 
       <ProfileBlock title="Marketing Copy">
         <p className="text-sm leading-7 text-black/65">{draft.marketingCopy || 'No marketing copy entered.'}</p>
+      </ProfileBlock>
+
+      <ProfileBlock title="UPC Barcode" badge={distributionUpc.valid ? 'UPC-A' : undefined}>
+        {(draft.upcFull || draft.upc10) ? distributionUpc.valid ? <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr] lg:items-center">
+          <div className="overflow-hidden rounded-xl border border-black/10 bg-white p-5"><img src={distributionUpcDataUrl} alt={`UPC barcode ${distributionUpc.formatted}`} className="mx-auto w-full max-w-[320px]" /></div>
+          <div><p className="text-xs font-black uppercase tracking-[.12em] text-black/35">Distribution UPC</p><p className="mt-1 text-xl font-black tracking-[.08em]">{distributionUpc.formatted}</p><p className="mt-3 max-w-xl text-xs leading-5 text-black/45">Wine Hub creates standard UPC-A artwork from the distribution UPC for quick downloads and easy sales use.</p><div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void downloadImageAsFormat(distributionUpcDataUrl, 'png', distributionUpcFilename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => downloadTextFile(distributionUpcSvg, 'image/svg+xml;charset=utf-8', `${distributionUpcFilename}.svg`)} className="flex items-center gap-1.5 rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> SVG</button><button onClick={() => void downloadImageAsFormat(distributionUpcDataUrl, 'jpeg', distributionUpcFilename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
+        </div> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-900">UPC artwork could not be created.</p><p className="mt-1 text-xs leading-5 text-amber-800">{distributionUpc.reason}</p><p className="mt-2 font-mono text-xs text-amber-900">{distributionUpcSource}</p></div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><p className="text-sm font-bold text-black/45">No UPC is stored for this distribution item.</p></div>}
       </ProfileBlock>
     </div>
 

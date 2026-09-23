@@ -261,6 +261,42 @@ function maybeRenameDistribution(name: string, matched?: WineRecord) {
   return name;
 }
 
+function normalizedDistributionComposition(item: DistributionWine, matched?: WineRecord) {
+  const displayName = maybeRenameDistribution(item.name, matched);
+  const key = canonicalKey(displayName || item.name);
+  const raw = fillMissingText(item.specs.composition, matched?.varietal);
+  const current = (raw ? String(raw) : '').trim();
+  const currentLower = current.toLowerCase();
+  const varietal = (matched?.varietal || '').trim();
+  const varietalLower = varietal.toLowerCase();
+  const category = (matched?.category || '').toLowerCase();
+
+  if (key.includes('summersunset')) return 'Rose';
+  if (key.includes('winterwhite')) return 'White Blend';
+  if (key.includes('greatlakesred')) return 'Red Blend';
+  if (key.includes('witchesbrewspicedred')) return 'Red Blend';
+
+  if (currentLower.includes('100% cabernet sauve') || currentLower.includes('100% cabernet sauv')) return 'Cabernet Sauvignon';
+  if (currentLower.includes('ruby cabernet')) return 'Red Blend';
+  if (currentLower.includes('french colombard') || currentLower.includes('french combard')) {
+    return key.includes('summersunset') ? 'Rose' : 'White Blend';
+  }
+
+  if (varietal && !/(blend|ruby cabernet|french colombard|french combard)/i.test(varietalLower)) {
+    return varietal;
+  }
+
+  if (category.includes('white')) return 'White Blend';
+  if (category.includes('red')) return 'Red Blend';
+
+  if (/\bred\b/.test(displayName.toLowerCase()) && !/\b(?:cabernet|merlot|pinot noir|baco noir|riesling|pinot grigio|chardonnay|sauvignon blanc|gewurztraminer|moscato)\b/i.test(displayName)) {
+    return 'Red Blend';
+  }
+  if (/\bwhite\b/.test(displayName.toLowerCase())) return 'White Blend';
+
+  return current || null;
+}
+
 export function buildDistributionCatalog(
   wines: WineRecord[],
   base: DistributionWine[],
@@ -282,7 +318,7 @@ export function buildDistributionCatalog(
           abv: fillMissingNumber(item.specs.abv, matched?.abv),
           ph: fillMissingNumber(item.specs.ph, matched?.ph),
           ta: fillMissingNumber(item.specs.ta, matched?.ta),
-          composition: fillMissingText(item.specs.composition, matched?.varietal),
+          composition: normalizedDistributionComposition(item, matched),
         },
         marketingCopy: item.marketingCopy || matched?.shortDescription || matched?.tastingNotes || matched?.staffPitch || null,
       };
