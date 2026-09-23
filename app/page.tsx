@@ -20,6 +20,8 @@ const ChevronLeft = (p: IconProps) => <Icon {...p}><path d="m15 18-6-6 6-6"/></I
 const ClipboardList = (p: IconProps) => <Icon {...p}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></Icon>;
 const Database = (p: IconProps) => <Icon {...p}><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></Icon>;
 const Package = (p: IconProps) => <Icon {...p}><path d="m3 7 9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></Icon>;
+const Briefcase = (p: IconProps) => <Icon {...p}><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/></Icon>;
+const Store = (p: IconProps) => <Icon {...p}><path d="M4 10v10h16V10M3 4h18l-2 6H5zM8 20v-6h8v6"/></Icon>;
 const Download = (p: IconProps) => <Icon {...p}><path d="M12 3v12m-4-4 4 4 4-4M5 20h14"/></Icon>;
 const ExternalLink = (p: IconProps) => <Icon {...p}><path d="M14 4h6v6M20 4l-9 9M19 13v6H5V5h6"/></Icon>;
 const FileText = (p: IconProps) => <Icon {...p}><path d="M6 2h8l4 4v16H6zM14 2v5h5M9 12h6M9 16h6"/></Icon>;
@@ -39,6 +41,8 @@ const Save = (p: IconProps) => <Icon {...p}><path d="M4 3h14l2 2v16H4zM8 3v6h8V3
 const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>;
 
 type AccessRole = 'admin' | 'sales' | 'tasting';
+type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
+type EntryStage = 'welcome' | 'roles' | 'hub';
 type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'tasting' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
@@ -586,6 +590,8 @@ export default function WineHub() {
   const [tastingIds, setTastingIds] = useState<string[]>([]);
   const [needsCurrentMenuSeed, setNeedsCurrentMenuSeed] = useState(false);
   const [access, setAccess] = useState<{ loading: boolean; enabled: boolean; configured: boolean; role: AccessRole | null }>({ loading: true, enabled: false, configured: false, role: null });
+  const [entryStage, setEntryStage] = useState<EntryStage>('welcome');
+  const [portalRole, setPortalRole] = useState<PortalRole | null>(null);
   const [sync, setSync] = useState<SyncState>({ configured: false, loading: false, message: 'Checking Commerce7…' });
   const [mobileNav, setMobileNav] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -597,8 +603,14 @@ export default function WineHub() {
   const distributionWines = useMemo(() => buildDistributionCatalog(wines, DISTRIBUTION_WINES, distributionEdits), [wines, distributionEdits]);
   const activeWine = wines.find((wine) => wine.id === activeWineId) ?? wines[0];
   const activeDistributionWine = distributionWines.find((wine) => wine.id === activeDistributionId) ?? distributionWines[0];
-  const canUseTechSheets = access.role === 'admin' || access.role === 'sales';
-  const canUseTastingRoom = access.role === 'admin' || access.role === 'tasting';
+  const isPortalAdmin = portalRole === 'admin';
+  const canUseWineLibrary = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
+  const canUseDistribution = portalRole === 'admin' || portalRole === 'sales' || portalRole === 'distribution';
+  const canUseTechSheets = portalRole === 'admin' || portalRole === 'sales';
+  const canUseTastingRoom = portalRole === 'admin' || portalRole === 'tasting';
+  const canUseQuickFacts = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
+  const canUseAwards = portalRole === 'admin' || portalRole === 'sales';
+  const canUseAssets = portalRole === 'admin' || portalRole === 'sales';
 
   useEffect(() => {
     try {
@@ -657,8 +669,8 @@ export default function WineHub() {
   }, []);
 
   useEffect(() => {
-    if (access.role) void checkCommerce7();
-  }, [access.role]);
+    if (entryStage === 'hub' && portalRole) void checkCommerce7();
+  }, [entryStage, portalRole]);
 
   useEffect(() => {
     if (!activeWine) return;
@@ -677,6 +689,23 @@ export default function WineHub() {
     }
   }, [wines]);
 
+  function enterPortal(role: PortalRole) {
+    setPortalRole(role);
+    setMobileNav(false);
+    setEditingWine(null);
+    setQuery('');
+    setCategory('All');
+    setView(role === 'distribution' ? 'distribution' : 'library');
+    setEntryStage('hub');
+  }
+
+  function switchPortal() {
+    setMobileNav(false);
+    setEditingWine(null);
+    setPortalRole(null);
+    setEntryStage('roles');
+  }
+
   async function loadAccessSession() {
     try {
       const response = await fetch('/api/auth/session', { cache: 'no-store' });
@@ -690,6 +719,8 @@ export default function WineHub() {
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     setAccess((current) => ({ ...current, role: current.enabled ? null : 'admin' }));
+    setPortalRole(null);
+    setEntryStage('welcome');
     setView('library');
     setMobileNav(false);
   }
@@ -854,6 +885,14 @@ export default function WineHub() {
     return <PinGate configured={access.configured} onAccess={(role) => { setAccess({ loading: false, enabled: true, configured: true, role }); setView('library'); }} />;
   }
 
+  if (entryStage === 'welcome') {
+    return <WelcomePage onEnter={() => setEntryStage('roles')} />;
+  }
+
+  if (entryStage === 'roles' || !portalRole) {
+    return <PortalChooser onChoose={enterPortal} onBack={() => setEntryStage('welcome')} />;
+  }
+
   return (
     <div className="app-shell min-h-screen bg-[#f5f6f8] text-[#171717]">
       <aside className={`no-print fixed inset-y-0 left-0 z-40 w-[248px] border-r border-black/10 bg-white transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -867,22 +906,23 @@ export default function WineHub() {
           </div>
 
           <nav className="space-y-1">
-            <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => { setView('library'); setMobileNav(false); }} />
-            <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => { setView('distribution'); setMobileNav(false); }} />
+            {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => { setView('library'); setMobileNav(false); }} />}
+            {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => { setView('distribution'); setMobileNav(false); }} />}
             {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Staff Notes" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
-            {canUseTastingRoom && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
+            {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
             {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech-library'); setMobileNav(false); }} />}
-            <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => { setView('awards'); setMobileNav(false); }} />
-            <NavButton active={view === 'assets'} icon={<ImageIcon />} label="Assets" onClick={() => { setView('assets'); setMobileNav(false); }} />
+            {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => { setView('awards'); setMobileNav(false); }} />}
+            {canUseAssets && <NavButton active={view === 'assets'} icon={<ImageIcon />} label="Assets" onClick={() => { setView('assets'); setMobileNav(false); }} />}
           </nav>
 
           <div className="mt-auto space-y-3">
-            {access.enabled && <div className="rounded-2xl border border-black/10 bg-white p-3">
+            <div className="rounded-2xl border border-black/10 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
-                <div><p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Access</p><p className="mt-1 text-xs font-black">{access.role === 'admin' ? 'Admin' : access.role === 'sales' ? 'Sales' : 'Tasting Room'}</p></div>
-                <button onClick={() => void logout()} className="flex items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]"><LogOut className="h-3.5 w-3.5" /> Log out</button>
+                <div><p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Portal</p><p className="mt-1 text-xs font-black">{portalRole === 'admin' ? 'Admin' : portalRole === 'sales' ? 'Sales' : portalRole === 'tasting' ? 'Tasting Room' : 'Distributors'}</p></div>
+                <button onClick={switchPortal} className="rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]">Switch</button>
               </div>
-            </div>}
+              {access.enabled && <button onClick={() => void logout()} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]"><LogOut className="h-3.5 w-3.5" /> Log out</button>}
+            </div>
             <div className="rounded-2xl border border-black/10 bg-[#f8f9fb] p-3">
             <div className="flex items-start gap-2.5">
               <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${sync.configured ? 'bg-emerald-500' : 'bg-amber-400'}`} />
@@ -901,36 +941,76 @@ export default function WineHub() {
       <main className="min-h-screen lg:pl-[248px]">
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
-          <span className="font-bold">Leelanau Wine Hub</span>
+          <span className="font-bold">Leelanau Wine Hub · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
         </div>
 
-        {view === 'library' && (
+        {view === 'library' && canUseWineLibrary && (
           <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
         )}
-        {view === 'profile' && activeWine && (
+        {view === 'profile' && canUseWineLibrary && activeWine && (
           <WineProfile wine={activeWine} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
         )}
-        {view === 'distribution' && (
+        {view === 'distribution' && canUseDistribution && (
           <DistributionLibrary wines={wines} distributionWines={distributionWines} openWine={openDistributionWine} />
         )}
-        {view === 'distribution-profile' && activeDistributionWine && (
-          <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => setView('distribution')} canEdit={access.role === 'admin'} saveItem={saveDistributionWine} />
+        {view === 'distribution-profile' && canUseDistribution && activeDistributionWine && (
+          <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => setView('distribution')} canEdit={isPortalAdmin} saveItem={saveDistributionWine} />
         )}
         {view === 'tasting' && canUseTastingRoom && (
-          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={access.role as AccessRole} />
+          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
         )}
-        {view === 'quickfacts' && canUseTastingRoom && <QuickFactsView />}
+        {view === 'quickfacts' && canUseQuickFacts && <QuickFactsView />}
         {view === 'tech-library' && canUseTechSheets && (
           <TechSheetLibrary wines={wines} openTech={openTech} />
         )}
         {view === 'tech' && canUseTechSheets && (
           <TechSheetBuilder wines={wines} activeWine={activeWine} activeWineId={activeWineId} setActiveWineId={setActiveWineId} draft={techDraft} setDraft={setTechDraft} back={() => setView('tech-library')} />
         )}
-        {view === 'awards' && <AwardsView wines={wines} openWine={openWine} />}
-        {view === 'assets' && <AssetsView wines={wines} openWine={openWine} />}
+        {view === 'awards' && canUseAwards && <AwardsView wines={wines} openWine={openWine} />}
+        {view === 'assets' && canUseAssets && <AssetsView wines={wines} openWine={openWine} />}
       </main>
     </div>
   );
+}
+
+
+function WelcomePage({ onEnter }: { onEnter: () => void }) {
+  return <div className="flex min-h-screen items-center justify-center bg-[#f4f5f7] px-6 py-12">
+    <div className="w-full max-w-[720px] text-center">
+      <img src="/lwc-logo.png" alt="Leelanau Cellars" className="mx-auto h-32 w-32 border border-black bg-white object-cover shadow-[0_18px_50px_rgba(0,0,0,.12)] sm:h-40 sm:w-40" />
+      <p className="mt-8 text-[11px] font-black uppercase tracking-[.28em] text-[#3976b7]">Leelanau Cellars</p>
+      <h1 className="mt-2 text-4xl font-black tracking-[-.045em] sm:text-5xl">Wine Hub</h1>
+      <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-black/50">Internal wine information, sales tools, tasting-room resources and distributor details in one place.</p>
+      <button onClick={onEnter} className="mt-8 inline-flex min-w-40 items-center justify-center rounded-2xl bg-black px-8 py-4 text-sm font-black uppercase tracking-[.12em] text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl">Enter</button>
+    </div>
+  </div>;
+}
+
+function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => void; onBack: () => void }) {
+  const options: { role: PortalRole; label: string; description: string; icon: React.ReactNode }[] = [
+    { role: 'admin', label: 'Admin', description: 'Full Wine Hub access and editing tools', icon: <Lock className="h-8 w-8" /> },
+    { role: 'tasting', label: 'Tasting Room', description: 'Wine Library, Staff Notes and Quick Facts', icon: <ClipboardList className="h-8 w-8" /> },
+    { role: 'sales', label: 'Sales', description: 'Sales sheets, distribution info, awards and assets', icon: <Briefcase className="h-8 w-8" /> },
+    { role: 'distribution', label: 'Distributors', description: 'Direct access to Distribution Wines', icon: <Store className="h-8 w-8" /> },
+  ];
+  return <div className="min-h-screen bg-[#f4f5f7] px-5 py-10 sm:px-8 sm:py-14">
+    <div className="mx-auto max-w-[1040px]">
+      <button onClick={onBack} className="mb-7 flex items-center gap-1.5 text-xs font-black text-black/45 hover:text-black"><ChevronLeft className="h-4 w-4" /> Back</button>
+      <div className="text-center">
+        <img src="/lwc-logo.png" alt="Leelanau Cellars" className="mx-auto h-20 w-20 border border-black bg-white object-cover shadow-sm" />
+        <p className="mt-5 text-[10px] font-black uppercase tracking-[.24em] text-[#3976b7]">Leelanau Cellars Wine Hub</p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-.04em] sm:text-4xl">Where are you headed?</h1>
+        <p className="mt-2 text-sm text-black/45">Choose the area that matches how you use the Wine Hub.</p>
+      </div>
+      <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {options.map((option) => <button key={option.role} onClick={() => onChoose(option.role)} className="group flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border border-black/10 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:border-black/20 hover:shadow-xl">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf4fb] text-[#326eac] transition group-hover:bg-[#326eac] group-hover:text-white">{option.icon}</span>
+          <span className="mt-5 text-lg font-black">{option.label}</span>
+          <span className="mt-2 text-xs leading-5 text-black/42">{option.description}</span>
+        </button>)}
+      </div>
+    </div>
+  </div>;
 }
 
 
