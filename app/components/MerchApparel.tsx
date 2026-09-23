@@ -336,7 +336,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <div className="hidden grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] items-center gap-5 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-black uppercase tracking-[.13em] text-black/35 lg:grid">
+            <div className="hidden grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] items-center gap-5 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
               <span>Item</span><span>Variant / Size</span><span>Price</span><span className="text-right">Actions</span>
             </div>
 
@@ -353,12 +353,12 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                     <div className="grid gap-3 lg:grid-cols-[minmax(300px,1.55fr)_minmax(180px,.9fr)_90px_220px] lg:items-center lg:gap-5">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-[15px] font-black leading-5">{product.name}</h2>
+                          <h2 className="text-[15px] font-medium leading-5 text-black/90">{product.name}</h2>
                           {!ready && selected && <StatusPill tone={issues.includes('Missing UPC') || issues.includes('Duplicate UPC') ? 'bad' : 'warn'}>{issues[0] || 'Issue'}</StatusPill>}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-black/45">
-                          <span><strong className="font-black text-black/55">SKU:</strong> {selected?.sku || '—'}</span>
-                          <span className="font-mono"><strong className="font-sans font-black text-black/55">UPC:</strong> {selected?.upcCode || '—'}</span>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-normal text-black/45">
+                          <span><span className="text-black/55">SKU:</span> {selected?.sku || '—'}</span>
+                          <span className="font-mono"><span className="font-sans text-black/55">UPC:</span> {selected?.upcCode || '—'}</span>
                         </div>
                       </div>
 
@@ -367,15 +367,15 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                         {product.variants.length > 1 ? <select
                           value={selected?.id || ''}
                           onChange={(event) => setSelectedByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
-                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[15px] font-black outline-none focus:border-[#5ba3f8]"
+                          className="h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-[15px] font-normal text-black/85 outline-none focus:border-[#5ba3f8]"
                         >
                           {product.variants.map((variant) => <option key={variant.id} value={variant.id}>{variantLabel(variant.variantName)}</option>)}
-                        </select> : <div className="text-[15px] font-black leading-5 text-black/80">{selected ? variantLabel(selected.variantName) : '—'}</div>}
+                        </select> : <div className="h-5 text-[15px] font-normal leading-5 text-black/80" aria-label="No variant selection needed" />}
                       </div>
 
                       <div>
                         <span className="mb-1 block text-[9px] font-black uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
-                        <p className="text-[15px] font-black">{selected ? money(selected.price) : '—'}</p>
+                        <p className="text-[15px] font-medium text-black/90">{selected ? money(selected.price) : '—'}</p>
                       </div>
 
                       <div className="flex gap-2 lg:justify-end">
