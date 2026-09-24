@@ -95,7 +95,7 @@ export const QUICK_FACTS = {
     { site: 'Pleasant Hill', features: 'Warm afternoon sun, heavier soil in places', vineyards: '7' },
     { site: 'Hilltop', features: 'Winery site, even terrain, rich silt soils on north side', vineyards: '1 (trial)' },
   ],
-  vineyardNote: 'The staff document lists 68.5 total vineyard acres. A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.',
+  vineyardNote: 'Leelanau Cellars has 68.5 total vineyard acres. A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.',
   varieties: [
     { variety: 'Chardonnay', type: 'White (Vinifera)', acreage: '3.9 acres', locations: 'Omena (2 vineyards)', notes: 'Cold-hardy, mid-season ripener' },
     { variety: 'Gewürztraminer', type: 'White (Vinifera)', acreage: '2.5 acres', locations: 'M204 (2 vineyards)', notes: 'Floral, spicy, aromatic, early ripening' },

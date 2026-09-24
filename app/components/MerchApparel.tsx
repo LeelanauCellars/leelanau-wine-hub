@@ -325,28 +325,13 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
     <div className="no-print mx-auto max-w-[1520px] p-5 md:p-8 xl:p-10">
       <div className="mb-7 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="mb-2 text-xs font-black uppercase tracking-[.22em] text-[#3976b7]">Tasting Room · Operations</p>
           <h1 className="text-3xl font-black tracking-[-.04em] md:text-4xl">Merch / Apparel</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-black/52">Search Commerce7 merchandise, choose the exact variant, then print from your browser. No DYMO browser plugin is required.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-bold text-black/55 shadow-sm">{message}</div>
           <button onClick={() => void loadMerch()} disabled={loading} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-black shadow-sm disabled:opacity-45"><RefreshIcon spin={loading} /> Refresh</button>
         </div>
       </div>
-
-      {isAdmin && <div className="mb-5 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div><p className="text-xs font-black uppercase tracking-[.14em] text-black/40">Commerce7 label health</p><p className="mt-1 text-xs leading-5 text-black/45">These are warnings only. Product data remains managed in Commerce7.</p></div>
-          <div className="flex flex-wrap gap-2">
-            <IssueButton active={issueFilter === 'ready'} onClick={() => setIssueFilter(issueFilter === 'ready' ? 'all' : 'ready')} label="Ready" count={issueCounts.ready} tone="good" />
-            <IssueButton active={issueFilter === 'missingUpc'} onClick={() => setIssueFilter(issueFilter === 'missingUpc' ? 'all' : 'missingUpc')} label="Missing UPC" count={issueCounts.missingUpc} tone="bad" />
-            <IssueButton active={issueFilter === 'missingPrice'} onClick={() => setIssueFilter(issueFilter === 'missingPrice' ? 'all' : 'missingPrice')} label="Missing price" count={issueCounts.missingPrice} tone="warn" />
-            <IssueButton active={issueFilter === 'missingSku'} onClick={() => setIssueFilter(issueFilter === 'missingSku' ? 'all' : 'missingSku')} label="Missing SKU" count={issueCounts.missingSku} tone="warn" />
-            <IssueButton active={issueFilter === 'duplicateUpc'} onClick={() => setIssueFilter(issueFilter === 'duplicateUpc' ? 'all' : 'duplicateUpc')} label="Duplicate UPC" count={issueCounts.duplicateUpc} tone="bad" />
-          </div>
-        </div>
-      </div>}
 
       <div className="mb-6 grid gap-3 xl:grid-cols-[1fr_auto]">
         <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-black/35"><SearchIcon /></span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search merchandise…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
@@ -358,7 +343,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <div className="hidden grid-cols-[minmax(0,1fr)_minmax(110px,150px)_72px_180px] items-center gap-3 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[9px] font-semibold uppercase tracking-[.13em] text-black/35 lg:grid">
+            <div className="hidden grid-cols-[minmax(0,1fr)_minmax(110px,150px)_72px_180px] items-center gap-3 border-b border-black/[.07] bg-[#f6f8fa] px-5 py-3 text-[11px] font-black uppercase tracking-[.11em] text-black lg:grid">
               <span>Item</span><span>Variant / Size</span><span>Price</span><span className="text-right">Actions</span>
             </div>
 
@@ -378,14 +363,14 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                           <h2 className="text-[15px] font-medium leading-5">{product.name}</h2>
                           {!ready && selected && <StatusPill tone={issues.includes('Missing UPC') || issues.includes('Duplicate UPC') ? 'bad' : 'warn'}>{issues[0] || 'Issue'}</StatusPill>}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-normal text-black/45">
-                          <span><strong className="font-medium text-black/55">SKU:</strong> {selected?.sku || '—'}</span>
-                          <span className="font-mono"><strong className="font-sans font-medium text-black/55">UPC:</strong> {selected?.upcCode || '—'}</span>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-black">
+                          <span><strong className="font-bold text-black">SKU:</strong> {selected?.sku || '—'}</span>
+                          <span className="font-mono"><strong className="font-sans font-bold text-black">UPC:</strong> {selected?.upcCode || '—'}</span>
                         </div>
                       </div>
 
                       <div className="min-w-0">
-                        {product.variants.length > 1 && <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Variant / Size</span>}
+                        {product.variants.length > 1 && <span className="mb-1 block text-[10px] font-bold uppercase tracking-[.1em] text-black lg:hidden">Variant / Size</span>}
                         {product.variants.length > 1 ? <select
                           value={selected?.id || ''}
                           onChange={(event) => setSelectedByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
@@ -396,7 +381,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
                       </div>
 
                       <div className="min-w-0">
-                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.11em] text-black/35 lg:hidden">Price</span>
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-[.1em] text-black lg:hidden">Price</span>
                         <p className="whitespace-nowrap text-[15px] font-medium">{selected ? money(selected.price) : '—'}</p>
                       </div>
 
@@ -422,7 +407,7 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
 
         <aside className="self-start 2xl:sticky 2xl:top-6">
           <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#3976b7]">DYMO 30334</p><h2 className="mt-1 text-xl font-semibold">Label Queue</h2><p className="mt-1 text-xs leading-5 text-black/45">2¼″ × 1¼″ · browser printing</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white">{totalQueue}</span></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[.12em] text-black">DYMO 30334</p><h2 className="mt-1 text-xl font-black">Label Queue</h2><p className="mt-1 text-[13px] leading-5 text-black/65">2¼″ × 1¼″ · browser printing</p></div><span className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white">{totalQueue}</span></div>
 
             <div className="mt-4 rounded-xl border border-black/10 bg-[#fafbfc] p-3">
               <label htmlFor="label-layout" className="block text-[10px] font-semibold uppercase tracking-[.1em] text-black/55">Print layout</label>
@@ -434,16 +419,29 @@ export default function MerchApparel({ isAdmin }: { isAdmin: boolean }) {
             </div>
 
             <div className="mt-4 space-y-3">{queue.map((item) => <div key={item.variant.id} className="rounded-xl border border-black/[.08] bg-[#fafbfc] p-3">
-              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black leading-4">{item.variant.productName}</p><p className="mt-1 text-[10px] font-bold text-black/45">{variantLabel(item.variant.variantName)} · {item.variant.sku}</p></div><button onClick={() => setQueue((current) => current.filter((candidate) => candidate.variant.id !== item.variant.id))} className="rounded-lg p-1.5 text-black/35 hover:bg-red-50 hover:text-red-600" aria-label="Remove label"><TrashIcon /></button></div>
-              <div className="mt-3 flex items-center justify-between"><span className="font-mono text-[9px] text-black/40">{item.variant.upcCode}</span><div className="flex items-center gap-1"><button onClick={() => changeQuantity(item.variant.id, -1)} className="rounded-lg border border-black/10 bg-white p-1.5"><MinusIcon /></button><span className="min-w-7 text-center text-xs font-black">{item.quantity}</span><button onClick={() => changeQuantity(item.variant.id, 1)} className="rounded-lg border border-black/10 bg-white p-1.5"><PlusIcon /></button></div></div>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black leading-4">{item.variant.productName}</p><p className="mt-1 text-[11px] font-bold text-black/65">{variantLabel(item.variant.variantName)} · {item.variant.sku}</p></div><button onClick={() => setQueue((current) => current.filter((candidate) => candidate.variant.id !== item.variant.id))} className="rounded-lg p-1.5 text-black/35 hover:bg-red-50 hover:text-red-600" aria-label="Remove label"><TrashIcon /></button></div>
+              <div className="mt-3 flex items-center justify-between"><span className="font-mono text-[11px] font-semibold text-black/70">{item.variant.upcCode}</span><div className="flex items-center gap-1"><button onClick={() => changeQuantity(item.variant.id, -1)} className="rounded-lg border border-black/10 bg-white p-1.5"><MinusIcon /></button><span className="min-w-7 text-center text-xs font-black">{item.quantity}</span><button onClick={() => changeQuantity(item.variant.id, 1)} className="rounded-lg border border-black/10 bg-white p-1.5"><PlusIcon /></button></div></div>
             </div>)}</div>
-            {!queue.length && <div className="mt-4 rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-4 py-10 text-center"><p className="text-sm font-black text-black/35">Queue is empty</p><p className="mt-1 text-[10px] leading-4 text-black/30">Add a ready-to-print variant from any merchandise row.</p></div>}
+            {!queue.length && <div className="mt-4 rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-4 py-10 text-center"><p className="text-sm font-black text-black/60">Queue is empty</p><p className="mt-1 text-[11px] leading-4 text-black/55">Add a ready-to-print variant from any merchandise row.</p></div>}
             <button disabled={!totalQueue} onClick={printQueue} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#5ba3f8] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#4c91e3] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} LABEL{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
-            <p className="mt-4 text-[10px] leading-4 text-black/45">Choose the 30334 paper size, 100% scale, no margins, and turn off headers and footers in the browser print dialog. You can also choose Save as PDF there.</p>
+            <p className="mt-4 text-[11px] leading-5 text-black/60">Choose the 30334 paper size, 100% scale, no margins, and turn off headers and footers in the browser print dialog. You can also choose Save as PDF there.</p>
           </div>
         </aside>
       </div>
+
+      {isAdmin && <div className="mt-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div><p className="text-sm font-black text-black">Commerce7 label health</p><p className="mt-1 text-xs leading-5 text-black/60">Admin-only data checks. Product data remains managed in Commerce7.</p></div>
+          <div className="flex flex-wrap gap-2">
+            <IssueButton active={issueFilter === 'ready'} onClick={() => setIssueFilter(issueFilter === 'ready' ? 'all' : 'ready')} label="Ready" count={issueCounts.ready} tone="good" />
+            <IssueButton active={issueFilter === 'missingUpc'} onClick={() => setIssueFilter(issueFilter === 'missingUpc' ? 'all' : 'missingUpc')} label="Missing UPC" count={issueCounts.missingUpc} tone="bad" />
+            <IssueButton active={issueFilter === 'missingPrice'} onClick={() => setIssueFilter(issueFilter === 'missingPrice' ? 'all' : 'missingPrice')} label="Missing price" count={issueCounts.missingPrice} tone="warn" />
+            <IssueButton active={issueFilter === 'missingSku'} onClick={() => setIssueFilter(issueFilter === 'missingSku' ? 'all' : 'missingSku')} label="Missing SKU" count={issueCounts.missingSku} tone="warn" />
+            <IssueButton active={issueFilter === 'duplicateUpc'} onClick={() => setIssueFilter(issueFilter === 'duplicateUpc' ? 'all' : 'duplicateUpc')} label="Duplicate UPC" count={issueCounts.duplicateUpc} tone="bad" />
+          </div>
+        </div>
+      </div>}
     </div>
 
   </>;

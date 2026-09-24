@@ -619,7 +619,6 @@ export default function WineHub() {
   const canUseMerch = portalRole === 'admin' || portalRole === 'tasting';
   const canUseQuickFacts = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
   const canUseAwards = portalRole === 'admin' || portalRole === 'sales';
-  const canUseAssets = portalRole === 'admin' || portalRole === 'sales';
 
   useEffect(() => {
     try {
@@ -910,7 +909,9 @@ export default function WineHub() {
       <aside className={`no-print fixed inset-y-0 left-0 z-40 w-[292px] border-r border-black/[.08] bg-white transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col overflow-y-auto px-4 pb-4 pt-7">
           <div className="mb-6 flex items-start justify-between px-1">
-            <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-sidebar-logo" />
+            <button type="button" onClick={switchPortal} className="rounded-xl text-left transition hover:opacity-75" title="Back to portal" aria-label="Back to portal">
+              <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-sidebar-logo" />
+            </button>
             <button className="lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X className="h-5 w-5" /></button>
           </div>
 
@@ -918,18 +919,17 @@ export default function WineHub() {
             {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label={portalRole === 'tasting' ? 'Wines' : 'Wine Library'} onClick={() => { setView('library'); setMobileNav(false); }} />}
             {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => { setView('distribution'); setMobileNav(false); }} />}
             {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => { setView('merch'); setMobileNav(false); }} />}
-            {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Wine Guide" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
+            {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu and Notes" onClick={() => { setView('tasting'); setMobileNav(false); }} />}
             {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => { setView('quickfacts'); setMobileNav(false); }} />}
             {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => { setView('tech-library'); setMobileNav(false); }} />}
             {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => { setView('awards'); setMobileNav(false); }} />}
-            {canUseAssets && <NavButton active={view === 'assets'} icon={<ImageIcon />} label="Assets" onClick={() => { setView('assets'); setMobileNav(false); }} />}
           </nav>
 
           <div className="mt-auto space-y-3">
             <div className="rounded-2xl border border-black/10 bg-white p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div><p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Portal</p><p className="mt-1 text-xs font-black">{portalRole === 'admin' ? 'Admin' : portalRole === 'sales' ? 'Sales' : portalRole === 'tasting' ? 'Tasting Room' : 'Distributors'}</p></div>
-                <button onClick={switchPortal} className="rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]">Switch</button>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Portal</p>
+                <p className="mt-1 text-xs font-black">{portalRole === 'admin' ? 'Admin' : portalRole === 'sales' ? 'Sales' : portalRole === 'tasting' ? 'Tasting Room' : 'Distributors'}</p>
               </div>
               {access.enabled && <button onClick={() => void logout()} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]"><LogOut className="h-3.5 w-3.5" /> Log out</button>}
             </div>
@@ -978,7 +978,6 @@ export default function WineHub() {
           <TechSheetBuilder wines={wines} activeWine={activeWine} activeWineId={activeWineId} setActiveWineId={setActiveWineId} draft={techDraft} setDraft={setTechDraft} back={() => setView('tech-library')} />
         )}
         {view === 'awards' && canUseAwards && <AwardsView wines={wines} openWine={openWine} />}
-        {view === 'assets' && canUseAssets && <AssetsView wines={wines} openWine={openWine} />}
       </main>
     </div>
   );
@@ -1783,9 +1782,16 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
     </div>
   </div>;
 }
-function AwardRow({ award }: { award: Award }) {
+function AwardRow({ award, downloadable = false }: { award: Award; downloadable?: boolean }) {
   const graphic = award.graphicUrl || awardGraphicFor(award);
-  return <div className="flex items-center gap-3 rounded-xl bg-[#faf6ea] p-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/45">{award.year} · {award.competition}</p></div></div>;
+  const jpeg = graphic?.startsWith('/awards/') && /\.png$/i.test(graphic) ? graphic.replace(/\.png$/i, '.jpg') : undefined;
+  return <div className="flex flex-col gap-3 rounded-xl bg-[#faf6ea] p-3 sm:flex-row sm:items-center">
+    <div className="flex min-w-0 flex-1 items-center gap-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/55">{award.year} · {award.competition}</p></div></div>
+    {downloadable && graphic && <div className="flex shrink-0 gap-2">
+      <a href={graphic} download className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">PNG</a>
+      {jpeg && <a href={jpeg} download className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">JPEG</a>}
+    </div>}
+  </div>;
 }
 function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (patch: Partial<Award>) => void; onRemove: () => void }) { return <div className="rounded-xl border border-[#ead9b4] bg-[#fffaf0] p-3"><div className="grid gap-2 sm:grid-cols-[90px_1fr]"><label><span className="field-label">Year</span><input type="number" value={award.year} onChange={(event) => onChange({ year: Number(event.target.value) || new Date().getFullYear() })} className="field-input" /></label><EditField label="Result" value={award.result} onChange={(value) => onChange({ result: value })} /></div><div className="mt-2"><EditField label="Competition" value={award.competition} onChange={(value) => onChange({ competition: value })} /></div><div className="mt-2"><EditField label="Award graphic URL (optional)" value={award.graphicUrl || ''} onChange={(value) => onChange({ graphicUrl: value || undefined })} /></div><button onClick={onRemove} className="mt-3 text-[11px] font-black text-red-600 hover:text-red-700">Remove award</button></div>; }
 
@@ -1794,9 +1800,7 @@ function QuickFactsView() {
   const downloadButton = 'flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black shadow-sm hover:bg-black/[.03]';
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
     <PageHeader
-      eyebrow="Tasting room"
       title="Leelanau Cellars Quick Facts"
-      description="A staff reference for the winery story, northern Michigan growing conditions, vineyard sites, grape varieties and recent vintages."
       right={<div className="flex flex-wrap gap-2">
         <a href="/tasting-room/quick-facts.pdf" download="Leelanau Cellars Quick Facts for Tasting Room Staff.pdf" className={downloadButton}><Download className="h-4 w-4" /> Download PDF</a>
         <a href="/tasting-room/quick-facts.docx" download="Leelanau Cellars Quick Facts for Tasting Room Staff.docx" className={downloadButton}><Download className="h-4 w-4" /> Download Word</a>
@@ -1804,34 +1808,35 @@ function QuickFactsView() {
     />
 
     <div className="grid gap-5 xl:grid-cols-[1.08fr_.92fr]">
-      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
-        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf5fd] text-[#326eac]"><BookOpen className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Company</p><h2 className="text-xl font-black">{QUICK_FACTS.story.title}</h2></div></div>
-        <ul className="mt-5 space-y-3 text-sm leading-6 text-black/68">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-sm font-black">{brand}</p><p className="mt-1 text-xs leading-5 text-black/58">{detail}</p></div>)}</div>
+      <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+        <h2 className="text-2xl font-black">{QUICK_FACTS.story.title}</h2>
+        <ul className="mt-5 space-y-3.5 text-[15px] leading-7 text-black/75">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-[15px] font-black">{brand}</p><p className="mt-1.5 text-[13px] leading-5 text-black/68">{detail}</p></div>)}</div>
       </section>
 
       <div className="grid gap-5">
-        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6"><h2 className="text-xl font-black">{section.title}</h2><ul className="mt-4 space-y-2.5 text-sm leading-6 text-black/65">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
+        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">{section.title}</h2><ul className="mt-4 space-y-3 text-[15px] leading-7 text-black/72">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
       </div>
     </div>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">68.5 total acres</p><h2 className="text-xl font-black">Our Vineyard Sites</h2></div><p className="max-w-xl text-xs leading-5 text-black/45">{QUICK_FACTS.vineyardNote}</p></div>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.14em] text-black/40"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3 pr-4 font-black">{item.site}</td><td className="py-3 pr-4 text-black/62">{item.features}</td><td className="py-3 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+      <h2 className="text-2xl font-black">Our Vineyard Sites</h2>
+      <div className="mt-3 rounded-xl bg-[#f2f7fc] px-4 py-3 text-[15px] leading-6 text-black/75"><strong className="text-[#326eac]">Leelanau Cellars has 68.5 total vineyard acres.</strong> A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</div>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-[15px]"><thead><tr className="border-b border-black/10 text-[11px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3.5 pr-4 font-black">{item.site}</td><td className="py-3.5 pr-4 text-black/70">{item.features}</td><td className="py-3.5 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
     </section>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
-      <h2 className="text-xl font-black">Grape Varieties Grown</h2>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead><tr className="border-b border-black/10 text-[9px] font-black uppercase tracking-[.13em] text-black/40"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3 pr-4 font-black">{item.variety}</td><td className="py-3 pr-4 text-black/55">{item.type}</td><td className="py-3 pr-4 font-bold">{item.acreage}</td><td className="py-3 pr-4 text-black/55">{item.locations}</td><td className="py-3 text-black/55">{item.notes}</td></tr>)}</tbody></table></div>
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+      <h2 className="text-2xl font-black">Grape Varieties Grown</h2>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-[13px]"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3.5 pr-4 text-[14px] font-black">{item.variety}</td><td className="py-3.5 pr-4 text-black/68">{item.type}</td><td className="py-3.5 pr-4 font-bold">{item.acreage}</td><td className="py-3.5 pr-4 text-black/68">{item.locations}</td><td className="py-3.5 text-black/68">{item.notes}</td></tr>)}</tbody></table></div>
       <div className="mt-5 grid gap-3 lg:grid-cols-3"><FactMini title="Hilltop white hybrid trial" text={QUICK_FACTS.trials.white} /><FactMini title="Hilltop red hybrid trial" text={QUICK_FACTS.trials.red} /><FactMini title="Coming Soon" text={QUICK_FACTS.trials.comingSoon} /></div>
     </section>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6"><h2 className="text-xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-lg font-black">{vintage.year}</p><ul className="mt-2 space-y-1.5 text-[11px] leading-4 text-black/58">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-xl font-black">{vintage.year}</p><ul className="mt-2.5 space-y-2 text-[13px] leading-5 text-black/68">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
   </div>;
 }
 
 function FactMini({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-xs font-black">{title}</p><p className="mt-1.5 text-[11px] leading-5 text-black/55">{text}</p></div>;
+  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-sm font-black">{title}</p><p className="mt-1.5 text-[13px] leading-5 text-black/65">{text}</p></div>;
 }
 
 function menuCandidates(wine: WineRecord) {
@@ -1912,7 +1917,7 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
       const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
-      setMenuUploadNotice('Current menu PDF updated. Update the Current Wine Guide list below if the wines changed.');
+      setMenuUploadNotice('Current menu PDF updated. Update the tasting menu list below if the wines changed.');
       await loadMenuInfo();
     } catch (error) {
       setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to replace the current menu.');
@@ -1931,52 +1936,51 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    printWithTitle(`Leelanau Cellars - Current Wine Guide - ${new Date().toISOString().slice(0, 10)}`);
+    printWithTitle(`Leelanau Cellars - Tasting Menu and Notes - ${new Date().toISOString().slice(0, 10)}`);
   };
 
   useEffect(() => { void loadMenuInfo(); }, []);
 
-  const menuDate = menuInfo?.updatedAt ? new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(menuInfo.updatedAt)) : CURRENT_TASTING_MENU_LABEL;
+  const rawMenuDate = menuInfo?.updatedAt || `${CURRENT_TASTING_MENU_VERSION}T12:00:00`;
+  const menuDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(rawMenuDate));
 
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader eyebrow="Tasting room" title="Current Wine Guide" description="A condensed tasting-room reference built from the current menu, tasting descriptions and vintage context. Use the online report for quick lookup or print the compact binder version." right={<div className="flex flex-wrap gap-2"><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-bold shadow-sm disabled:cursor-wait disabled:opacity-60">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save Wine Guide list'}</button><button onClick={printStaffNotes} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print / Save Wine Guide</button></div>} /></div>
+    <div className="no-print"><PageHeader title="Tasting Menu and Notes" right={<button onClick={printStaffNotes} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print / Save PDF</button>} /></div>
 
     <section className="no-print mb-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#edf5fd] text-[#326eac]"><FileText className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Official PDF</p><h2 className="mt-1 text-xl font-black">Current Tasting Room Menu</h2><p className="mt-1 text-xs leading-5 text-black/48">{menuLoading ? 'Loading menu…' : `${menuInfo?.source === 'vercel-blob' ? 'Uploaded' : CURRENT_TASTING_MENU_LABEL} · ${menuDate}`}</p></div></div>
+        <div><h2 className="text-xl font-black">Current Tasting Room Menu</h2><p className="mt-1.5 text-sm font-semibold text-black/55">{menuLoading ? 'Loading menu…' : `As of ${menuDate}`}</p></div>
         <div className="flex flex-wrap gap-2">
           <a href={menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1'} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><ExternalLink className="h-4 w-4" /> View PDF</a>
           <a href={menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1'} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><Download className="h-4 w-4" /> Download PDF</a>
-          <button onClick={useOfficialMenu} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-4 py-3 text-xs font-black text-white"><ClipboardList className="h-4 w-4" /> Use menu for Wine Guide</button>
+          <button onClick={useOfficialMenu} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-4 py-3 text-xs font-black text-white"><ClipboardList className="h-4 w-4" /> Use current menu</button>
           {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-black text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
         </div>
       </div>
-      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-900"><strong>The current September menu is already bundled and downloadable.</strong> To replace the PDF from inside Wine Hub later, connect Vercel Blob to the project. Until then, you can replace the bundled menu in a future app update.</p>}
+      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-900"><strong>The current menu is already bundled and downloadable.</strong> To replace the PDF from inside Central later, connect Vercel Blob to the project.</p>}
       {menuUploadNotice && <p className="mt-3 rounded-xl bg-[#f6f7f8] px-3 py-2.5 text-[11px] font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+
+      <details className="mt-5 border-t border-black/10 pt-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4"><div><p className="text-sm font-black">Manage tasting menu list</p><p className="mt-1 text-xs text-black/50">{selected.length} wines selected</p></div><span className="rounded-lg bg-[#edf5fd] px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">Open controls</span></summary>
+        <div className="pt-5">
+          <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared tasting menu list enabled.' : 'Local tasting menu list.'}</strong> {commerce7Connected ? 'Save the selection so the current list follows the team.' : 'The wine selection is saved in this browser until Commerce7 is connected.'}</div>
+          <div className="flex flex-wrap gap-2">{chosen.slice(0, 16).map((wine) => <button key={wine.id} onClick={() => toggle(wine.id)} className="rounded-full bg-[#eef5fb] px-3 py-1.5 text-[11px] font-bold text-black/65">{wine.name}{wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''} ×</button>)}{chosen.length > 16 && <span className="rounded-full bg-black/[.05] px-3 py-1.5 text-[11px] font-bold text-black/45">+{chosen.length - 16} more</span>}</div>
+          <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Match menu text</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change wines</button><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black disabled:opacity-50">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save selection'}</button>{selected.length > 0 && <button onClick={() => setSelected([])} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-black/55">Clear list</button>}</div>
+          {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-4"><p className="text-xs font-black">Auto-select from menu text</p><p className="mt-1 text-[11px] leading-4 text-black/50">Paste a wine list or upload a text-based menu. Central matches names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste a tasting-room wine list here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload text file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
+          {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="grid max-h-[480px] gap-2 overflow-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selected.includes(wine.id) ? 'border-[#b9d7f3] bg-[#eaf3fb]' : 'border-black/8 hover:bg-black/[.025]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/45">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
+        </div>
+      </details>
     </section>
 
-    <section className="no-print mb-5 flex flex-col gap-4 rounded-2xl border border-black/10 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-      <div><p className="text-sm font-black">Choose how you want to use the Wine Guide</p><p className="mt-1 text-xs leading-5 text-black/45">Web View is a searchable report for quick reference. Print Preview uses the same report structure in a compact landscape layout, with no dedicated note boxes.</p></div>
-      <div className="flex rounded-xl bg-[#eef1f4] p-1">
-        <button onClick={() => setNotesView('web')} className={`rounded-lg px-4 py-2 text-xs font-black transition ${notesView === 'web' ? 'bg-white text-black shadow-sm' : 'text-black/45'}`}>Web View</button>
-        <button onClick={() => setNotesView('print')} className={`rounded-lg px-4 py-2 text-xs font-black transition ${notesView === 'print' ? 'bg-white text-black shadow-sm' : 'text-black/45'}`}>Print Preview</button>
-      </div>
-    </section>
-
-    <details className="no-print mb-5 rounded-2xl border border-black/10 bg-white shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4"><div><p className="text-sm font-black">Manage Wine Guide list</p><p className="mt-1 text-xs text-black/45">{selected.length} wines selected · Current menu can reset the list at any time.</p></div><span className="rounded-lg bg-[#edf5fd] px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">Open controls</span></summary>
-      <div className="border-t border-black/8 p-5">
-        <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared Wine Guide list enabled.' : 'Local Wine Guide list.'}</strong> {commerce7Connected ? 'Save the list once and the current selection follows the team.' : 'The wine selection is saved in this browser until Commerce7 is connected.'}</div>
-        <div className="flex flex-wrap gap-2">{chosen.slice(0, 16).map((wine) => <button key={wine.id} onClick={() => toggle(wine.id)} className="rounded-full bg-[#eef5fb] px-3 py-1.5 text-[11px] font-bold text-black/65">{wine.name}{wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''} ×</button>)}{chosen.length > 16 && <span className="rounded-full bg-black/[.05] px-3 py-1.5 text-[11px] font-bold text-black/45">+{chosen.length - 16} more</span>}</div>
-        <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Match menu text</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change wines</button>{selected.length > 0 && <button onClick={() => setSelected([])} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-black/45">Clear list</button>}</div>
-        {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-4"><p className="text-xs font-black">Auto-select from menu text</p><p className="mt-1 text-[11px] leading-4 text-black/45">Paste a wine list or upload a text-based menu. Wine Hub matches names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste a tasting-room wine list here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload text file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
-        {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="grid max-h-[480px] gap-2 overflow-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selected.includes(wine.id) ? 'border-[#b9d7f3] bg-[#eaf3fb]' : 'border-black/8 hover:bg-black/[.025]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/40">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
-      </div>
-    </details>
+    <div className="no-print mb-5 flex gap-2">
+      <button onClick={() => setNotesView('web')} className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${notesView === 'web' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Web View</button>
+      <button onClick={() => setNotesView('print')} className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${notesView === 'print' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Print Preview</button>
+    </div>
 
     <div className="no-print">{notesView === 'web' ? <StaffNotesWeb chosen={chosen} openWine={openWine} /> : <TastingGuide chosen={chosen} openWine={openWine} />}</div>
     <div className="print-root hidden print:block"><TastingGuide chosen={chosen} /></div>
   </div>;
+
 }
 
 function staffGuideAccent(category: string) {
@@ -2018,7 +2022,7 @@ function StaffNotesWeb({ chosen, openWine }: { chosen: WineRecord[]; openWine: (
   });
   const groups = GUIDE_CATEGORY_ORDER.map((category) => ({ category, wines: filtered.filter((wine) => guideCategoryFor(wine) === category) })).filter((group) => group.wines.length);
 
-  if (!chosen.length) return <div className="rounded-2xl border border-dashed border-black/15 bg-white py-24 text-center"><ClipboardList className="mx-auto h-8 w-8 text-black/20" /><p className="mt-3 font-black">No wines are in the Current Wine Guide yet.</p><p className="mt-1 text-sm text-black/40">Use the current tasting-room menu to populate the list.</p></div>;
+  if (!chosen.length) return <div className="rounded-2xl border border-dashed border-black/15 bg-white py-24 text-center"><ClipboardList className="mx-auto h-8 w-8 text-black/20" /><p className="mt-3 font-black">No wines are in Tasting Menu and Notes yet.</p><p className="mt-1 text-sm text-black/40">Use the current tasting-room menu to populate the list.</p></div>;
 
   return <section className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
     <div className="wine-report-toolbar flex flex-col gap-3 border-b border-black/10 bg-white px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
@@ -2089,11 +2093,11 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
   return <div className="staff-report-pages space-y-5 print:space-y-0">
     {pages.map((pageWines, pageIndex) => <section key={`staff-report-page-${pageIndex}`} className="staff-report-page overflow-hidden bg-white shadow-xl print:shadow-none">
       <header className="staff-report-header flex items-center justify-between border-b border-black/10 bg-white px-7 py-4">
-        <div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-10 w-10 border border-black bg-white object-cover" /><div><p className="text-[7px] font-black uppercase tracking-[.23em] text-[#3976b7]">Leelanau Cellars · Tasting Room</p><h2 className="mt-0.5 text-[22px] font-black tracking-[-.035em]">Current Wine Guide</h2><p className="mt-0.5 text-[7.5px] font-semibold text-black/40">Current wines · tasting-room profiles · concise vintage context</p></div></div>
+        <div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-10 w-10 border border-black bg-white object-cover" /><div><p className="text-[7px] font-black uppercase tracking-[.23em] text-[#3976b7]">Leelanau Cellars · Tasting Room</p><h2 className="mt-0.5 text-[22px] font-black tracking-[-.035em]">Tasting Menu and Notes</h2><p className="mt-0.5 text-[7.5px] font-semibold text-black/40">Current wines · tasting-room profiles · concise vintage context</p></div></div>
         <div className="text-right"><p className="text-[8px] font-black text-black/65">{today}</p><p className="mt-1 text-[7px] font-semibold text-black/35">{chosen.length} wines · {pageIndex + 1} / {pages.length}</p></div>
       </header>
       <div className="staff-report-columns grid grid-cols-[1.02fr_1.25fr_1.9fr_1.5fr_.48fr] bg-[#f3f2f0] px-0 text-[7px] font-black uppercase tracking-[.12em] text-black/45"><div className="pl-4">Wine</div><div>Specs</div><div>Flavor &amp; Style</div><div>Vintage / Vineyard</div><div className="pr-3 text-right">Price</div></div>
-      {!pageWines.length ? <div className="flex min-h-[620px] items-center justify-center p-10 text-center text-sm text-black/40">The current tasting-room menu will populate the Current Wine Guide here.</div> : <div className="staff-report-grid">{pageWines.map(renderWine)}{Array.from({ length: Math.max(0, pageSize - pageWines.length) }).map((_, index) => <div key={`empty-${index}`} className="staff-report-empty border-b border-black/10 bg-white" />)}</div>}
+      {!pageWines.length ? <div className="flex min-h-[620px] items-center justify-center p-10 text-center text-sm text-black/40">The current tasting-room menu will populate Tasting Menu and Notes here.</div> : <div className="staff-report-grid">{pageWines.map(renderWine)}{Array.from({ length: Math.max(0, pageSize - pageWines.length) }).map((_, index) => <div key={`empty-${index}`} className="staff-report-empty border-b border-black/10 bg-white" />)}</div>}
       <footer className="staff-report-footer flex items-center justify-between border-t border-black/10 bg-[#f5f5f4] px-7 text-[7px] font-semibold text-black/38"><span>Internal tasting-room reference · write personal notes in the margins as needed.</span><span>lwc.wine · 231-386-5201</span></footer>
     </section>)}
   </div>;
@@ -2102,17 +2106,22 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
 function TechSheetLibrary({ wines, openTech }: { wines: WineRecord[]; openTech: (wine: WineRecord) => void }) {
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('All');
+  const [collection, setCollection] = useState<WineCollectionName | null>(null);
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [batchColors, setBatchColors] = useState<Record<string, string>>({});
   const [preparingBatch, setPreparingBatch] = useState(false);
-  const categories = useMemo(() => ['All', ...Array.from(new Set(wines.map((wine) => wine.category))).sort()], [wines]);
+  const counts = useMemo(() => Object.fromEntries(WINE_COLLECTIONS.map((name) => [name, wines.filter((wine) => collectionForWine(wine) === name).length])) as Record<WineCollectionName, number>, [wines]);
+  const categories = useMemo(() => ['All', ...Array.from(new Set(wines.filter((wine) => !collection || collectionForWine(wine) === collection).map((wine) => wine.category))).sort()], [wines, collection]);
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return wines.filter((wine) => (category === 'All' || wine.category === category) && (!needle || `${wine.name} ${wine.vintage} ${wine.varietal || ''} ${wine.category} ${wine.brand}`.toLowerCase().includes(needle)));
-  }, [wines, q, category]);
+    return wines.filter((wine) => (!collection || collectionForWine(wine) === collection) && (category === 'All' || wine.category === category) && (!needle || `${wine.name} ${wine.vintage} ${wine.varietal || ''} ${wine.category} ${wine.brand} ${wine.vendor || ''}`.toLowerCase().includes(needle)));
+  }, [wines, q, category, collection]);
   const selectedWines = wines.filter((wine) => selectedIds.includes(wine.id));
+  const showWines = Boolean(collection) || Boolean(q.trim());
   const toggle = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const chooseCollection = (value: WineCollectionName) => { setCollection(value); setQ(''); setCategory('All'); };
+  const backToCollections = () => { setCollection(null); setQ(''); setCategory('All'); };
   const printBatch = async () => {
     if (!selectedWines.length || preparingBatch) return;
     setPreparingBatch(true);
@@ -2124,11 +2133,19 @@ function TechSheetLibrary({ wines, openTech }: { wines: WineRecord[]; openTech: 
 
   return <>
     <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-      <PageHeader eyebrow="Sales tools" title="Tech Sheets" description="Choose a wine to open its ready-to-edit tech sheet. Select multiple wines when you want one combined PDF." right={<div className="flex flex-wrap items-center gap-2"><button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select multiple'}</button><Stat value={wines.length} label="wines" /></div>} />
-      <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]"><div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search wine, vintage, varietal or style…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div><div className="flex gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-4 py-3 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div></div>
-      {batchMode && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#b9d7f3] bg-[#eef6fd] p-4 md:flex-row md:items-center md:justify-between"><div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/50">Click wine cards to select them, then save the full group as one multi-page PDF.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-lg bg-white px-3 py-2 text-xs font-black shadow-sm">{selectedWines.length} selected</span><button onClick={() => setSelectedIds(Array.from(new Set([...selectedIds, ...filtered.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button><button onClick={() => setSelectedIds([])} disabled={!selectedWines.length} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:opacity-40">Clear</button><button onClick={() => void printBatch()} disabled={!selectedWines.length || preparingBatch} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-black text-white disabled:opacity-40">{preparingBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{preparingBatch ? 'Preparing…' : `Print / Save ${selectedWines.length || ''} sheets`}</button></div></div>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{filtered.map((wine) => { const selected = selectedIds.includes(wine.id); const award = wine.awards[0]; return <article key={wine.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}><button onClick={() => batchMode ? toggle(wine.id) : openTech(wine)} className="block w-full text-left"><div className="relative h-56 overflow-hidden bg-[#eef2f6]">{wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}{batchMode && <span className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 ${selected ? 'border-[#3976b7] bg-[#3976b7] text-white' : 'border-white bg-white/90 text-black/20'}`}>{selected ? <Check className="h-4 w-4" /> : null}</span>}</div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/55">{shortCommerce7TastingNotes(wine) || wine.shortDescription || wine.tastingNotes || 'Open the tech sheet to customize this wine.'}</p><p className="mt-3 text-[11px] font-black text-[#326eac]">{batchMode ? (selected ? 'Selected for PDF' : 'Click to select') : 'Open tech sheet →'}</p></div></button></article>; })}</div>
-      {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
+      <PageHeader title="Tech Sheets" right={<div className="flex flex-wrap items-center gap-2"><button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select multiple'}</button><Stat value={wines.length} label="wines" /></div>} />
+      <div className="mb-6"><div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder={collection ? `Search ${collection} wines…` : 'Search all wines…'} className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div></div>
+
+      {batchMode && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#b9d7f3] bg-[#eef6fd] p-4 md:flex-row md:items-center md:justify-between"><div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/55">Select the wines you need, then save the group as one multi-page PDF.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-lg bg-white px-3 py-2 text-xs font-black shadow-sm">{selectedWines.length} selected</span>{showWines && <button onClick={() => setSelectedIds(Array.from(new Set([...selectedIds, ...filtered.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button>}<button onClick={() => setSelectedIds([])} disabled={!selectedWines.length} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:opacity-40">Clear</button><button onClick={() => void printBatch()} disabled={!selectedWines.length || preparingBatch} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-black text-white disabled:opacity-40">{preparingBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{preparingBatch ? 'Preparing…' : `Print / Save ${selectedWines.length || ''} sheets`}</button></div></div>}
+
+      {!showWines ? <section><h2 className="mb-4 text-2xl font-black tracking-[-.03em]">Collections</h2><CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" /></section> : <>
+        <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
+          <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/45">{filtered.length} matching wine{filtered.length === 1 ? '' : 's'}</p></div>
+          <div className="flex max-w-[760px] gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{filtered.map((wine) => { const selected = selectedIds.includes(wine.id); const award = wine.awards[0]; return <article key={wine.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}><button onClick={() => batchMode ? toggle(wine.id) : openTech(wine)} className="block w-full text-left"><div className="relative h-56 overflow-hidden bg-[#eef2f6]">{wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}{batchMode && <span className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 ${selected ? 'border-[#3976b7] bg-[#3976b7] text-white' : 'border-white bg-white/90 text-black/20'}`}>{selected ? <Check className="h-4 w-4" /> : null}</span>}</div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/50">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/60">{shortCommerce7TastingNotes(wine) || wine.shortDescription || wine.tastingNotes || 'Open the tech sheet to customize this wine.'}</p><p className="mt-3 text-[11px] font-black text-[#326eac]">{batchMode ? (selected ? 'Selected for PDF' : 'Click to select') : 'Open tech sheet →'}</p></div></button></article>; })}</div>
+        {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
+      </>}
     </div>
     {batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">{selectedWines.map((wine) => { const batchDraft = { ...draftFromWine(wine), headerColor: batchColors[wine.id] || TECH_COLOR }; return <div key={`tech-library-batch-${wine.id}`} className="batch-tech-page"><TechSheetPaper draft={batchDraft} wine={wine} /></div>; })}</div>}
   </>;
@@ -2482,9 +2499,15 @@ function AwardBadge({ award }: { award: Award }) {
 }
 
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => (b.awards[0]?.year ?? 0) - (a.awards[0]?.year ?? 0) || a.name.localeCompare(b.name));
+  const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => a.name.localeCompare(b.name));
   const total = withAwards.reduce((sum, wine) => sum + wine.awards.length, 0);
-  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10"><PageHeader eyebrow="Recognition" title="Awards Library" description="Awards live with the wine record, so the same medal can feed tech sheets, tasting-room guides and sales talking points." right={<Stat value={total} label="awards" />} /><div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <button key={wine.id} onClick={() => openWine(wine)} className="rounded-2xl border border-black/10 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="mb-4 flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.15em] text-[#3976b7]">{wine.brand}</p><h2 className="mt-1 text-xl font-black">{wine.name} <span className="font-semibold text-black/30">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></div><AwardIcon className="h-6 w-6 text-[#c28d25]" /></div><div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} />)}</div></button>)}</div></div>;
+  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
+    <PageHeader title="Awards Library" right={<Stat value={total} label="awards" />} />
+    <div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <article key={wine.id} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <button type="button" onClick={() => openWine(wine)} className="mb-4 block w-full text-left"><h2 className="text-xl font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></button>
+      <div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} downloadable />)}</div>
+    </article>)}</div>
+  </div>;
 }
 
 function AssetsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
