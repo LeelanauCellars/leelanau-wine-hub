@@ -1,0 +1,59 @@
+/* Shared brand styles for entry, portal selection and navigation.
+   Imported explicitly by page.tsx; checked before each production build. */
+.central-entry, .central-chooser {
+  min-height: 100svh; display: flex; align-items: center; justify-content: center;
+  padding: 48px 24px; background: #fff; color: #000;
+}
+.central-entry-content { width: min(100%, 380px); display: flex; flex-direction: column; gap: 40px; }
+.central-entry-logo { display: block; width: 100%; height: auto; object-fit: contain; }
+.central-enter-button {
+  display: flex; align-items: center; justify-content: center; gap: 24px;
+  width: 100%; padding: 10px 12px 10px 24px; border: 0; border-radius: 999px;
+  background: #5ba3f8; color: #fff; font-size: 60px; font-weight: 800; line-height: 1.15;
+}
+.central-arrow { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #fff; color: #5ba3f8; }
+.central-arrow svg { display: block; width: 76%; height: 76%; }
+.central-enter-button .central-arrow { width: 66px; height: 66px; }
+.central-chooser-content { width: 100%; max-width: 1500px; text-align: center; }
+.central-chooser-logo { display: block; width: 260px; height: auto; object-fit: contain; margin: 0 auto 28px; }
+.central-chooser h1 { margin: 0; font-size: clamp(30px, 3.7vw, 62px); font-weight: 800; line-height: 1.2; letter-spacing: -.025em; }
+.central-subtitle { margin: 18px 0 0; font-size: clamp(18px, 2vw, 30px); line-height: 1.5; }
+.central-role-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(24px, 4.5vw, 70px); max-width: 1240px; margin: 48px auto 0; }
+.central-role { display: block; min-width: 0; padding: 0; border: 0; background: transparent; }
+.central-role-photo { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 28px; }
+.central-role-admin .central-role-photo { object-position: 58% center; }
+.central-role-tasting .central-role-photo { object-position: 48% center; }
+.central-role-sales .central-role-photo { object-position: center; }
+.central-role-distribution .central-role-photo { object-position: 50% 56%; }
+.central-role-caption { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 60px; margin-top: 10px; padding: 6px 7px 6px 13px; border-radius: 999px; background: #5ba3f8; color: #fff; }
+.central-role-label { flex: 1; text-align: center; font-size: 36px; font-weight: 800; text-transform: uppercase; line-height: 1; letter-spacing: .01em; }
+.central-role-tasting .central-role-label { font-size: 25px; }
+.central-role-distribution .central-role-label { font-size: 19px; }
+.central-back { display: block; margin: 28px auto 0; background: transparent; border: 0; color: #666; font-size: 12px; padding: 8px; }
+.central-sidebar-logo { display: block; width: 142px; height: auto; object-fit: contain; }
+.central-nav-button { display: flex; align-items: center; width: 100%; min-height: 48px; border: 0; border-radius: 7px; padding: 11px 10px; background: #5ba3f8; color: #fff; text-align: left; font-size: 18px; font-weight: 800; text-transform: uppercase; line-height: 1.2; }
+.central-nav-active { background: #448fe9; }
+.central-role:hover .central-role-caption, .central-enter-button:hover, .central-nav-button:hover { background: #428fe9; }
+.central-role:focus-visible, .central-enter-button:focus-visible, .central-nav-button:focus-visible { outline: 3px solid #2369bd; outline-offset: 4px; }
+@media (max-width: 1100px) {
+  .central-role-grid { gap: 24px; }
+  .central-role-label { font-size: 28px; }
+  .central-role-distribution .central-role-label { font-size: 15px; }
+  .central-role-caption .central-arrow { width: 36px; height: 36px; }
+}
+@media (max-width: 900px) {
+  .central-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 580px; gap: 28px; margin-top: 32px; }
+  .central-chooser-logo { width: 190px; }
+  .central-role-label { font-size: 34px; }
+  .central-role-distribution .central-role-label { font-size: 19px; }
+}
+@media (max-width: 480px) {
+  .central-entry-content { max-width: 290px; gap: 30px; }
+  .central-enter-button { font-size: 44px; gap: 18px; padding-left: 20px; }
+  .central-enter-button .central-arrow { width: 52px; height: 52px; }
+  .central-chooser { padding: 32px 20px; }
+  .central-chooser-logo { width: 155px; }
+  .central-role-grid { max-width: 280px; grid-template-columns: 1fr; }
+  .central-role-label { font-size: 36px; }
+  .central-role-distribution .central-role-label { font-size: 20px; }
+}

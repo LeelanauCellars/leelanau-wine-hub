@@ -1,5 +1,7 @@
 'use client';
 
+import './central.css';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import NextImage from 'next/image';
 import { SEED_WINES } from '@/lib/seed';
@@ -898,10 +900,10 @@ export default function WineHub() {
 
   return (
     <div className="app-shell min-h-screen bg-white text-[#111]">
-      <aside className={`no-print fixed inset-y-0 left-0 z-40 w-[258px] border-r border-black/[.08] bg-white transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`no-print fixed inset-y-0 left-0 z-40 w-[292px] border-r border-black/[.08] bg-white transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-full flex-col overflow-y-auto px-4 pb-4 pt-7">
           <div className="mb-6 flex items-start justify-between px-1">
-            <NextImage src="/lwc-logo.png" alt="Leelanau Cellars" width={132} height={132} className="h-auto w-[124px]" />
+            <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-sidebar-logo" />
             <button className="lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X className="h-5 w-5" /></button>
           </div>
 
@@ -939,7 +941,7 @@ export default function WineHub() {
 
       {mobileNav && <button className="no-print fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close menu overlay" />}
 
-      <main className="min-h-screen lg:pl-[258px]">
+      <main className="min-h-screen lg:pl-[292px]">
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
           <span className="font-bold">Leelanau Cellars Central · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
@@ -977,41 +979,33 @@ export default function WineHub() {
 
 
 function PortalArrow() {
-  return <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[29px] font-semibold leading-none text-[#5ba3f8] sm:h-10 sm:w-10">→</span>;
+  return <span aria-hidden="true" className="central-arrow"><svg viewBox="0 0 32 32" fill="none"><path d="M7 16h18M17 8l8 8-8 8" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
 }
 
 function WelcomePage({ onEnter }: { onEnter: () => void }) {
-  return <div className="flex min-h-screen items-center justify-center bg-white px-6 py-12">
-    <div className="flex w-full flex-col items-center gap-7 sm:gap-9">
-      <NextImage src="/lwc-logo.png" alt="Leelanau Cellars" width={360} height={360} priority className="h-auto w-[230px] sm:w-[320px]" />
-      <button onClick={onEnter} className="flex min-w-[235px] items-center justify-center gap-5 rounded-full bg-[#5ba3f8] px-7 py-3 text-3xl font-bold uppercase leading-none text-white transition hover:bg-[#428fe9] sm:min-w-[320px] sm:text-5xl">Enter <PortalArrow /></button>
-    </div>
-  </div>;
+  return <main className="central-entry"><div className="central-entry-content">
+    <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
+    <button onClick={onEnter} className="central-enter-button"><span>ENTER</span><PortalArrow /></button>
+  </div></main>;
 }
 
 function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => void; onBack: () => void }) {
   const options: { role: PortalRole; label: string; image: string }[] = [
-    { role: 'admin', label: 'Admin', image: '/portal/admin.png' },
-    { role: 'tasting', label: 'Tasting Room', image: '/portal/tasting-room.png' },
-    { role: 'sales', label: 'Sales', image: '/portal/sales.png' },
-    { role: 'distribution', label: 'Distributors', image: '/portal/distributors.png' },
+    { role: 'admin', label: 'Admin', image: '/portal/admin-original.png' },
+    { role: 'tasting', label: 'Tasting Room', image: '/portal/tasting-room.jpg' },
+    { role: 'sales', label: 'Sales', image: '/portal/sales.jpg' },
+    { role: 'distribution', label: 'Distributors', image: '/portal/distributors.jpg' },
   ];
-  return <div className="flex min-h-screen items-center bg-white px-5 py-12 sm:px-8">
-    <div className="mx-auto w-full max-w-[1450px]">
-      <div className="text-center">
-        <NextImage src="/lwc-logo.png" alt="Leelanau Cellars" width={225} height={225} priority className="mx-auto h-auto w-[150px] sm:w-[205px]" />
-        <h1 className="mt-7 text-3xl font-bold leading-tight tracking-[-.035em] sm:text-5xl lg:text-[64px]">Welcome to Leelanau Cellars Central</h1>
-        <p className="mt-3 text-base text-black/85 sm:text-2xl">Select the area that best matches your needs.</p>
-      </div>
-      <div className="mx-auto mt-9 grid max-w-[1300px] grid-cols-1 gap-6 sm:grid-cols-2 lg:mt-12 lg:grid-cols-4 lg:gap-8">
-        {options.map((option) => <button key={option.role} onClick={() => onChoose(option.role)} className="group flex min-w-0 flex-col items-stretch text-left focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#5ba3f8]" aria-label={`Open ${option.label}`}>
-          <NextImage src={option.image} alt="" width={300} height={300} className="aspect-square w-full rounded-[26px] object-cover" />
-          <span className="mt-2 flex min-h-14 items-center justify-between gap-2 rounded-full bg-[#5ba3f8] px-4 py-2 text-xl font-bold uppercase leading-none text-white transition group-hover:bg-[#428fe9] sm:text-2xl lg:text-[clamp(16px,1.7vw,28px)]"><span>{option.label}</span><PortalArrow /></span>
-        </button>)}
-      </div>
-      <button onClick={onBack} className="mx-auto mt-10 block text-sm text-black/45 underline-offset-4 hover:text-black hover:underline">Back to Enter</button>
-    </div>
-  </div>;
+  return <main className="central-chooser"><div className="central-chooser-content">
+    <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-chooser-logo" />
+    <h1>Welcome to Leelanau Cellars Central</h1>
+    <p className="central-subtitle">Select the area that best matches your needs.</p>
+    <div className="central-role-grid">{options.map(option => <button key={option.role} onClick={() => onChoose(option.role)} className={`central-role central-role-${option.role}`} aria-label={`Open ${option.label}`}>
+      <img src={option.image} alt="" width="600" height="600" className="central-role-photo" />
+      <span className="central-role-caption"><span className="central-role-label">{option.role === 'tasting' ? <>Tasting<br />Room</> : option.label}</span><PortalArrow /></span>
+    </button>)}</div>
+    <button onClick={onBack} className="central-back">Back to Enter</button>
+  </div></main>;
 }
 
 function PinGate({ configured, onAccess }: { configured: boolean; onAccess: (role: AccessRole) => void }) {
@@ -1061,7 +1055,7 @@ function PinGate({ configured, onAccess }: { configured: boolean; onAccess: (rol
 }
 
 function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`flex min-h-11 w-full items-center rounded-lg bg-[#5ba3f8] px-3 py-2 text-left text-[15px] font-bold uppercase leading-tight text-white transition hover:bg-[#428fe9] ${active ? 'ring-2 ring-[#2369bd] ring-offset-2' : ''}`}>{label}</button>;
+  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`central-nav-button ${active ? 'central-nav-active' : ''}`}>{label}</button>;
 }
 
 function PageHeader({ eyebrow, title, description, right }: { eyebrow: string; title: string; description?: string; right?: React.ReactNode }) {

@@ -14,7 +14,7 @@ body {
   background: var(--background);
   font-family: "Poppins", Arial, Helvetica, sans-serif;
 }
-button, input, textarea, select { font: inherit; }
+button, input, textarea, select { font-family: inherit; }
 button { cursor: pointer; }
 
 .field-label {
