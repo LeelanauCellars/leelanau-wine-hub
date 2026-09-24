@@ -81,6 +81,11 @@ export function isRemovedWineName(name = '') {
 }
 
 function isRemovedDistributionName(name = '') {
+  const rawKey = normalize(stripVintage(name));
+  // Lakeshore Farms does not have a Bubbly/Sparkling Moscato line. Older workbook
+  // rows used those names and were being matched to current Farm Fresh products,
+  // which created duplicates and an incorrect Lakeshore Farms sub-filter.
+  if (/^lakeshorefarms.*(?:bubbly|sparkling)moscato(?:can)?$/.test(rawKey)) return true;
   return REMOVED_DISTRIBUTION_KEYS.has(canonicalKey(name));
 }
 
@@ -277,6 +282,12 @@ function normalizedDistributionComposition(item: DistributionWine, matched?: Win
   const varietalLower = varietal.toLowerCase();
   const category = (matched?.category || '').toLowerCase();
 
+  const fruitMoscatoMatch = displayName.match(/\b(blackberry|blueberry|cranberry|mango|peach|raspberry)\b.*\bmoscato\b/i);
+  if (fruitMoscatoMatch) {
+    const fruit = fruitMoscatoMatch[1];
+    return `${fruit.charAt(0).toUpperCase()}${fruit.slice(1).toLowerCase()} and Muscat`;
+  }
+
   if (key.includes('summersunset')) return 'Rose';
   if (key.includes('winterwhite')) return 'White Blend';
   if (key.includes('greatlakesred')) return 'Red Blend';
@@ -308,7 +319,7 @@ export function buildDistributionCatalog(
   base: DistributionWine[],
   overrides: Record<string, Partial<DistributionWine>> = {},
 ) {
-  return base
+  const catalog = base
     .filter((item) => !item.discontinued)
     .filter((item) => !isRemovedDistributionName(item.name))
     .map((item) => {
@@ -341,6 +352,16 @@ export function buildDistributionCatalog(
         assets: [],
       };
     });
+
+  // A few historical workbook rows can resolve to the same current product after
+  // Commerce7 matching/renaming. Keep one card per display product + package size.
+  const seen = new Set<string>();
+  return catalog.filter((item) => {
+    const key = `${canonicalKey(item.name)}|${normalize(String(item.specs.size || ''))}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function canonicalWineKey(name = '') {

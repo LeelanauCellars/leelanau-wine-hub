@@ -15,7 +15,7 @@ import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViti
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
 import MerchApparel from '@/app/components/MerchApparel';
-import { COLLECTION_ART, WINE_COLLECTIONS, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
+import { WINE_COLLECTIONS, canonicalWineCollection, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -1175,41 +1175,33 @@ function distributionPercent(value: string | number | null | undefined) {
 }
 
 function distributionCollectionForItem(item: DistributionWine, wines: WineRecord[]): WineCollectionName {
+  // Distribution workbook family names are intentional brand assignments. Keep those
+  // authoritative so a legacy/matched Commerce7 record cannot move a product into
+  // another brand collection (for example Lakeshore Farms into Farm Fresh).
+  const explicitFamilyCollection = canonicalWineCollection(item.family);
+  if (explicitFamilyCollection) return explicitFamilyCollection;
+
   const match = matchedDistributionWine(item, wines);
-  const familyCollection = distributionFamilyFallback(item.family);
   if (match?.vendor) return collectionForWine(match);
-  if (familyCollection !== 'Leelanau Cellars') return familyCollection;
-  return match ? collectionForWine(match) : familyCollection;
+  return match ? collectionForWine(match) : distributionFamilyFallback(item.family);
 }
 
-function collectionCovers(wines: WineRecord[]) {
-  const covers: Partial<Record<WineCollectionName, string>> = {};
-  WINE_COLLECTIONS.forEach((collection) => {
-    const first = wines.find((wine) => collectionForWine(wine) === collection && wine.bottleImage);
-    if (first?.bottleImage) covers[collection] = first.bottleImage;
-  });
-  return covers;
-}
-
-function CollectionTiles({ counts, covers, onSelect, noun }: {
+function CollectionTiles({ counts, onSelect, noun }: {
   counts: Partial<Record<WineCollectionName, number>>;
-  covers?: Partial<Record<WineCollectionName, string>>;
   onSelect: (collection: WineCollectionName) => void;
   noun: 'wine' | 'product';
 }) {
-  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
     {WINE_COLLECTIONS.map((collection) => {
       const count = counts[collection] || 0;
-      const art = COLLECTION_ART[collection] || covers?.[collection] || '/lwc-logo.png';
-      const isLogo = art === '/lwc-logo.png';
-      return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group relative min-h-[168px] overflow-hidden rounded-[24px] border border-black/10 bg-white p-5 text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-black/20 enabled:hover:shadow-lg disabled:cursor-default disabled:opacity-45">
-        <div className="absolute inset-y-0 right-0 w-[44%] bg-gradient-to-l from-[#eef2f6] to-transparent" />
-        <img src={art} alt="" className={`absolute bottom-2 right-2 top-2 w-[42%] object-contain object-center transition duration-300 group-hover:scale-[1.03] ${isLogo ? 'p-8' : 'p-2'}`} />
-        <div className="relative z-10 flex min-h-[126px] max-w-[62%] flex-col">
-          <span className="text-[9px] font-black uppercase tracking-[.18em] text-[#3976b7]">Collection</span>
-          <h2 className="mt-2 text-[22px] font-black leading-[1.05] tracking-[-.035em]">{collection}</h2>
-          <p className="mt-2 text-xs font-semibold text-black/45">{count} {noun}{count === 1 ? '' : 's'}</p>
-          <span className="mt-auto pt-4 text-[11px] font-black text-black/65">{count ? `Open ${collection} →` : 'No current items'}</span>
+      return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group flex min-h-[112px] flex-col justify-between rounded-xl border-0 bg-[#5ba3f8] p-5 text-left text-white shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:bg-[#428fe9] enabled:hover:shadow-md disabled:cursor-default disabled:opacity-40">
+        <div>
+          <span className="text-[9px] font-black uppercase tracking-[.18em] text-white/70">Collection</span>
+          <h2 className="mt-1.5 text-[22px] font-black uppercase leading-[1.05] tracking-[-.02em]">{collection}</h2>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-xs font-bold text-white/80">{count} {noun}{count === 1 ? '' : 's'}</span>
+          <span className="text-sm font-black">{count ? '→' : '—'}</span>
         </div>
       </button>;
     })}
@@ -1222,7 +1214,6 @@ function DistributionLibrary({ wines, distributionWines, collection, setCollecti
   const currentCount = distributionWines.length;
   const entries = useMemo(() => distributionWines.map((item) => ({ item, collection: distributionCollectionForItem(item, wines) })), [distributionWines, wines]);
   const counts = useMemo(() => Object.fromEntries(WINE_COLLECTIONS.map((name) => [name, entries.filter((entry) => entry.collection === name).length])) as Record<WineCollectionName, number>, [entries]);
-  const covers = useMemo(() => collectionCovers(wines), [wines]);
   const needle = query.trim().toLowerCase();
   const collectionEntries = useMemo(() => entries.filter((entry) => !collection || entry.collection === collection), [entries, collection]);
   const families = useMemo(() => ['All', ...Array.from(new Set(collectionEntries.map((entry) => entry.item.family))).sort()], [collectionEntries]);
@@ -1255,7 +1246,7 @@ function DistributionLibrary({ wines, distributionWines, collection, setCollecti
 
     {!showProducts ? <section>
       <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-black/35">Browse by brand</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Collections</h2></div><p className="hidden text-xs font-semibold text-black/40 md:block">Choose a collection to narrow the catalog before browsing products.</p></div>
-      <CollectionTiles counts={counts} covers={covers} onSelect={chooseCollection} noun="product" />
+      <CollectionTiles counts={counts} onSelect={chooseCollection} noun="product" />
     </section> : <>
       <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
         <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{filtered.length} matching product{filtered.length === 1 ? '' : 's'}</p></div>
@@ -1453,7 +1444,6 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
   const [preparingBatch, setPreparingBatch] = useState(false);
   const selectedWines = allWines.filter((wine) => selectedTechIds.includes(wine.id));
   const counts = useMemo(() => Object.fromEntries(WINE_COLLECTIONS.map((name) => [name, allWines.filter((wine) => collectionForWine(wine) === name).length])) as Record<WineCollectionName, number>, [allWines]);
-  const covers = useMemo(() => collectionCovers(allWines), [allWines]);
   const categoryOptions = useMemo(() => collection ? ['All', ...Array.from(new Set(allWines.filter((wine) => collectionForWine(wine) === collection).map((wine) => wine.category))).sort()] : categories, [allWines, categories, collection]);
   const hasSearch = Boolean(query.trim());
   const showWines = Boolean(collection) || hasSearch;
@@ -1506,7 +1496,7 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
 
       {!showWines ? <section>
         <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-black/35">Browse by brand</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Collections</h2></div><p className="hidden text-xs font-semibold text-black/40 md:block">Choose a collection first so you only browse the wines you actually need.</p></div>
-        <CollectionTiles counts={counts} covers={covers} onSelect={chooseCollection} noun="wine" />
+        <CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" />
       </section> : <>
         <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
           <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{wines.length} matching wine{wines.length === 1 ? '' : 's'}</p></div>
