@@ -53,9 +53,9 @@ A private internal wine-knowledge and sales-material app designed to live on Ver
 
 ## What is included
 
-- **Wine Library** — a searchable master profile for every wine.
+- **Wine Library** — a collection-first, searchable master profile for every wine.
 - **Editable master content** — tasting notes, staff pitch, pairings, highlights, awards, technical data and production/vineyard notes.
-- **Commerce7 sync** — pulls Wine products from the Product API and maps product name, image, vintage, varietal, appellation, price, UPC, bottle volume and variant alcohol percentage automatically.
+- **Commerce7 sync** — pulls Wine products from the Product API and maps product name, image, vintage, varietal, appellation, price, UPC, bottle volume and variant alcohol percentage automatically. Product Vendor is resolved when Vendor read access is available and drives the Wine Library collection grouping.
 - **Shared Wine Hub fields in Commerce7** — when the app has Product write access, master Wine Hub content, awards and the current tasting-menu flag are stored in the product `metaData`, so sales/tasting-room staff share the same information.
 - **Tasting Room Guide** — select the current menu, save it, and print a staff-ready reference guide built from the same master records.
 - **Tech Sheet Builder** — starts from the master record but permits document-only overrides. The print layout mirrors the supplied Leelanau sales one-sheet: blue logo header, light-blue title bar, copy on the left, bottle/award visual on the right and a black footer.

@@ -64,3 +64,32 @@ export async function fetchCommerce7Products<T extends Commerce7ProductBase = Co
 
   return { products, total: Number.isFinite(total) ? total : products.length, tenant };
 }
+export async function fetchCommerce7VendorTitles(vendorIds: string[]) {
+  const { appId, secret, tenant, configured } = commerce7Config();
+  if (!configured) return {} as Record<string, string>;
+
+  const ids = Array.from(new Set(vendorIds.filter(Boolean)));
+  if (!ids.length) return {} as Record<string, string>;
+
+  const auth = Buffer.from(`${appId}:${secret}`).toString('base64');
+  const entries = await Promise.all(ids.map(async (id) => {
+    try {
+      const response = await fetch(`https://api.commerce7.com/v1/vendor/${encodeURIComponent(id)}`, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          tenant,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
+      if (!response.ok) return null;
+      const data = await response.json() as { vendor?: { id?: string; title?: string | null } };
+      const title = data.vendor?.title?.trim();
+      return title ? [id, title] as const : null;
+    } catch {
+      return null;
+    }
+  }));
+
+  return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => Boolean(entry)));
+}

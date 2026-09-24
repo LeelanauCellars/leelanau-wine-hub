@@ -15,6 +15,7 @@ import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViti
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
 import MerchApparel from '@/app/components/MerchApparel';
+import { COLLECTION_ART, WINE_COLLECTIONS, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -589,6 +590,8 @@ export default function WineHub() {
   const [activeDistributionId, setActiveDistributionId] = useState(DISTRIBUTION_WINES[0]?.id || '');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
+  const [wineCollection, setWineCollection] = useState<WineCollectionName | null>(null);
+  const [distributionCollection, setDistributionCollection] = useState<WineCollectionName | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>('overview');
   const [editingWine, setEditingWine] = useState<WineRecord | null>(null);
   const [techDraft, setTechDraft] = useState<TechSheetDraft>(() => draftFromWine(SEED_WINES[0]));
@@ -701,6 +704,8 @@ export default function WineHub() {
     setEditingWine(null);
     setQuery('');
     setCategory('All');
+    setWineCollection(null);
+    setDistributionCollection(null);
     setView(role === 'distribution' ? 'distribution' : 'library');
     setEntryStage('hub');
   }
@@ -877,11 +882,12 @@ export default function WineHub() {
   const filteredWines = useMemo(() => {
     const q = query.trim().toLowerCase();
     return wines.filter((wine) => {
+      const collectionMatch = !wineCollection || collectionForWine(wine) === wineCollection;
       const categoryMatch = category === 'All' || wine.category === category;
-      const searchMatch = !q || `${wine.name} ${wine.vintage} ${wine.varietal ?? ''} ${wine.category} ${wine.brand}`.toLowerCase().includes(q);
-      return categoryMatch && searchMatch;
+      const searchMatch = !q || `${wine.name} ${wine.vintage} ${wine.varietal ?? ''} ${wine.category} ${wine.brand} ${wine.vendor ?? ''} ${wine.collection ?? ''}`.toLowerCase().includes(q);
+      return collectionMatch && categoryMatch && searchMatch;
     });
-  }, [wines, query, category]);
+  }, [wines, query, category, wineCollection]);
 
   if (access.loading) {
     return <div className="flex min-h-screen items-center justify-center bg-[#f5f6f8]"><div className="text-center"><img src="/lwc-logo.png" alt="Leelanau Cellars" className="mx-auto h-16 w-16 border border-black bg-white object-cover" /><Loader2 className="mx-auto mt-5 h-6 w-6 animate-spin text-black/40" /><p className="mt-3 text-sm font-bold text-black/45">Opening Wine Hub…</p></div></div>;
@@ -949,13 +955,13 @@ export default function WineHub() {
         </div>
 
         {view === 'library' && canUseWineLibrary && (
-          <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
+          <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} collection={wineCollection} setCollection={setWineCollection} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
         )}
         {view === 'profile' && canUseWineLibrary && activeWine && (
           <WineProfile wine={activeWine} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
         )}
         {view === 'distribution' && canUseDistribution && (
-          <DistributionLibrary wines={wines} distributionWines={distributionWines} openWine={openDistributionWine} />
+          <DistributionLibrary wines={wines} distributionWines={distributionWines} collection={distributionCollection} setCollection={setDistributionCollection} openWine={openDistributionWine} />
         )}
         {view === 'distribution-profile' && canUseDistribution && activeDistributionWine && (
           <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => setView('distribution')} canEdit={isPortalAdmin} saveItem={saveDistributionWine} />
@@ -1168,47 +1174,114 @@ function distributionPercent(value: string | number | null | undefined) {
   return `${distributionValue(value)}%`;
 }
 
-function DistributionLibrary({ wines, distributionWines, openWine }: { wines: WineRecord[]; distributionWines: DistributionWine[]; openWine: (item: DistributionWine) => void }) {
+function distributionCollectionForItem(item: DistributionWine, wines: WineRecord[]): WineCollectionName {
+  const match = matchedDistributionWine(item, wines);
+  const familyCollection = distributionFamilyFallback(item.family);
+  if (match?.vendor) return collectionForWine(match);
+  if (familyCollection !== 'Leelanau Cellars') return familyCollection;
+  return match ? collectionForWine(match) : familyCollection;
+}
+
+function collectionCovers(wines: WineRecord[]) {
+  const covers: Partial<Record<WineCollectionName, string>> = {};
+  WINE_COLLECTIONS.forEach((collection) => {
+    const first = wines.find((wine) => collectionForWine(wine) === collection && wine.bottleImage);
+    if (first?.bottleImage) covers[collection] = first.bottleImage;
+  });
+  return covers;
+}
+
+function CollectionTiles({ counts, covers, onSelect, noun }: {
+  counts: Partial<Record<WineCollectionName, number>>;
+  covers?: Partial<Record<WineCollectionName, string>>;
+  onSelect: (collection: WineCollectionName) => void;
+  noun: 'wine' | 'product';
+}) {
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    {WINE_COLLECTIONS.map((collection) => {
+      const count = counts[collection] || 0;
+      const art = COLLECTION_ART[collection] || covers?.[collection] || '/lwc-logo.png';
+      const isLogo = art === '/lwc-logo.png';
+      return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group relative min-h-[168px] overflow-hidden rounded-[24px] border border-black/10 bg-white p-5 text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-black/20 enabled:hover:shadow-lg disabled:cursor-default disabled:opacity-45">
+        <div className="absolute inset-y-0 right-0 w-[44%] bg-gradient-to-l from-[#eef2f6] to-transparent" />
+        <img src={art} alt="" className={`absolute bottom-2 right-2 top-2 w-[42%] object-contain object-center transition duration-300 group-hover:scale-[1.03] ${isLogo ? 'p-8' : 'p-2'}`} />
+        <div className="relative z-10 flex min-h-[126px] max-w-[62%] flex-col">
+          <span className="text-[9px] font-black uppercase tracking-[.18em] text-[#3976b7]">Collection</span>
+          <h2 className="mt-2 text-[22px] font-black leading-[1.05] tracking-[-.035em]">{collection}</h2>
+          <p className="mt-2 text-xs font-semibold text-black/45">{count} {noun}{count === 1 ? '' : 's'}</p>
+          <span className="mt-auto pt-4 text-[11px] font-black text-black/65">{count ? `Open ${collection} →` : 'No current items'}</span>
+        </div>
+      </button>;
+    })}
+  </div>;
+}
+
+function DistributionLibrary({ wines, distributionWines, collection, setCollection, openWine }: { wines: WineRecord[]; distributionWines: DistributionWine[]; collection: WineCollectionName | null; setCollection: (value: WineCollectionName | null) => void; openWine: (item: DistributionWine) => void }) {
   const [query, setQuery] = useState('');
   const [family, setFamily] = useState('All');
-  const families = useMemo(() => ['All', ...Array.from(new Set(distributionWines.map((item) => item.family))).sort()], [distributionWines]);
   const currentCount = distributionWines.length;
+  const entries = useMemo(() => distributionWines.map((item) => ({ item, collection: distributionCollectionForItem(item, wines) })), [distributionWines, wines]);
+  const counts = useMemo(() => Object.fromEntries(WINE_COLLECTIONS.map((name) => [name, entries.filter((entry) => entry.collection === name).length])) as Record<WineCollectionName, number>, [entries]);
+  const covers = useMemo(() => collectionCovers(wines), [wines]);
+  const needle = query.trim().toLowerCase();
+  const collectionEntries = useMemo(() => entries.filter((entry) => !collection || entry.collection === collection), [entries, collection]);
+  const families = useMemo(() => ['All', ...Array.from(new Set(collectionEntries.map((entry) => entry.item.family))).sort()], [collectionEntries]);
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return distributionWines.filter((item) => {
-      const familyMatch = family === 'All' || item.family === family;
-      const haystack = `${item.name} ${item.family} ${item.upcFull || ''} ${item.gtin || ''} ${item.meijerPid || ''} ${item.targetDpci || ''} ${item.specs.composition || ''} ${item.marketingCopy || ''}`.toLowerCase();
-      return familyMatch && (!needle || haystack.includes(needle));
-    });
-  }, [query, family, distributionWines]);
+  const filtered = useMemo(() => entries.filter(({ item, collection: itemCollection }) => {
+    const collectionMatch = !collection || itemCollection === collection;
+    const familyMatch = family === 'All' || item.family === family;
+    const haystack = `${item.name} ${item.family} ${itemCollection} ${item.upcFull || ''} ${item.gtin || ''} ${item.meijerPid || ''} ${item.targetDpci || ''} ${item.specs.composition || ''} ${item.marketingCopy || ''}`.toLowerCase();
+    return collectionMatch && familyMatch && (!needle || haystack.includes(needle));
+  }).map((entry) => entry.item), [entries, collection, family, needle]);
+
+  const chooseCollection = (value: WineCollectionName) => {
+    setCollection(value);
+    setFamily('All');
+    setQuery('');
+  };
+  const backToCollections = () => {
+    setCollection(null);
+    setFamily('All');
+    setQuery('');
+  };
+  const showProducts = Boolean(collection) || Boolean(needle);
 
   return <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-    <PageHeader eyebrow="Distributor resources" title="Distribution Wines" description="Product codes, technical specifications, packaging measurements and marketing copy synced to the current Wine Library catalog." right={<div className="flex gap-2"><Stat value={currentCount} label="current" /></div>} />
+    <PageHeader eyebrow="Distributor resources" title="Distribution Wines" description="Start with a collection, then find product codes, technical specifications, packaging measurements and sales assets for the wine you need." right={<div className="flex gap-2"><Stat value={currentCount} label="current" /></div>} />
 
-    <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
-      <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product, UPC, GTIN, brand or grape…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
-      <div className="flex max-w-[720px] gap-2 overflow-x-auto pb-1">{families.map((item) => <button key={item} onClick={() => setFamily(item)} className={`whitespace-nowrap rounded-xl border px-4 py-3 text-xs font-bold ${family === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
+    <div className="mb-6">
+      <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={collection ? `Search ${collection} products…` : 'Search all distribution products…'} className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
     </div>
 
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {filtered.map((item) => {
-        const match = matchedDistributionWine(item, wines);
-        const libraryAssets = match ? wineImageAssets(match).length + lifestyleAssetsForWine(match).length + posDisplaysForWine(match).length + (casePackagingForWine(match) ? 1 : 0) + (match.upc ? 1 : 0) : 0;
-        const description = item.marketingCopy || (item.specs.composition ? `${item.specs.composition}${item.specs.size ? ` · ${item.specs.size}` : ''}` : 'Open for complete distributor product information.');
-        return <article key={item.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-          <button onClick={() => openWine(item)} className="block w-full text-left">
-            <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
-              {distributionImageSrc(item, match, wines) ? <img src={distributionImageSrc(item, match, wines)} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <DistributionPlaceholder item={item} />}
-              <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{item.family}</span></div>
-              {libraryAssets > 0 && <span className="absolute bottom-3 left-3 rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">{libraryAssets} library asset{libraryAssets === 1 ? '' : 's'}</span>}
-            </div>
-            <div className="p-4"><h2 className="text-lg font-black leading-5">{item.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{item.specs.size || 'Size not listed'}{item.specs.composition ? ` · ${item.specs.composition}` : ''}</p><p className="mt-3 line-clamp-3 min-h-[60px] text-xs leading-5 text-black/55">{description}</p><div className="mt-3 flex items-center justify-between gap-3"><span className="font-mono text-[10px] font-bold text-black/40">{item.upcFull || 'UPC —'}</span><span className="text-[11px] font-black text-[#326eac]">View distributor info →</span></div></div>
-          </button>
-        </article>;
-      })}
-    </div>
-    {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No distribution products match that search.</p></div>}
+    {!showProducts ? <section>
+      <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-black/35">Browse by brand</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Collections</h2></div><p className="hidden text-xs font-semibold text-black/40 md:block">Choose a collection to narrow the catalog before browsing products.</p></div>
+      <CollectionTiles counts={counts} covers={covers} onSelect={chooseCollection} noun="product" />
+    </section> : <>
+      <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
+        <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{filtered.length} matching product{filtered.length === 1 ? '' : 's'}</p></div>
+        {collection && families.length > 2 && <div className="flex max-w-[760px] gap-2 overflow-x-auto pb-1">{families.map((item) => <button key={item} onClick={() => setFamily(item)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-bold ${family === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {filtered.map((item) => {
+          const match = matchedDistributionWine(item, wines);
+          const itemCollection = distributionCollectionForItem(item, wines);
+          const libraryAssets = match ? wineImageAssets(match).length + lifestyleAssetsForWine(match).length + posDisplaysForWine(match).length + (casePackagingForWine(match) ? 1 : 0) + (match.upc ? 1 : 0) : 0;
+          const description = item.marketingCopy || (item.specs.composition ? `${item.specs.composition}${item.specs.size ? ` · ${item.specs.size}` : ''}` : 'Open for complete distributor product information.');
+          return <article key={item.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+            <button onClick={() => openWine(item)} className="block w-full text-left">
+              <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
+                {distributionImageSrc(item, match, wines) ? <img src={distributionImageSrc(item, match, wines)} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <DistributionPlaceholder item={item} />}
+                <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{itemCollection}</span>{item.family !== itemCollection && <span className="rounded-full bg-black/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">{item.family}</span>}</div>
+                {libraryAssets > 0 && <span className="absolute bottom-3 left-3 rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">{libraryAssets} library asset{libraryAssets === 1 ? '' : 's'}</span>}
+              </div>
+              <div className="p-4"><h2 className="text-lg font-black leading-5">{item.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{item.specs.size || 'Size not listed'}{item.specs.composition ? ` · ${item.specs.composition}` : ''}</p><p className="mt-3 line-clamp-3 min-h-[60px] text-xs leading-5 text-black/55">{description}</p><div className="mt-3 flex items-center justify-between gap-3"><span className="font-mono text-[10px] font-bold text-black/40">{item.upcFull || 'UPC —'}</span><span className="text-[11px] font-black text-[#326eac]">View distributor info →</span></div></div>
+            </button>
+          </article>;
+        })}
+      </div>
+      {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No distribution products match that search.</p></div>}
+    </>}
   </div>;
 }
 
@@ -1371,14 +1444,19 @@ function DistributionFacts({ rows }: { rows: readonly (readonly [string, unknown
   return <dl className="grid gap-x-5 gap-y-4 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="min-w-0 border-b border-black/[.06] pb-3"><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{distributionValue(value)}</dd></div>)}</dl>;
 }
 
-function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, openWine, openTech, sync, allowTechSheets }: {
-  wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState; allowTechSheets: boolean;
+function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, collection, setCollection, openWine, openTech, sync, allowTechSheets }: {
+  wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; collection: WineCollectionName | null; setCollection: (value: WineCollectionName | null) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState; allowTechSheets: boolean;
 }) {
   const [batchMode, setBatchMode] = useState(false);
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [batchColors, setBatchColors] = useState<Record<string, string>>({});
   const [preparingBatch, setPreparingBatch] = useState(false);
   const selectedWines = allWines.filter((wine) => selectedTechIds.includes(wine.id));
+  const counts = useMemo(() => Object.fromEntries(WINE_COLLECTIONS.map((name) => [name, allWines.filter((wine) => collectionForWine(wine) === name).length])) as Record<WineCollectionName, number>, [allWines]);
+  const covers = useMemo(() => collectionCovers(allWines), [allWines]);
+  const categoryOptions = useMemo(() => collection ? ['All', ...Array.from(new Set(allWines.filter((wine) => collectionForWine(wine) === collection).map((wine) => wine.category))).sort()] : categories, [allWines, categories, collection]);
+  const hasSearch = Boolean(query.trim());
+  const showWines = Boolean(collection) || hasSearch;
 
   const toggleSelected = (id: string) => setSelectedTechIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
 
@@ -1394,20 +1472,31 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => printWithTitle(`Leelanau Cellars - ${selectedWines.length} Tech Sheets`)));
   };
 
+  const chooseCollection = (value: WineCollectionName) => {
+    setCollection(value);
+    setQuery('');
+    setCategory('All');
+  };
+
+  const backToCollections = () => {
+    setCollection(null);
+    setQuery('');
+    setCategory('All');
+  };
+
   return <>
     <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-      <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Search a wine once and find the product facts, sales language, awards, assets and printable documents your team needs." right={<div className="flex flex-wrap items-center justify-end gap-2">{allowTechSheets && <button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select tech sheets'}</button>}<Stat value={allWines.length} label="wines" /></div>} />
+      <PageHeader eyebrow="Wine Hub" title="Wine Library" description="Start with a collection, then find the wine profile, sales language, awards, assets and printable documents your team needs." right={<div className="flex flex-wrap items-center justify-end gap-2">{allowTechSheets && <button onClick={() => setBatchMode((current) => !current)} className={`rounded-xl border px-4 py-2.5 text-xs font-black shadow-sm ${batchMode ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>{batchMode ? 'Done selecting' : 'Select tech sheets'}</button>}<Stat value={allWines.length} label="wines" /></div>} />
 
-      <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
-        <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search wine, vintage, varietal or style…" className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
-        <div className="flex gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-4 py-3 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
+      <div className="mb-6">
+        <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={collection ? `Search ${collection} wines…` : 'Search all wines…'} className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
       </div>
 
       {batchMode && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#b9d7f3] bg-[#eef6fd] p-4 md:flex-row md:items-center md:justify-between">
-        <div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/50">Select wines below, then save them as one multi-page PDF. Notes, highlights, specs and awards are filled automatically; case packaging is included when the default copy leaves enough room.</p></div>
+        <div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/50">Open a collection, select the wines you need, then save them as one multi-page PDF. Notes, highlights, specs and awards are filled automatically.</p></div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg bg-white px-3 py-2 text-xs font-black shadow-sm">{selectedWines.length} selected</span>
-          <button onClick={() => setSelectedTechIds(Array.from(new Set([...selectedTechIds, ...wines.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button>
+          {showWines && <button onClick={() => setSelectedTechIds(Array.from(new Set([...selectedTechIds, ...wines.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button>}
           <button onClick={() => setSelectedTechIds([])} disabled={!selectedWines.length} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:opacity-40">Clear</button>
           <button onClick={() => void printBatch()} disabled={!selectedWines.length || preparingBatch} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-black text-white disabled:opacity-40">{preparingBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{preparingBatch ? 'Preparing…' : `Print / Save ${selectedWines.length || ''} sheets`}</button>
         </div>
@@ -1415,10 +1504,20 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
 
       {!sync.configured && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm"><Database className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><div><strong>Demo catalog is active.</strong> Connect the Commerce7 environment variables and the library will populate from your live Product catalog automatically. Any Wine Hub copy you edit is preserved when product facts sync.</div></div>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {wines.map((wine) => <WineCard key={wine.id} wine={wine} open={() => openWine(wine)} tech={() => openTech(wine)} batchMode={allowTechSheets && batchMode} selected={selectedTechIds.includes(wine.id)} toggleSelected={() => toggleSelected(wine.id)} allowTechSheet={allowTechSheets} />)}
-      </div>
-      {!wines.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
+      {!showWines ? <section>
+        <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-black/35">Browse by brand</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Collections</h2></div><p className="hidden text-xs font-semibold text-black/40 md:block">Choose a collection first so you only browse the wines you actually need.</p></div>
+        <CollectionTiles counts={counts} covers={covers} onSelect={chooseCollection} noun="wine" />
+      </section> : <>
+        <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
+          <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{wines.length} matching wine{wines.length === 1 ? '' : 's'}</p></div>
+          <div className="flex max-w-[760px] gap-2 overflow-x-auto pb-1">{categoryOptions.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {wines.map((wine) => <WineCard key={wine.id} wine={wine} open={() => openWine(wine)} tech={() => openTech(wine)} batchMode={allowTechSheets && batchMode} selected={selectedTechIds.includes(wine.id)} toggleSelected={() => toggleSelected(wine.id)} allowTechSheet={allowTechSheets} />)}
+        </div>
+        {!wines.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
+      </>}
     </div>
 
     {allowTechSheets && batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">
@@ -1440,7 +1539,7 @@ function WineCard({ wine, open, tech, batchMode = false, selected = false, toggl
     <button onClick={() => batchMode ? toggleSelected?.() : open()} className="block w-full text-left" aria-label={batchMode ? `${selected ? 'Deselect' : 'Select'} ${wine.name} for batch tech sheets` : `Open ${wine.name}`}>
       <div className="relative h-56 overflow-hidden bg-[#eef2f6]">
         {wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}
-        <div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
+        <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white shadow-sm">{collectionForWine(wine)}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
         {award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}
       </div>
       <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/55">{wine.shortDescription || wine.tastingNotes || 'Add a quick description for your staff.'}</p></div>
@@ -1485,7 +1584,7 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
         <ProfileBlock title="Pairings">{isEditing ? <Textarea value={shown.pairings} onChange={(value) => update('pairings', value)} rows={3} /> : <p className="profile-copy">{shown.pairings || 'Add pairing ideas.'}</p>}</ProfileBlock>
       </div>
       <div className="space-y-5">
-        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Style" value={shown.category} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /></dl></ProfileBlock>
+        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Collection" value={collectionForWine(shown)} /><QuickFact label="Style" value={shown.category} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /></dl></ProfileBlock>
         <ProfileBlock title="Awards" badge={`${shown.awards.length} total`}><div className="space-y-2">{shown.awards.map((award, index) => isEditing ? <AwardEditor key={award.id} award={award} onChange={(patch) => updateAward(index, patch)} onRemove={() => removeAward(index)} /> : <AwardRow key={award.id} award={award} />)}{!shown.awards.length && <p className="text-sm text-black/40">No awards added yet.</p>}{isEditing && <button onClick={addAward} className="mt-2 flex items-center gap-1.5 text-xs font-black text-[#326eac]"><Plus className="h-3.5 w-3.5" /> Add award</button>}</div></ProfileBlock>
       </div>
     </div>}

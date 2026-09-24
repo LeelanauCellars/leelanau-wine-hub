@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import type { WineRecord } from '@/lib/types';
 import { loadCurrentWebsiteAwards, matchWebsiteAwards } from '@/lib/website-awards';
 import { sessionRole } from '@/lib/auth';
-import { commerce7Config, fetchCommerce7Products } from '@/lib/commerce7-server';
+import { commerce7Config, fetchCommerce7Products, fetchCommerce7VendorTitles } from '@/lib/commerce7-server';
+import { canonicalWineCollection } from '@/lib/wine-collections';
 
 type C7Variant = {
   upcCode?: string | null;
@@ -22,6 +23,8 @@ type C7Product = {
   type?: string | null;
   webStatus?: string | null;
   adminStatus?: string | null;
+  vendorId?: string | null;
+  vendor?: { id?: string | null; title?: string | null } | null;
   slug?: string | null;
   updatedAt?: string | null;
   metaData?: Record<string, unknown> | null;
@@ -172,12 +175,8 @@ const awardsMeta = (meta: Record<string, unknown> | null | undefined) => {
 const inferBrand = (product: C7Product, meta: Record<string, unknown> | null | undefined) => {
   const explicit = metaValue(meta, ['brand', 'tech_brand']);
   if (explicit) return explicit;
-  const haystack = [product.title, ...(product.collections || []).map((collection) => collection.title || '')].join(' ').toLowerCase();
-  if (haystack.includes('farm fresh')) return 'Farm Fresh';
-  if (haystack.includes('country crush')) return 'Country Crush';
-  if (haystack.includes('zilly')) return 'Zilly';
-  if (haystack.includes('lakeshore farms')) return 'Lakeshore Farms';
-  return 'Leelanau Cellars';
+  const haystack = [product.title, ...(product.collections || []).map((collection) => collection.title || '')].join(' ');
+  return canonicalWineCollection(haystack) || 'Leelanau Cellars';
 };
 
 const formatAbv = (value?: number | null) => {
@@ -186,7 +185,7 @@ const formatAbv = (value?: number | null) => {
   return `${Number.isInteger(numeric) ? numeric.toFixed(0) : numeric.toFixed(1).replace(/\.0$/, '')}%`;
 };
 
-const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loadCurrentWebsiteAwards>>): WineRecord => {
+const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loadCurrentWebsiteAwards>>, vendorTitles: Record<string, string>): WineRecord => {
   const variant = product.variants?.[0] ?? {};
   const meta = product.metaData;
   const teaser = stripHtml(product.teaser ?? '');
@@ -196,7 +195,8 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
   const price = typeof variant.price === 'number' ? variant.price / 100 : undefined;
   const vintage = product.wine?.vintage ? String(product.wine.vintage) : 'NV';
   const category = product.wine?.type || product.type || 'Wine';
-  const brand = inferBrand(product, meta);
+  const vendor = product.vendor?.title?.trim() || (product.vendorId ? vendorTitles[product.vendorId] : '') || '';
+  const brand = canonicalWineCollection(vendor) || inferBrand(product, meta);
   const orderedImages = (product.images || [])
     .filter((image) => Boolean(image?.src))
     .map((image, index) => ({
@@ -222,6 +222,8 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
     name: decodeHtmlEntities(product.title),
     vintage,
     brand,
+    vendor: vendor || undefined,
+    vendorId: product.vendorId || product.vendor?.id || undefined,
     category,
     collection: product.collections?.[0]?.title ? decodeHtmlEntities(product.collections[0].title || '') : undefined,
     status: product.webStatus === 'Retired' ? 'Retired' : product.webStatus === 'Available' ? 'Available' : 'Not Available',
@@ -279,10 +281,13 @@ export async function GET() {
 
   try {
     const { products } = await fetchCommerce7Products<C7Product>();
-    const websiteAwards = await loadCurrentWebsiteAwards();
+    const [websiteAwards, vendorTitles] = await Promise.all([
+      loadCurrentWebsiteAwards(),
+      fetchCommerce7VendorTitles(products.map((product) => product.vendorId || product.vendor?.id || '').filter(Boolean)),
+    ]);
     const wines = products
       .filter((product) => product.type === 'Wine')
-      .map((product) => toWine(product, websiteAwards))
+      .map((product) => toWine(product, websiteAwards, vendorTitles))
       // 2023 Leelanau Cellars Pinot Grigio is a retired historical product that
       // should not return to the current Wine Hub just because it has an award.
       .filter((wine) => !(wine.brand === 'Leelanau Cellars' && wine.name.trim().toLowerCase() === 'pinot grigio' && wine.vintage === '2023'))

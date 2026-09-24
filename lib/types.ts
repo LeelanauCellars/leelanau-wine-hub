@@ -21,6 +21,8 @@ export type WineRecord = {
   name: string;
   vintage: string;
   brand: string;
+  vendor?: string;
+  vendorId?: string;
   category: string;
   collection?: string;
   status: 'Available' | 'Not Available' | 'Retired' | 'Draft';
