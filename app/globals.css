@@ -246,58 +246,109 @@ button { cursor: pointer; }
   }
 }
 
-/* v24 tasting-room staff guide: separate screen and print layouts */
-.staff-guide-page {
+/* v40 current wine guide: report-style online reference + condensed landscape print layout */
+.wine-report-mobile-label { display: none; }
+.staff-report-page {
   width: min(1056px, 100%);
   aspect-ratio: 11 / 8.5;
   margin: 0 auto;
   border: 1px solid rgba(0,0,0,.08);
 }
-.staff-guide-grid {
-  height: calc(100% - 118px);
-  min-height: 620px;
+.staff-report-header { min-height: 78px; }
+.staff-report-columns {
+  min-height: 36px;
+  align-items: center;
 }
-.staff-guide-entry {
-  padding: 20px 22px 16px 22px;
-  border-right: 1px solid rgba(0,0,0,.09);
-  border-bottom: 1px solid rgba(0,0,0,.09);
+.staff-report-grid {
+  display: grid;
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  height: calc(100% - 142px);
+  min-height: 600px;
 }
-.staff-guide-entry:nth-child(2n) { border-right: 0; }
-.staff-guide-entry:nth-last-child(-n+2) { border-bottom: 0; }
-.staff-guide-label {
-  font-size: 7.5px;
+.staff-report-row,
+.staff-report-empty { min-height: 0; }
+.staff-report-cell {
+  min-width: 0;
+  padding: 9px 12px 7px 12px;
+}
+.staff-report-category {
+  display: block;
+  font-size: 6.5px;
   line-height: 1;
   font-weight: 900;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  letter-spacing: .14em;
-  color: rgba(0,0,0,.34);
+  white-space: nowrap;
 }
-.staff-guide-chips > span {
-  border: 1px solid rgba(0,0,0,.08);
-  border-radius: 999px;
-  background: #f5f7f8;
-  padding: 4px 8px;
-  font-size: 7.5px;
+.staff-report-name {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -.015em;
+}
+.staff-report-vintage {
+  margin-top: 2px;
+  font-size: 8px;
   line-height: 1;
-  font-weight: 800;
-  color: rgba(0,0,0,.55);
+  font-weight: 700;
+  color: rgba(0,0,0,.38);
 }
-.staff-guide-flavor,
-.staff-guide-viticulture {
+.staff-report-specs,
+.staff-report-context {
+  font-size: 8.5px;
+  line-height: 1.36;
+  color: rgba(0,0,0,.58);
+}
+.staff-report-blend {
+  margin-top: 3px;
+  font-size: 7.2px;
+  line-height: 1.25;
+  color: rgba(0,0,0,.4);
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 2;
 }
-.staff-guide-viticulture { -webkit-line-clamp: 6; }
-.staff-guide-note-lines > div {
-  height: 18px;
-  border-bottom: 1px solid rgba(0,0,0,.28);
+.staff-report-flavor {
+  font-size: 9px;
+  line-height: 1.38;
+  color: rgba(0,0,0,.72);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.staff-report-context {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.staff-report-price {
+  text-align: right;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+.staff-report-footer { min-height: 28px; }
+
+@media (max-width: 1023px) {
+  .wine-report-mobile-label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,.35);
+  }
 }
 
 @media print {
-  .staff-guide-pages { margin: 0 !important; padding: 0 !important; }
-  .staff-guide-page {
+  .staff-report-pages { margin: 0 !important; padding: 0 !important; }
+  .staff-report-page {
     width: 11in !important;
     height: 8.5in !important;
     min-height: 8.5in !important;
@@ -311,43 +362,53 @@ button { cursor: pointer; }
     box-shadow: none !important;
     border: 0 !important;
   }
-  .staff-guide-page:last-child {
+  .staff-report-page:last-child {
     break-after: auto !important;
     page-break-after: auto !important;
   }
-  .staff-guide-header {
-    height: .82in !important;
-    padding: .11in .28in !important;
+  .staff-report-header {
+    height: .70in !important;
+    min-height: .70in !important;
+    padding: .09in .27in !important;
   }
-  .staff-guide-header img { width: .50in !important; height: .50in !important; }
-  .staff-guide-header h2 { font-size: 17.5pt !important; line-height: 1 !important; }
-  .staff-guide-grid {
+  .staff-report-header img { width: .42in !important; height: .42in !important; }
+  .staff-report-header h2 { font-size: 16.5pt !important; line-height: 1 !important; }
+  .staff-report-columns {
+    height: .32in !important;
+    min-height: .32in !important;
+    padding: 0 !important;
+    font-size: 6.3pt !important;
+  }
+  .staff-report-columns > div { padding-left: .13in !important; }
+  .staff-report-columns > div:last-child { padding-left: 0 !important; padding-right: .15in !important; }
+  .staff-report-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
-    grid-template-rows: repeat(2, minmax(0,1fr)) !important;
-    height: 7.29in !important;
+    grid-template-rows: repeat(8, .8975in) !important;
+    height: 7.18in !important;
     min-height: 0 !important;
   }
-  .staff-guide-entry {
-    min-height: 0 !important;
-    padding: .16in .23in .12in .25in !important;
+  .staff-report-row,
+  .staff-report-empty {
+    height: .8975in !important;
+    min-height: .8975in !important;
+    max-height: .8975in !important;
     overflow: hidden !important;
   }
-  .staff-guide-category { font-size: 6.2pt !important; padding: .035in .075in !important; }
-  .staff-guide-name { font-size: 12.8pt !important; line-height: 1.06 !important; }
-  .staff-guide-price { font-size: 10.2pt !important; }
-  .staff-guide-chips { margin-top: .07in !important; gap: .045in !important; }
-  .staff-guide-chips > span { padding: .03in .06in !important; font-size: 6.2pt !important; }
-  .staff-guide-label { font-size: 6.2pt !important; }
-  .staff-guide-flavor { font-size: 8.1pt !important; line-height: 1.38 !important; -webkit-line-clamp: 5 !important; }
-  .staff-guide-blend { margin-top: .045in !important; font-size: 6.5pt !important; line-height: 1.25 !important; }
-  .staff-guide-viticulture { font-size: 7.2pt !important; line-height: 1.36 !important; -webkit-line-clamp: 6 !important; }
-  .staff-guide-notes { margin-top: .08in !important; }
-  .staff-guide-note-lines > div { height: .14in !important; }
-  .staff-guide-footer {
-    height: .39in !important;
-    padding: .06in .28in !important;
-    font-size: 6pt !important;
+  .staff-report-cell { padding: .09in .12in .055in .12in !important; }
+  .staff-report-row > .staff-report-cell:first-of-type { padding-left: .18in !important; }
+  .staff-report-category { font-size: 5.8pt !important; }
+  .staff-report-name { margin-top: .025in !important; font-size: 9.5pt !important; line-height: 1.05 !important; }
+  .staff-report-vintage { margin-top: .02in !important; font-size: 6.3pt !important; }
+  .staff-report-specs { font-size: 7.2pt !important; line-height: 1.28 !important; }
+  .staff-report-blend { margin-top: .025in !important; font-size: 6.2pt !important; line-height: 1.22 !important; -webkit-line-clamp: 2 !important; }
+  .staff-report-flavor { font-size: 8.1pt !important; line-height: 1.29 !important; -webkit-line-clamp: 4 !important; }
+  .staff-report-context { font-size: 7.2pt !important; line-height: 1.28 !important; -webkit-line-clamp: 4 !important; }
+  .staff-report-price { padding-right: .15in !important; font-size: 8.8pt !important; }
+  .staff-report-footer {
+    height: .30in !important;
+    min-height: .30in !important;
+    padding: 0 .27in !important;
+    font-size: 5.7pt !important;
   }
 }
 

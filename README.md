@@ -2,14 +2,14 @@
 
 - PIN access is intentionally **disabled by default** while Wine Hub is still being built, so the site opens directly with full Admin access.
 - The Admin / Sales / Tasting Room role architecture remains in the code and can be enabled later without rebuilding the app structure.
-- Keeps the v21 tasting-room menu, Staff Notes, Quick Facts, Sales Tech Sheets, Awards, Assets and role-aware navigation foundation.
+- Keeps the tasting-room menu, Current Wine Guide, Quick Facts, Sales Tech Sheets, Awards, Assets and role-aware navigation foundation.
 
 ## v21 access + tasting-room update
 
-- Adds the **Admin**, **Sales**, and **Tasting Room** role structure. Admin sees the full hub; Sales gets Wine Library, Tech Sheets, Awards and Assets; Tasting Room gets Wine Library, Staff Notes, Quick Facts, Awards and Assets.
-- Adds the supplied September 2026 tasting-room menu as the official downloadable PDF and uses its wine list to prebuild the Staff Notes roster.
+- Adds the **Admin**, **Sales**, and **Tasting Room** role structure. Admin sees the full hub; Sales gets Wine Library, Tech Sheets, Awards and Assets; Tasting Room gets Wine Library, Current Wine Guide, Quick Facts, Awards and Assets.
+- Adds the supplied September 2026 tasting-room menu as the official downloadable PDF and uses its wine list to prebuild the Current Wine Guide roster.
 - Admin can replace the official menu PDF from Wine Hub after a Vercel Blob store is connected. Without Blob, the bundled current menu still works for viewing/downloading.
-- Renames the Tasting Room workflow to **Staff Notes** and adds one-click **Use menu for Staff Notes** matching against the Commerce7 catalog.
+- The Tasting Room workflow now uses a **Current Wine Guide** report with one-click **Use menu for Wine Guide** matching against the Commerce7 catalog.
 - Adds a Tasting Room-only **Leelanau Cellars Quick Facts** reference covering the winery story, brand facts, region, growing conditions, vineyard sites, grape varieties, sustainability practices, and 2019–2024 vintage summaries from the supplied staff document.
 
 ### PIN access (later)
