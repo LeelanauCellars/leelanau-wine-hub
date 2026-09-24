@@ -8,6 +8,7 @@ import { SEED_WINES } from '@/lib/seed';
 import type { Award, TechSheetDraft, WineRecord } from '@/lib/types';
 import { casePackagingForWine } from '@/lib/case-packaging';
 import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
+import { posDisplaysForWine } from '@/lib/pos-displays';
 import { normalizeUpcA, upcASvg, upcASvgDataUrl } from '@/lib/upc';
 import { CURRENT_TASTING_MENU_LABEL, CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
 import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViticultureForWine, viticulturePracticeForWine } from '@/lib/staff-notes-data';
@@ -1193,7 +1194,7 @@ function DistributionLibrary({ wines, distributionWines, openWine }: { wines: Wi
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {filtered.map((item) => {
         const match = matchedDistributionWine(item, wines);
-        const libraryAssets = match ? wineImageAssets(match).length + lifestyleAssetsForWine(match).length + (casePackagingForWine(match) ? 1 : 0) + (match.upc ? 1 : 0) : 0;
+        const libraryAssets = match ? wineImageAssets(match).length + lifestyleAssetsForWine(match).length + posDisplaysForWine(match).length + (casePackagingForWine(match) ? 1 : 0) + (match.upc ? 1 : 0) : 0;
         const description = item.marketingCopy || (item.specs.composition ? `${item.specs.composition}${item.specs.size ? ` · ${item.specs.size}` : ''}` : 'Open for complete distributor product information.');
         return <article key={item.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
           <button onClick={() => openWine(item)} className="block w-full text-left">
@@ -1500,6 +1501,7 @@ function WineProfile({ wine, tab, setTab, editing, setEditing, save, saving, sav
 function WineProfileAssets({ wine }: { wine: WineRecord }) {
   const images = wineImageAssets(wine);
   const lifestyleImages = lifestyleAssetsForWine(wine);
+  const posDisplays = posDisplaysForWine(wine);
   const packaging = casePackagingForWine(wine);
   const upc = normalizeUpcA(wine.upc || '');
   const upcSvg = upc.valid ? upcASvg(wine.upc || '') : '';
@@ -1527,6 +1529,16 @@ function WineProfileAssets({ wine }: { wine: WineRecord }) {
       </div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><ImageIcon className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No case packaging is associated with this wine.</p><p className="mt-1 text-xs text-black/35">If an approved case is added later, it can appear here and in the Tech Sheet Builder automatically.</p></div>}
     </ProfileBlock>
 
+    <ProfileBlock title="POS Displays" badge={posDisplays.length ? `${posDisplays.length} display${posDisplays.length === 1 ? '' : 's'}` : undefined}>
+      {posDisplays.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{posDisplays.map((display, index) => {
+        const filename = assetName(`${wine.name}${vintage}-POS-${display.label || index + 1}`);
+        return <div key={display.id} className="overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="flex h-72 items-center justify-center bg-[#f3f5f7] p-4"><img src={display.src} alt={`${wine.name} ${display.label}`} className="h-full w-full object-contain" /></div>
+          <div className="p-4"><p className="text-sm font-black">{display.label}</p><p className="mt-1 min-h-8 text-[10px] leading-4 text-black/45">{display.description || 'Approved point-of-sale display artwork.'}</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(display.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(display.jpegSrc, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
+        </div>;
+      })}</div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><Store className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No POS displays are associated with this wine.</p><p className="mt-1 text-xs text-black/35">Approved case cards, floor displays and other merchandising assets will appear here when available.</p></div>}
+    </ProfileBlock>
+
     <ProfileBlock title="UPC Barcode" badge={upc.valid ? 'UPC-A' : undefined}>
       {wine.upc ? upc.valid ? <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_1fr] lg:items-center">
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white p-5"><img src={upcDataUrl} alt={`UPC barcode ${upc.formatted}`} className="mx-auto w-full max-w-[460px]" /></div>
@@ -1544,7 +1556,7 @@ function WineProfileAssets({ wine }: { wine: WineRecord }) {
       })}</div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><ImageIcon className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No lifestyle images added yet.</p><p className="mt-1 text-xs text-black/35">This section is ready for approved photography tied to this wine.</p></div>}
     </ProfileBlock>
 
-    <ProfileBlock title="Links"><div className="space-y-3">{wine.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={wine.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Wine Hub reads the product photo gallery and UPC from Commerce7, adds approved case packaging when available, and matches approved lifestyle photography to the wine by product name and brand.</p></div></ProfileBlock>
+    <ProfileBlock title="Links"><div className="space-y-3">{wine.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={wine.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Wine Hub reads the product photo gallery and UPC from Commerce7, adds approved case packaging and POS displays when available, and matches approved lifestyle photography to the wine by product name and brand.</p></div></ProfileBlock>
   </div>;
 }
 
@@ -2028,6 +2040,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
   const [colorStatus, setColorStatus] = useState('');
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
+  const availablePosDisplays = posDisplaysForWine(activeWine);
   const commerce7TastingNotes = shortCommerce7TastingNotes(activeWine);
   const commerce7Highlights = commerce7SalesHighlights(activeWine);
 
@@ -2165,8 +2178,15 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
           </div>
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
-            <p className="text-xs font-black">Display</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Optional. Add a display, floor stack, endcap, or other merchandising image for this tech sheet. If Case Packaging is included, Display appears beside it; otherwise Display slides into that space by itself.</p>
+            <p className="text-xs font-black">Display / POS</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Optional. Add a display, floor stack, case card, endcap, or other merchandising image for this tech sheet. If approved POS artwork is available for this wine, choose it below. If Case Packaging is included, Display appears beside it; otherwise Display slides into that space by itself.</p>
+            {availablePosDisplays.length > 0 && <div className="mt-3">
+              <p className="field-label">Approved POS displays</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">{availablePosDisplays.map((display) => <button key={display.id} type="button" onClick={() => update('displayImage', display.src)} className={`overflow-hidden rounded-lg border bg-white text-left transition ${draft.displayImage === display.src ? 'border-black ring-1 ring-black' : 'border-black/10 hover:border-black/30'}`}>
+                <div className="flex h-24 items-center justify-center bg-[#f3f5f7] p-2"><img src={display.src} alt="" className="h-full w-full object-contain" /></div>
+                <div className="px-2.5 py-2 text-[10px] font-black leading-4">{display.label}</div>
+              </button>)}</div>
+            </div>}
             <div className="mt-3 space-y-2">
               <EditField label="Display image URL · optional" value={draft.displayImage || ''} onChange={(value) => update('displayImage', value || undefined)} />
               <div className="flex flex-wrap gap-2">
@@ -2362,17 +2382,18 @@ function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine:
 }
 
 function AssetsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const assets = wines.filter((wine) => wineImageAssets(wine).length || lifestyleAssetsForWine(wine).length || casePackagingForWine(wine) || wine.upc);
+  const assets = wines.filter((wine) => wineImageAssets(wine).length || lifestyleAssetsForWine(wine).length || posDisplaysForWine(wine).length || casePackagingForWine(wine) || wine.upc);
   return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
-    <PageHeader eyebrow="Approved creative" title="Asset Library" description="Bottle photography, lifestyle images, approved case packaging and downloadable UPC barcode artwork for each wine." />
+    <PageHeader eyebrow="Approved creative" title="Asset Library" description="Bottle photography, lifestyle images, POS displays, approved case packaging and downloadable UPC barcode artwork for each wine." />
     <section className="mb-7 rounded-2xl border border-black/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><img src="/lwc-logo.png" alt="" className="h-20 w-20 border border-black" /><div><p className="text-sm font-black">Leelanau Cellars square logo</p><p className="mt-1 text-xs text-black/45">Used automatically on the sales tech-sheet template.</p></div></div></section>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{assets.map((wine) => {
       const images = wineImageAssets(wine);
       const lifestyle = lifestyleAssetsForWine(wine);
+      const posDisplays = posDisplaysForWine(wine);
       const packaging = casePackagingForWine(wine);
       const upc = normalizeUpcA(wine.upc || '');
-      const preview = images[0]?.src || lifestyle[0]?.src || packaging?.src;
-      const extras = [packaging ? 'case' : '', upc.valid ? 'UPC' : ''].filter(Boolean).join(' · ');
+      const preview = images[0]?.src || lifestyle[0]?.src || posDisplays[0]?.src || packaging?.src;
+      const extras = [posDisplays.length ? `${posDisplays.length} POS` : '', packaging ? 'case' : '', upc.valid ? 'UPC' : ''].filter(Boolean).join(' · ');
       return <div key={wine.id} className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
         <button onClick={() => openWine(wine)} className="block w-full text-left"><div className="flex h-52 items-center justify-center bg-[#f2f4f6]">{preview && <img src={preview} alt="" className="h-full w-full object-contain p-4" />}</div><div className="p-4"><p className="font-black">{wine.name}</p><p className="mt-1 text-xs text-black/40">{wine.vintage} · {images.length} bottle · {lifestyle.length} lifestyle{extras ? ` · ${extras}` : ''}</p></div></button>
         <div className="flex border-t border-black/10 p-2"><button onClick={() => openWine(wine)} className="flex-1 rounded-lg px-3 py-2 text-xs font-bold text-[#326eac] hover:bg-[#eaf3fb]">View / download assets</button></div>
