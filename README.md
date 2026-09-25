@@ -247,16 +247,16 @@ DYMO print target: **30334 Medium Multipurpose, 2.25in × 1.25in**. The print st
 
 ## Direct links and lwc.wine deployment
 
-Central supports permanent, shareable URLs instead of requiring staff (or an authorized browser agent) to click through the navigation every time. Wine records use the Commerce7 product slug when it is available, with the existing Central wine ID/name as a fallback.
+Central supports permanent, shareable URLs instead of requiring staff (or an authorized browser agent) to click through the navigation every time. Wine records use a vintage-free permanent slug. Central starts with the Commerce7 product slug when available (or the existing Central wine ID/name as a fallback) and removes standalone four-digit vintage years so the same link can follow the wine from one vintage to the next.
 
 Examples at the app root:
 
-- `/wine-library/baco-noir-2021`
-- `/wine-library/baco-noir-2021/specs`
-- `/tech-sheets/baco-noir-2021`
+- `/wine-library/baco-noir`
+- `/wine-library/baco-noir/specs`
+- `/tech-sheets/baco-noir`
 - `/distribution-wines/<product-slug>`
 
-The browser Back and Forward buttons follow these routes normally. Deep links also survive the Central entry/PIN flow and open the appropriate portal after entry.
+The browser Back and Forward buttons follow these routes normally. Deep links also survive the Central entry/PIN flow and open the appropriate portal after entry. Older dated Central links remain compatible and are redirected in-place to the vintage-free URL.
 
 For the planned WordPress integration on the canonical winery domain `https://lwc.wine`, set the public path prefix at build time if Central is served under `/central`:
 
@@ -264,4 +264,4 @@ For the planned WordPress integration on the canonical winery domain `https://lw
 NEXT_PUBLIC_CENTRAL_PATH_PREFIX=/central
 ```
 
-That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir-2021`. If Central is instead deployed at a dedicated subdomain such as `central.lwc.wine`, leave `NEXT_PUBLIC_CENTRAL_PATH_PREFIX` blank.
+That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir`. If Central is instead deployed at a dedicated subdomain such as `central.lwc.wine`, leave `NEXT_PUBLIC_CENTRAL_PATH_PREFIX` blank.

@@ -72,10 +72,41 @@ function routeSlug(value = '') {
     .replace(/-{2,}/g, '-');
 }
 
+function stripVintageYearFromSlug(value = '') {
+  return routeSlug(value)
+    .replace(/(^|-)(?:19|20)\d{2}(?=-|$)/g, '$1')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function winePermalinkSlug(wine: WineRecord) {
-  if (wine.permalinkSlug) return routeSlug(wine.permalinkSlug);
-  if (wine.id && !wine.id.startsWith('c7-')) return routeSlug(wine.id);
-  return routeSlug(`${wine.name}${wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''}`);
+  if (wine.permalinkSlug) return stripVintageYearFromSlug(wine.permalinkSlug);
+  if (wine.id && !wine.id.startsWith('c7-')) return stripVintageYearFromSlug(wine.id);
+  return stripVintageYearFromSlug(wine.name);
+}
+
+function wineRouteMatches(wine: WineRecord, slug: string) {
+  const target = stripVintageYearFromSlug(slug);
+  const candidates = [
+    winePermalinkSlug(wine),
+    wine.permalinkSlug,
+    wine.id,
+    wine.name,
+    `${wine.name}${wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''}`,
+  ].filter(Boolean) as string[];
+  return candidates.some((candidate) => stripVintageYearFromSlug(candidate) === target);
+}
+
+function preferredWineForRoute(wines: WineRecord[], slug: string) {
+  const matches = wines.filter((wine) => wineRouteMatches(wine, slug));
+  return matches.sort((a, b) => {
+    const availableDelta = Number(b.status === 'Available') - Number(a.status === 'Available');
+    if (availableDelta) return availableDelta;
+    const vintageA = /^(?:19|20)\d{2}$/.test(a.vintage) ? Number(a.vintage) : 0;
+    const vintageB = /^(?:19|20)\d{2}$/.test(b.vintage) ? Number(b.vintage) : 0;
+    if (vintageA !== vintageB) return vintageB - vintageA;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  })[0];
 }
 
 function distributionPermalinkSlug(item: DistributionWine) {
@@ -852,20 +883,22 @@ export default function WineHub() {
   function applyRouteState(route: CentralRoute, role: PortalRole) {
     if (route.kind === 'wine') {
       if (!(role === 'admin' || role === 'tasting' || role === 'sales')) return;
-      const wine = wines.find((item) => winePermalinkSlug(item) === routeSlug(route.slug) || routeSlug(item.id) === routeSlug(route.slug));
+      const wine = preferredWineForRoute(wines, route.slug);
       if (!wine) return;
       setActiveWineId(wine.id);
       setProfileTab(route.tab);
+      if (routeSlug(route.slug) !== winePermalinkSlug(wine)) writeCentralPath(wineProfilePath(wine, route.tab), true);
       setEditingWine(null);
       setView('profile');
       return;
     }
     if (route.kind === 'tech') {
       if (!(role === 'admin' || role === 'sales')) return;
-      const wine = wines.find((item) => winePermalinkSlug(item) === routeSlug(route.slug) || routeSlug(item.id) === routeSlug(route.slug));
+      const wine = preferredWineForRoute(wines, route.slug);
       if (!wine) return;
       setActiveWineId(wine.id);
       setTechDraft(draftFromWine(wine, distributionWines));
+      if (routeSlug(route.slug) !== winePermalinkSlug(wine)) writeCentralPath(techSheetPath(wine), true);
       setView('tech');
       return;
     }
