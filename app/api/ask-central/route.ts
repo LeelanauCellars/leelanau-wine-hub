@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateText } from 'ai';
 import { sessionRole } from '@/lib/auth';
 import { QUICK_FACTS, CURRENT_TASTING_MENU_TEXT } from '@/lib/tasting-room-content';
 import { loadLatestCaseSalesSummary } from '@/lib/case-sales-storage';
@@ -168,28 +167,87 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const model = process.env.ASK_CENTRAL_MODEL?.trim() || 'openai/gpt-5.6-luna';
+  const model = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
   const historyText = history.length ? `\nRECENT CONVERSATION:\n${history.map((item) => `${item.role.toUpperCase()}: ${item.content}`).join('\n')}` : '';
   const context = sourceBlock(sources);
+  const systemInstruction = `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`;
+  const prompt = `PORTAL: ${portalRole}\nQUESTION: ${question}${historyText}\n\nCENTRAL SOURCES:\n${context || '(No matching Central source was found.)'}`;
 
   try {
-    const result = await generateText({
-      model,
-      system: `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`,
-      prompt: `PORTAL: ${portalRole}\nQUESTION: ${question}${historyText}\n\nCENTRAL SOURCES:\n${context || '(No matching Central source was found.)'}`,
-      maxOutputTokens: 1000,
-    });
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) {
+      return NextResponse.json({
+        error: 'Gemini is not configured for Ask Central.',
+        hint: 'Add GEMINI_API_KEY to the Vercel project environment variables, then redeploy.',
+      }, { status: 503 });
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1000 },
+        }),
+        cache: 'no-store',
+      },
+    );
+
+    const raw = await response.text();
+    let payload: {
+      error?: { message?: string; status?: string };
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+        finishReason?: string;
+      }>;
+      promptFeedback?: { blockReason?: string };
+    } = {};
+
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
+      throw new Error('Gemini returned an unreadable response.');
+    }
+
+    if (!response.ok) {
+      const apiMessage = payload.error?.message?.trim();
+      if (response.status === 429) {
+        throw new Error(apiMessage || 'The Gemini free-tier rate limit has been reached. Try again shortly.');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(apiMessage || 'Gemini rejected the API key. Check GEMINI_API_KEY in Vercel.');
+      }
+      throw new Error(apiMessage || `Gemini request failed with HTTP ${response.status}.`);
+    }
+
+    const answer = (payload.candidates?.[0]?.content?.parts || [])
+      .map((part) => part.text || '')
+      .join('')
+      .trim();
+
+    if (!answer) {
+      const blockReason = payload.promptFeedback?.blockReason;
+      throw new Error(blockReason ? `Gemini did not return an answer (${blockReason}).` : 'Gemini did not return an answer.');
+    }
 
     return NextResponse.json({
-      answer: result.text.trim() || 'I could not find an answer in Central.',
+      answer,
       sources: sources.slice(0, 12).map(({ id, type, title, path }) => ({ id, type, title, path })),
       model,
+      provider: 'google-gemini',
     });
   } catch (error) {
     console.error('Ask Central failed', error);
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Ask Central is temporarily unavailable.',
-      hint: 'If this is the first deployment with Ask Central, make sure Vercel AI Gateway is available for this project and redeploy.',
+      hint: 'Ask Central now uses the winery Gemini API key directly. Check GEMINI_API_KEY and the Gemini API project if the problem continues.',
     }, { status: 502 });
   }
 }
