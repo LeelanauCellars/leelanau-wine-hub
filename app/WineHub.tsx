@@ -10,7 +10,7 @@ import { casePackagingForWine } from '@/lib/case-packaging';
 import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
 import { posDisplaysForWine } from '@/lib/pos-displays';
 import { normalizeUpcA, upcASvg, upcASvgDataUrl } from '@/lib/upc';
-import { CURRENT_TASTING_MENU_LABEL, CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
+import { CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
 import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViticultureForWine } from '@/lib/staff-notes-data';
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
@@ -763,7 +763,6 @@ export default function WineHub() {
   const [hydrated, setHydrated] = useState(false);
   const [savingMaster, setSavingMaster] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
-  const [savingMenu, setSavingMenu] = useState(false);
   const [distributionEdits, setDistributionEdits] = useState<Record<string, Partial<DistributionWine>>>({});
   const [pendingRoute, setPendingRoute] = useState<CentralRoute | null>(null);
 
@@ -1096,33 +1095,6 @@ export default function WineHub() {
     }
   }
 
-  async function saveTastingMenu() {
-    if (savingMenu) return;
-    setSavingMenu(true);
-    try {
-      const changes = wines
-        .filter((wine) => wine.source === 'commerce7' && wine.commerce7Id)
-        .map((wine) => ({ wine, next: tastingIds.includes(wine.id) }))
-        .filter(({ wine, next }) => wine.onTastingMenu !== next);
-
-      if (sync.configured && changes.length) {
-        const response = await fetch('/api/commerce7/tasting-menu', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ changes: changes.map(({ wine, next }) => ({ commerce7Id: wine.commerce7Id, onTastingMenu: next })) }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Unable to save tasting menu');
-      }
-
-      setWines((current) => current.map((wine) => ({ ...wine, onTastingMenu: tastingIds.includes(wine.id) })));
-      window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Unable to save tasting menu');
-    } finally {
-      setSavingMenu(false);
-    }
-  }
 
   function saveDistributionWine(next: DistributionWine) {
     setDistributionEdits((current) => ({
@@ -1246,7 +1218,7 @@ export default function WineHub() {
         )}
         {view === 'merch' && canUseMerch && <MerchApparel isAdmin={isPortalAdmin} />}
         {view === 'tasting' && canUseTastingRoom && (
-          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} saveMenu={saveTastingMenu} savingMenu={savingMenu} commerce7Connected={sync.configured} role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
+          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
         )}
         {view === 'quickfacts' && canUseQuickFacts && <QuickFactsView />}
         {view === 'tech-library' && canUseTechSheets && (
@@ -2131,56 +2103,78 @@ function FactMini({ title, text }: { title: string; text: string }) {
 
 function menuCandidates(wine: WineRecord) {
   const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
-  const withoutVintage = withoutBrand.replace(/^20\d{2}\s+|\s+20\d{2}$/g, '').trim();
-  return Array.from(new Set([wine.name, withoutBrand, withoutVintage, `${wine.vintage} ${withoutVintage}`]))
+  const withoutVintage = withoutBrand.replace(/^(?:19|20)\d{2}\s+|\s+(?:19|20)\d{2}$/g, '').trim();
+  return Array.from(new Set([wine.name, withoutBrand, withoutVintage]))
     .map((value) => normalize(value))
     .filter((value) => value.length >= 5);
+}
+
+function menuMatchScore(wine: WineRecord, lines: string[], whole: string) {
+  const candidates = menuCandidates(wine);
+  const hasVintage = /^(?:19|20)\d{2}$/.test(wine.vintage || '');
+  let score = 0;
+  for (const candidate of candidates) {
+    if (hasVintage) {
+      const vintageCandidate = normalize(`${wine.vintage} ${candidate}`);
+      if (lines.some((line) => line === vintageCandidate)) score = Math.max(score, 120);
+      else if (lines.some((line) => line.startsWith(vintageCandidate) || line.endsWith(vintageCandidate))) score = Math.max(score, 110);
+    }
+    if (lines.some((line) => line === candidate)) score = Math.max(score, 90);
+    if (candidate.length >= 10 && whole.includes(candidate)) score = Math.max(score, 35);
+  }
+  return score;
 }
 
 function matchMenuText(text: string, wines: WineRecord[]) {
   const lines = text.split(/\r?\n/).map((line) => normalize(line)).filter(Boolean);
   const whole = normalize(text);
-  return wines.filter((wine) => menuCandidates(wine).some((candidate) => {
-    if (candidate.length < 7) return lines.some((line) => line === candidate || line.endsWith(candidate) || line.startsWith(candidate));
-    return whole.includes(candidate) || lines.some((line) => line.includes(candidate));
-  }));
+  const bestByWine = new Map<string, { wine: WineRecord; score: number }>();
+
+  for (const wine of wines) {
+    const score = menuMatchScore(wine, lines, whole);
+    if (!score) continue;
+    const key = winePermalinkSlug(wine);
+    const current = bestByWine.get(key);
+    if (!current || score > current.score) {
+      bestByWine.set(key, { wine, score });
+      continue;
+    }
+    if (score === current.score) {
+      const preferred = preferredWineForRoute([current.wine, wine], key);
+      bestByWine.set(key, { wine: preferred, score });
+    }
+  }
+
+  return Array.from(bestByWine.values()).map(({ wine }) => wine);
 }
 
-function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingMenu, commerce7Connected, role }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; saveMenu: () => void | Promise<void>; savingMenu: boolean; commerce7Connected: boolean; role: AccessRole }) {
+function notesSelectionKey(wine: WineRecord) {
+  return `${winePermalinkSlug(wine)}::${routeSlug(wine.vintage || 'NV') || 'nv'}`;
+}
+
+function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; role: AccessRole }) {
   const [q, setQ] = useState('');
   const [showPicker, setShowPicker] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   const [notesView, setNotesView] = useState<'web' | 'print'>('web');
-  const [menuText, setMenuText] = useState('');
-  const [importNotice, setImportNotice] = useState('');
-  const [menuInfo, setMenuInfo] = useState<{ filename: string; updatedAt: string; source: string; storageConfigured: boolean; canReplace: boolean; downloadUrl: string; viewUrl: string } | null>(null);
+  const [menuInfo, setMenuInfo] = useState<{ filename: string; updatedAt: string; source: string; storageConfigured: boolean; canReplace: boolean; downloadUrl: string; viewUrl: string; menuText: string; textSource: string; textError?: string; selectedSlugs: string[] | null; selectionSource: string } | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuUploading, setMenuUploading] = useState(false);
   const [menuUploadNotice, setMenuUploadNotice] = useState('');
+  const [selectionSaving, setSelectionSaving] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState('');
   const chosen = wines.filter((wine) => selected.includes(wine.id));
   const available = wines.filter((wine) => `${wine.name} ${wine.vintage} ${wine.category}`.toLowerCase().includes(q.toLowerCase()));
   const toggle = (id: string) => setSelected(selected.includes(id) ? selected.filter((wineId) => wineId !== id) : [...selected, id]);
-  const autoSelect = (text = menuText) => {
-    const matches = matchMenuText(text, wines);
-    setSelected(matches.map((wine) => wine.id));
-    setImportNotice(matches.length ? `Matched ${matches.length} wines from the menu.` : 'No wine names matched yet. Try pasting the menu text or use Add / change wines.');
-  };
-  const useOfficialMenu = () => {
-    const matches = matchMenuText(CURRENT_TASTING_MENU_TEXT, wines);
-    setSelected(matches.map((wine) => wine.id));
-    setImportNotice(matches.length ? `Loaded ${matches.length} wines from the current tasting-room menu.` : 'Wine Hub could not match the current menu against the catalog yet.');
-    window.localStorage.setItem(MENU_VERSION_KEY, CURRENT_TASTING_MENU_VERSION);
-  };
-  const readMenuFile = async (file?: File) => {
-    if (!file) return;
-    const lower = file.name.toLowerCase();
-    if (file.type.startsWith('text/') || ['.txt', '.csv', '.md', '.html'].some((extension) => lower.endsWith(extension))) {
-      const text = await file.text();
-      setMenuText(text);
-      autoSelect(text);
-      return;
+
+  const selectionFromMenuInfo = (info = menuInfo) => {
+    if (info?.selectedSlugs !== null && Array.isArray(info?.selectedSlugs)) {
+      const saved = new Set(info.selectedSlugs);
+      const exact = wines.filter((wine) => saved.has(notesSelectionKey(wine)));
+      if (exact.length || !info.selectedSlugs.some((value) => !value.includes('::'))) return exact;
+      const legacySlugs = info.selectedSlugs.filter((value) => !value.includes('::'));
+      return legacySlugs.map((slug) => preferredWineForRoute(wines, slug)).filter((wine): wine is WineRecord => Boolean(wine));
     }
-    setImportNotice('Use the Current Tasting Room Menu card above for the official PDF. For a separate auto-match, paste menu text here or upload TXT, CSV, Markdown, or HTML.');
+    return matchMenuText(info?.menuText || CURRENT_TASTING_MENU_TEXT, wines);
   };
 
   async function loadMenuInfo() {
@@ -2201,20 +2195,49 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
     if (!file || menuUploading) return;
     setMenuUploading(true);
     setMenuUploadNotice('');
+    setSelectionNotice('');
     try {
       const form = new FormData();
       form.append('file', file);
       const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
-      setMenuUploadNotice('Current menu PDF updated. Update the tasting menu list below if the wines changed.');
       await loadMenuInfo();
+      setMenuUploadNotice('Menu updated. Central created a text version and rebuilt the Notes list from the PDF.');
     } catch (error) {
       setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to replace the current menu.');
     } finally {
       setMenuUploading(false);
     }
   }
+
+  async function persistNotesSelection(ids: string[], notice: string) {
+    if (selectionSaving) return;
+    setSelectionSaving(true);
+    setSelectionNotice('');
+    try {
+      const selectedSlugs = wines.filter((wine) => ids.includes(wine.id)).map((wine) => notesSelectionKey(wine));
+      const response = await fetch('/api/tasting-room/menu', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedSlugs }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to save the Notes list.');
+      setSelectionNotice(notice);
+      await loadMenuInfo();
+    } catch (error) {
+      setSelectionNotice(error instanceof Error ? error.message : 'Unable to save the Notes list.');
+    } finally {
+      setSelectionSaving(false);
+    }
+  }
+
+  const resetNotesFromPdf = async () => {
+    const ids = matchMenuText(menuInfo?.menuText || CURRENT_TASTING_MENU_TEXT, wines).map((wine) => wine.id);
+    setSelected(ids);
+    await persistNotesSelection(ids, `Reset to the ${ids.length} wines matched from the current menu PDF.`);
+  };
 
   const printStaffNotes = () => {
     const style = document.createElement('style');
@@ -2231,40 +2254,58 @@ function TastingRoom({ wines, selected, setSelected, openWine, saveMenu, savingM
 
   useEffect(() => { void loadMenuInfo(); }, []);
 
+  useEffect(() => {
+    if (!menuInfo || !wines.length) return;
+    const matches = selectionFromMenuInfo(menuInfo);
+    setSelected(matches.map((wine) => wine.id));
+    window.localStorage.setItem(MENU_VERSION_KEY, menuInfo.updatedAt || CURRENT_TASTING_MENU_VERSION);
+  }, [menuInfo, wines]);
+
   const rawMenuDate = menuInfo?.updatedAt || `${CURRENT_TASTING_MENU_VERSION}T12:00:00`;
   const menuDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(rawMenuDate));
+  const pdfMatchCount = matchMenuText(menuInfo?.menuText || CURRENT_TASTING_MENU_TEXT, wines).length;
 
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader title="Tasting Menu and Notes" right={<button onClick={printStaffNotes} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print / Save PDF</button>} /></div>
+    <div className="no-print"><PageHeader title="Tasting Menu and Notes" right={<button onClick={printStaffNotes} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print / Save Notes PDF</button>} /></div>
 
-    <section className="no-print mb-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div><h2 className="text-xl font-black">Current Tasting Room Menu</h2><p className="mt-1.5 text-sm font-semibold text-black/55">{menuLoading ? 'Loading menu…' : `As of ${menuDate}`}</p></div>
+    <section className="no-print mb-4 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm md:px-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-black leading-5">Current Tasting Room Menu</h2>
+          <p className="mt-1 text-[12px] font-semibold text-black/52">{menuLoading ? 'Loading menu…' : `As of ${menuDate}`} <span className="mx-1.5 text-black/20">•</span> {chosen.length} wines in Notes</p>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <a href={menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1'} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><ExternalLink className="h-4 w-4" /> View PDF</a>
-          <a href={menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1'} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black"><Download className="h-4 w-4" /> Download PDF</a>
-          <button onClick={useOfficialMenu} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-4 py-3 text-xs font-black text-white"><ClipboardList className="h-4 w-4" /> Use current menu</button>
-          {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-black text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+          <a href={menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1'} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><ExternalLink className="h-4 w-4" /> View PDF</a>
+          <a href={menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1'} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><Download className="h-4 w-4" /> Download PDF</a>
+          {role === 'admin' && <label className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-[#326eac] text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
         </div>
       </div>
-      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-900"><strong>The current menu is already bundled and downloadable.</strong> To replace the PDF from inside Central later, connect Vercel Blob to the project.</p>}
-      {menuUploadNotice && <p className="mt-3 rounded-xl bg-[#f6f7f8] px-3 py-2.5 text-[11px] font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900"><strong>The current menu is bundled and downloadable.</strong> Connect Vercel Blob to replace it from Central.</p>}
+      {menuUploadNotice && <p className="mt-3 rounded-lg bg-[#f6f7f8] px-3 py-2 text-[11px] font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+      {role === 'admin' && menuInfo?.textError && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900"><strong>Notes auto-match needs attention.</strong> {menuInfo.textError}</p>}
 
-      <details className="mt-5 border-t border-black/10 pt-4">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4"><div><p className="text-sm font-black">Manage tasting menu list</p><p className="mt-1 text-xs text-black/50">{selected.length} wines selected</p></div><span className="rounded-lg bg-[#edf5fd] px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">Open controls</span></summary>
-        <div className="pt-5">
-          <div className={`mb-4 rounded-xl p-3 text-xs leading-5 ${commerce7Connected ? 'bg-emerald-50 text-emerald-800' : 'bg-[#edf5fd] text-[#285f96]'}`}><strong>{commerce7Connected ? 'Shared tasting menu list enabled.' : 'Local tasting menu list.'}</strong> {commerce7Connected ? 'Save the selection so the current list follows the team.' : 'The wine selection is saved in this browser until Commerce7 is connected.'}</div>
-          <div className="flex flex-wrap gap-2">{chosen.slice(0, 16).map((wine) => <button key={wine.id} onClick={() => toggle(wine.id)} className="rounded-full bg-[#eef5fb] px-3 py-1.5 text-[11px] font-bold text-black/65">{wine.name}{wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''} ×</button>)}{chosen.length > 16 && <span className="rounded-full bg-black/[.05] px-3 py-1.5 text-[11px] font-bold text-black/45">+{chosen.length - 16} more</span>}</div>
-          <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => { setShowImport(!showImport); setShowPicker(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><FileText className="h-4 w-4" /> Match menu text</button><button onClick={() => { setShowPicker(!showPicker); setShowImport(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change wines</button><button onClick={() => void saveMenu()} disabled={savingMenu} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black disabled:opacity-50">{savingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {savingMenu ? 'Saving…' : 'Save selection'}</button>{selected.length > 0 && <button onClick={() => setSelected([])} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-black/55">Clear list</button>}</div>
-          {showImport && <div className="mt-4 rounded-xl border border-black/10 bg-[#fafafa] p-4"><p className="text-xs font-black">Auto-select from menu text</p><p className="mt-1 text-[11px] leading-4 text-black/50">Paste a wine list or upload a text-based menu. Central matches names against the Commerce7 catalog.</p><textarea value={menuText} onChange={(event) => setMenuText(event.target.value)} rows={7} placeholder="Paste a tasting-room wine list here…" className="field-input mt-3 resize-y text-xs leading-5" /><div className="mt-2 flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload text file<input type="file" accept=".txt,.csv,.md,.html,text/plain,text/csv,text/html" className="hidden" onChange={(event) => void readMenuFile(event.target.files?.[0])} /></label><button onClick={() => autoSelect()} className="rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white">Match wines</button></div>{importNotice && <p className="mt-2 text-[10px] leading-4 text-black/50">{importNotice}</p>}</div>}
-          {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="grid max-h-[480px] gap-2 overflow-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selected.includes(wine.id) ? 'border-[#b9d7f3] bg-[#eaf3fb]' : 'border-black/8 hover:bg-black/[.025]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/45">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
+      {role === 'admin' && <details className="mt-3 border-t border-black/10 pt-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+          <div><p className="text-[12px] font-black">Notes list</p><p className="mt-0.5 text-[11px] font-semibold text-black/45">{chosen.length} selected · {menuInfo?.selectionSource === 'admin-override' ? 'Admin corrections saved' : `${pdfMatchCount} matched automatically from the PDF`}</p></div>
+          <span className="rounded-lg bg-[#edf5fd] px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">Manage</span>
+        </summary>
+        <div className="pt-4">
+          <div className="rounded-xl bg-[#edf5fd] p-3 text-[12px] leading-5 text-[#285f96]"><strong>The current menu PDF is the source of truth.</strong> Every time Admin uploads a new menu, Central extracts its text and rebuilds this Notes list automatically. Only use the controls below if a wine needs a manual correction.</div>
+          <div className="mt-4 flex flex-wrap gap-2">{chosen.slice(0, 20).map((wine) => <button key={wine.id} onClick={() => toggle(wine.id)} className="rounded-full bg-[#eef5fb] px-3 py-1.5 text-[11px] font-bold text-black/70">{wine.name}{wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''} ×</button>)}{chosen.length > 20 && <span className="rounded-full bg-black/[.05] px-3 py-1.5 text-[11px] font-bold text-black/45">+{chosen.length - 20} more</span>}</div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => setShowPicker(!showPicker)} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change wines</button>
+            <button onClick={() => void persistNotesSelection(selected, `Saved ${selected.length} wines for the Notes PDF.`)} disabled={selectionSaving} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black disabled:opacity-50">{selectionSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {selectionSaving ? 'Saving…' : 'Save corrections'}</button>
+            <button onClick={() => void resetNotesFromPdf()} disabled={selectionSaving} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-black/60 disabled:opacity-50">Reset from PDF</button>
+          </div>
+          {selectionNotice && <p className="mt-3 text-[11px] font-bold leading-5 text-black/55">{selectionNotice}</p>}
+          {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="grid max-h-[420px] gap-2 overflow-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selected.includes(wine.id) ? 'border-[#b9d7f3] bg-[#eaf3fb]' : 'border-black/8 hover:bg-black/[.025]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/45">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
         </div>
-      </details>
+      </details>}
     </section>
 
-    <div className="no-print mb-5 flex gap-2">
-      <button onClick={() => setNotesView('web')} className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${notesView === 'web' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Web View</button>
-      <button onClick={() => setNotesView('print')} className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${notesView === 'print' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Print Preview</button>
+    <div className="no-print mb-4 flex gap-2">
+      <button onClick={() => setNotesView('web')} className={`rounded-lg border px-3 py-2 text-xs font-black transition ${notesView === 'web' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Web View</button>
+      <button onClick={() => setNotesView('print')} className={`rounded-lg border px-3 py-2 text-xs font-black transition ${notesView === 'print' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Print Preview</button>
     </div>
 
     <div className="no-print">{notesView === 'web' ? <StaffNotesWeb chosen={chosen} openWine={openWine} /> : <TastingGuide chosen={chosen} openWine={openWine} />}</div>

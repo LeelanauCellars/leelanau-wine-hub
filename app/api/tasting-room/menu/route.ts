@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionRole } from '@/lib/auth';
-import { listMenuBlobs, uploadMenuPdf } from '@/lib/blob-rest';
+import { listMenuBlobs, loadMenuSelection, loadMenuText, saveMenuSelection, uploadMenuPdf } from '@/lib/blob-rest';
+import { CURRENT_TASTING_MENU_TEXT } from '@/lib/tasting-room-content';
 
 const FALLBACK_MENU = '/tasting-room/current-menu.pdf';
 const FALLBACK_UPDATED = '2026-09-22T00:00:00.000Z';
@@ -36,6 +37,27 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  let menuText = CURRENT_TASTING_MENU_TEXT.trim();
+  let textSource = current ? 'unavailable' : 'bundled';
+  let textError = '';
+  let selectedSlugs: string[] | null = null;
+
+  if (current) {
+    try {
+      const extracted = await loadMenuText(current);
+      menuText = extracted.text;
+      textSource = extracted.source;
+    } catch (error) {
+      textError = error instanceof Error ? error.message : 'Unable to read menu text.';
+      console.error('Unable to build tasting-menu notes text', error);
+    }
+    try {
+      selectedSlugs = await loadMenuSelection(current);
+    } catch (error) {
+      console.error('Unable to load tasting-menu selection override', error);
+    }
+  }
+
   return NextResponse.json({
     filename: 'Leelanau Cellars Current Tasting Room Menu.pdf',
     updatedAt: current?.uploadedAt || FALLBACK_UPDATED,
@@ -44,6 +66,11 @@ export async function GET(request: NextRequest) {
     canReplace: role === 'admin',
     downloadUrl: '/api/tasting-room/menu?download=1',
     viewUrl: '/api/tasting-room/menu?inline=1',
+    menuText,
+    textSource,
+    textError,
+    selectedSlugs,
+    selectionSource: selectedSlugs ? 'admin-override' : 'pdf-text',
   });
 }
 
@@ -59,9 +86,32 @@ export async function POST(request: NextRequest) {
 
   try {
     const uploaded = await uploadMenuPdf(file);
-    return NextResponse.json({ ok: true, uploadedAt: uploaded.uploadedAt || new Date().toISOString() });
+    return NextResponse.json({ ok: true, uploadedAt: uploaded.uploadedAt || new Date().toISOString(), menuText: uploaded.menuText });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to upload menu.' }, { status: 502 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const role = await sessionRole();
+  if (!role) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (role !== 'admin') return NextResponse.json({ error: 'Only Admin access can change the notes list.' }, { status: 403 });
+
+  const body = await request.json() as { selectedSlugs?: unknown };
+  if (!Array.isArray(body.selectedSlugs) || !body.selectedSlugs.every((value) => typeof value === 'string')) {
+    return NextResponse.json({ error: 'A valid wine selection is required.' }, { status: 400 });
+  }
+
+  const { current } = await menuStorageState();
+  if (!current) return NextResponse.json({ error: 'Upload the tasting-room menu to Blob before saving notes-list corrections.' }, { status: 409 });
+
+  try {
+    const selectedSlugs = body.selectedSlugs.map((value) => value.trim()).filter(Boolean);
+    await saveMenuSelection(current, selectedSlugs);
+    return NextResponse.json({ ok: true, selectedSlugs });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to save the notes list.' }, { status: 502 });
   }
 }
