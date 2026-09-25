@@ -10,6 +10,7 @@
     "prebuild": "node scripts/check-central-styles.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "2.8.0",
     "next": "16.1.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
