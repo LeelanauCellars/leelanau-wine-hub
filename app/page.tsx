@@ -49,6 +49,7 @@ const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>
 type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
+type EntryTransition = 'idle' | 'pouring' | 'reveal';
 type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'tasting' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
@@ -601,6 +602,7 @@ export default function WineHub() {
   const [needsCurrentMenuSeed, setNeedsCurrentMenuSeed] = useState(false);
   const [access, setAccess] = useState<{ loading: boolean; enabled: boolean; configured: boolean; role: AccessRole | null }>({ loading: true, enabled: false, configured: false, role: null });
   const [entryStage, setEntryStage] = useState<EntryStage>('welcome');
+  const [entryTransition, setEntryTransition] = useState<EntryTransition>('idle');
   const [portalRole, setPortalRole] = useState<PortalRole | null>(null);
   const [sync, setSync] = useState<SyncState>({ configured: false, loading: false, message: 'Checking Commerce7…' });
   const [mobileNav, setMobileNav] = useState(false);
@@ -698,6 +700,20 @@ export default function WineHub() {
       setView('profile');
     }
   }, [wines]);
+
+  function beginEntryTransition() {
+    if (entryTransition !== 'idle') return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setEntryStage('roles');
+      return;
+    }
+    setEntryTransition('pouring');
+    window.setTimeout(() => {
+      setEntryStage('roles');
+      setEntryTransition('reveal');
+    }, 520);
+    window.setTimeout(() => setEntryTransition('idle'), 820);
+  }
 
   function enterPortal(role: PortalRole) {
     setPortalRole(role);
@@ -899,11 +915,17 @@ export default function WineHub() {
   }
 
   if (entryStage === 'welcome') {
-    return <WelcomePage onEnter={() => setEntryStage('roles')} />;
+    return <>
+      <WelcomePage onEnter={beginEntryTransition} transitioning={entryTransition !== 'idle'} />
+      <WinePourTransition phase={entryTransition} />
+    </>;
   }
 
   if (entryStage === 'roles' || !portalRole) {
-    return <PortalChooser onChoose={enterPortal} onBack={() => setEntryStage('welcome')} />;
+    return <>
+      <PortalChooser onChoose={enterPortal} onBack={() => setEntryStage('welcome')} />
+      <WinePourTransition phase={entryTransition} />
+    </>;
   }
 
   return (
@@ -990,10 +1012,18 @@ function PortalArrow() {
   return <span aria-hidden="true" className="central-arrow"><svg viewBox="0 0 32 32" fill="none"><path d="M7 16h18M17 8l8 8-8 8" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
 }
 
-function WelcomePage({ onEnter }: { onEnter: () => void }) {
+function WinePourTransition({ phase }: { phase: EntryTransition }) {
+  if (phase === 'idle') return null;
+  return <div className={`wine-pour-transition wine-pour-${phase}`} aria-hidden="true">
+    <div className="wine-pour-stream" />
+    <div className="wine-pour-liquid"><span className="wine-pour-wave" /></div>
+  </div>;
+}
+
+function WelcomePage({ onEnter, transitioning }: { onEnter: () => void; transitioning: boolean }) {
   return <main className="central-entry"><div className="central-entry-content">
     <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
-    <button onClick={onEnter} className="central-enter-button"><span>ENTER</span><PortalArrow /></button>
+    <button onClick={onEnter} disabled={transitioning} aria-busy={transitioning} className="central-enter-button"><span>ENTER</span><PortalArrow /></button>
   </div></main>;
 }
 
