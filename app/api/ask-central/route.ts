@@ -183,6 +183,11 @@ export async function POST(request: NextRequest) {
       }, { status: 503 });
     }
 
+    // Preserve the runtime guard as a concrete string for nested request helpers.
+    // TypeScript intentionally does not carry the narrowing of an outer optional
+    // variable into a nested function closure.
+    const requiredApiKey: string = apiKey;
+
     type GeminiPayload = {
       error?: { message?: string; status?: string };
       candidates?: Array<{
@@ -215,7 +220,7 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
+            'x-goog-api-key': requiredApiKey,
           },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemInstruction }] },
