@@ -167,7 +167,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const model = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
+  const primaryModel = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
+  const fallbackModel = process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
   const historyText = history.length ? `\nRECENT CONVERSATION:\n${history.map((item) => `${item.role.toUpperCase()}: ${item.content}`).join('\n')}` : '';
   const context = sourceBlock(sources);
   const systemInstruction = `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`;
@@ -182,72 +183,160 @@ export async function POST(request: NextRequest) {
       }, { status: 503 });
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1000 },
-        }),
-        cache: 'no-store',
-      },
-    );
-
-    const raw = await response.text();
-    let payload: {
+    type GeminiPayload = {
       error?: { message?: string; status?: string };
       candidates?: Array<{
         content?: { parts?: Array<{ text?: string }> };
         finishReason?: string;
       }>;
       promptFeedback?: { blockReason?: string };
-    } = {};
+    };
 
-    try {
-      payload = raw ? JSON.parse(raw) : {};
-    } catch {
-      if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
-      throw new Error('Gemini returned an unreadable response.');
-    }
+    class GeminiHttpError extends Error {
+      status: number;
+      retryable: boolean;
+      canFallback: boolean;
 
-    if (!response.ok) {
-      const apiMessage = payload.error?.message?.trim();
-      if (response.status === 429) {
-        throw new Error(apiMessage || 'The Gemini free-tier rate limit has been reached. Try again shortly.');
+      constructor(message: string, status: number, retryable: boolean, canFallback = retryable) {
+        super(message);
+        this.name = 'GeminiHttpError';
+        this.status = status;
+        this.retryable = retryable;
+        this.canFallback = canFallback;
       }
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(apiMessage || 'Gemini rejected the API key. Check GEMINI_API_KEY in Vercel.');
+    }
+
+    const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+    async function generate(model: string) {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 1000 },
+          }),
+          cache: 'no-store',
+        },
+      );
+
+      const raw = await response.text();
+      let payload: GeminiPayload = {};
+
+      try {
+        payload = raw ? JSON.parse(raw) as GeminiPayload : {};
+      } catch {
+        if (!response.ok) throw new GeminiHttpError(`Gemini returned HTTP ${response.status}.`, response.status, response.status >= 500);
+        throw new Error('Gemini returned an unreadable response.');
       }
-      throw new Error(apiMessage || `Gemini request failed with HTTP ${response.status}.`);
+
+      if (!response.ok) {
+        const apiMessage = payload.error?.message?.trim();
+        if (response.status === 401 || response.status === 403) {
+          throw new GeminiHttpError(apiMessage || 'Gemini rejected the API key. Check GEMINI_API_KEY in Vercel.', response.status, false, false);
+        }
+        if (response.status === 429) {
+          throw new GeminiHttpError(apiMessage || 'Gemini is temporarily rate limited.', response.status, true, true);
+        }
+        if (response.status === 404) {
+          throw new GeminiHttpError(apiMessage || `Gemini model ${model} is unavailable.`, response.status, false, true);
+        }
+        if (response.status >= 500) {
+          throw new GeminiHttpError(apiMessage || 'Gemini is temporarily unavailable.', response.status, true, true);
+        }
+        throw new GeminiHttpError(apiMessage || `Gemini request failed with HTTP ${response.status}.`, response.status, false, false);
+      }
+
+      const answer = (payload.candidates?.[0]?.content?.parts || [])
+        .map((part) => part.text || '')
+        .join('')
+        .trim();
+
+      if (!answer) {
+        const blockReason = payload.promptFeedback?.blockReason;
+        throw new Error(blockReason ? `Gemini did not return an answer (${blockReason}).` : 'Gemini did not return an answer.');
+      }
+
+      return answer;
     }
 
-    const answer = (payload.candidates?.[0]?.content?.parts || [])
-      .map((part) => part.text || '')
-      .join('')
-      .trim();
+    const models = Array.from(new Set([primaryModel, fallbackModel].filter(Boolean)));
+    let lastError: unknown = null;
 
-    if (!answer) {
-      const blockReason = payload.promptFeedback?.blockReason;
-      throw new Error(blockReason ? `Gemini did not return an answer (${blockReason}).` : 'Gemini did not return an answer.');
+    for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
+      const model = models[modelIndex];
+      // Try the primary model up to three times. The fallback gets two attempts.
+      const attempts = modelIndex === 0 ? 3 : 2;
+
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        try {
+          const answer = await generate(model);
+          return NextResponse.json({
+            answer,
+            sources: sources.slice(0, 12).map(({ id, type, title, path }) => ({ id, type, title, path })),
+            model,
+            provider: 'google-gemini',
+            fallbackUsed: modelIndex > 0,
+          });
+        } catch (error) {
+          lastError = error;
+          const geminiError = error instanceof GeminiHttpError ? error : null;
+
+          // Authentication/configuration failures should surface immediately.
+          if (geminiError && !geminiError.canFallback && !geminiError.retryable) throw error;
+
+          // Retry temporary demand/rate-limit failures with a short exponential backoff.
+          if (geminiError?.retryable && attempt < attempts - 1) {
+            const delay = attempt === 0 ? 350 : 900;
+            await sleep(delay);
+            continue;
+          }
+
+          // After the primary exhausts its attempts, transparently try Flash-Lite.
+          if (modelIndex < models.length - 1 && (geminiError?.canFallback ?? false)) break;
+          throw error;
+        }
+      }
     }
 
-    return NextResponse.json({
-      answer,
-      sources: sources.slice(0, 12).map(({ id, type, title, path }) => ({ id, type, title, path })),
-      model,
-      provider: 'google-gemini',
-    });
+    throw lastError instanceof Error ? lastError : new Error('Ask Central is temporarily unavailable.');
   } catch (error) {
     console.error('Ask Central failed', error);
+
+    const status = error instanceof Error && 'status' in error && typeof (error as { status?: unknown }).status === 'number'
+      ? (error as { status: number }).status
+      : 0;
+
+    if (status === 401 || status === 403) {
+      return NextResponse.json({
+        error: 'Ask Central could not authenticate with Gemini.',
+        hint: 'Check GEMINI_API_KEY in the Vercel project, then redeploy if the key was changed.',
+      }, { status: 502 });
+    }
+
+    if (status === 429) {
+      return NextResponse.json({
+        error: 'Ask Central is temporarily at its Gemini usage limit.',
+        hint: 'Both Gemini models were tried automatically. Please try again in a moment.',
+      }, { status: 503 });
+    }
+
+    if (status >= 500) {
+      return NextResponse.json({
+        error: 'Ask Central is busy right now.',
+        hint: 'The primary Gemini model was retried and the Flash-Lite backup was tried automatically. Please try again in a moment.',
+      }, { status: 503 });
+    }
+
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Ask Central is temporarily unavailable.',
-      hint: 'Ask Central now uses the winery Gemini API key directly. Check GEMINI_API_KEY and the Gemini API project if the problem continues.',
+      hint: 'Ask Central automatically retries temporary Gemini errors and falls back to Flash-Lite when possible.',
     }, { status: 502 });
   }
 }
