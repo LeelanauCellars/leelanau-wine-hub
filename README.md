@@ -244,3 +244,24 @@ The second supplied Wine Lifestyle Images ZIP is now included in `public/lifesty
 The Tasting Room and Admin portals include **Merch/Apparel**, backed by the existing server-side Commerce7 connection. It reads General Merchandise/Apparel products and variants and prints the exact Commerce7 `upcCode` as Code 128 without UPC-A check-digit validation or mutation.
 
 DYMO print target: **30334 Medium Multipurpose, 2.25in × 1.25in**. The print stylesheet uses a named `@page` at the exact physical label size and hides all non-label UI during printing.
+
+## Direct links and lwc.wine deployment
+
+Central supports permanent, shareable URLs instead of requiring staff (or an authorized browser agent) to click through the navigation every time. Wine records use the Commerce7 product slug when it is available, with the existing Central wine ID/name as a fallback.
+
+Examples at the app root:
+
+- `/wine-library/baco-noir-2021`
+- `/wine-library/baco-noir-2021/specs`
+- `/tech-sheets/baco-noir-2021`
+- `/distribution-wines/<product-slug>`
+
+The browser Back and Forward buttons follow these routes normally. Deep links also survive the Central entry/PIN flow and open the appropriate portal after entry.
+
+For the planned WordPress integration on the canonical winery domain `https://lwc.wine`, set the public path prefix at build time if Central is served under `/central`:
+
+```bash
+NEXT_PUBLIC_CENTRAL_PATH_PREFIX=/central
+```
+
+That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir-2021`. If Central is instead deployed at a dedicated subdomain such as `central.lwc.wine`, leave `NEXT_PUBLIC_CENTRAL_PATH_PREFIX` blank.

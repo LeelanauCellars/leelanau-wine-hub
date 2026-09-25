@@ -32,6 +32,7 @@ export type WineRecord = {
   bottleImage?: string;
   imageAssets?: WineImageAsset[];
   productUrl?: string;
+  permalinkSlug?: string;
   price?: number;
   upc?: string;
   volumeMl?: number;

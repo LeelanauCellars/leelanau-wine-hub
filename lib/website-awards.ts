@@ -2,7 +2,7 @@ import type { Award } from './types';
 
 export type WebsiteAward = Award & { wineName: string };
 
-const AWARDS_URL = 'https://www.lwc.wine/awards/';
+const AWARDS_URL = 'https://lwc.wine/awards/';
 const RESULTS = ['Best of Class', 'Best in Class', 'Double Gold', 'Gold', 'Silver', 'Bronze'];
 
 const awardGraphicUrl = (year: number, result: string) => {
