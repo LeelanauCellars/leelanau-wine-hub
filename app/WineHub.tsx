@@ -2183,6 +2183,33 @@ function caseSalesDisplayDate(value?: string | null, options: Intl.DateTimeForma
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-US', options).format(date);
 }
 
+function caseSalesMonthDays(summary: CaseSalesSummary) {
+  if (!summary.asOfDate) return [];
+  const [year, month] = summary.asOfDate.split('-').map(Number);
+  if (!year || !month) return [];
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const byDate = new Map((summary.dailyCases || []).map((day) => [day.date, day]));
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`;
+    const day = byDate.get(date);
+    return {
+      date,
+      future: date > summary.asOfDate,
+      cases: day?.cases ?? 0,
+      grossCases: day?.grossCases ?? day?.cases ?? 0,
+      caseOrders: day?.caseOrders ?? 0,
+    };
+  });
+}
+
+function formatCaseQuantity(value: number) {
+  return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function formatSignedMoney(value: number) {
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
 function CaseSalesTracker({ role }: { role: AccessRole }) {
   const [data, setData] = useState<CaseSalesApiPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2265,105 +2292,148 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
   const summary = data?.summary;
   const metrics = data?.metrics;
   const progress = metrics?.progressPercent ?? 0;
-  const recentDays = summary?.dailyCases.slice(-10) ?? [];
-  const maxDailyCases = Math.max(1, ...recentDays.map((day) => day.cases));
-  const overGoal = summary?.goalCases ? Math.max(0, summary.casesSold - summary.goalCases) : 0;
+  const legacySummary = summary && summary.version !== 2;
+  const grossCases = summary ? (summary.grossCasesSold ?? summary.casesSold) : 0;
+  const netCases = summary ? (summary.casesRemainingAfterLinkedRefunds ?? summary.casesSold) : 0;
+  const validationRows = summary?.validationRows ?? [];
+  const refundRows = validationRows.filter((item) => item.linkedRefunds?.length);
+  const monthDays = summary ? caseSalesMonthDays(summary) : [];
+  const overGoal = summary?.goalCases ? Math.max(0, netCases - summary.goalCases) : 0;
+  const legacyPosOrders = summary ? (summary as CaseSalesSummary & { posOrdersReviewed?: number }).posOrdersReviewed : undefined;
+  const wineTransactionsReviewed = summary?.wineTransactionsReviewed ?? legacyPosOrders ?? 0;
 
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
     <PageHeader
       title="Case Sales Tracker"
-      right={<label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer bg-black text-white hover:bg-black/85'}`}>
+      right={<label className={`flex items-center gap-2 rounded-xl px-5 py-3.5 text-base font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer bg-black text-white hover:bg-black/85'}`}>
         <Upload className="h-4 w-4" /> {uploading ? 'Updating…' : 'Upload sales CSV'}
         <input type="file" accept=".csv,text/csv" className="hidden" disabled={uploading || data?.storageConfigured === false} onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} />
       </label>}
     />
 
-    {notice && <div className="mb-4 rounded-xl border border-black/8 bg-[#f7f8f9] px-4 py-3 text-sm font-bold text-black/65">{notice}</div>}
+    {notice && <div className="mb-5 rounded-xl border border-black/8 bg-[#f7f8f9] px-5 py-4 text-base font-bold text-black/70">{notice}</div>}
 
     {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-black/10 bg-white"><Loader2 className="h-6 w-6 animate-spin text-black/35" /></div> :
-      !data?.storageConfigured ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><p className="font-black text-amber-950">Vercel Blob is not connected.</p><p className="mt-2 text-sm leading-6 text-amber-900/80">Connect the same Blob store used by the tasting-room menu, then redeploy Central.</p></div> :
+      !data?.storageConfigured ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><p className="text-lg font-black text-amber-950">Vercel Blob is not connected.</p><p className="mt-2 text-base leading-7 text-amber-900/80">Connect the same Blob store used by the tasting-room menu, then redeploy Central.</p></div> :
       !summary ? <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-20 text-center">
         <BarChart3 className="mx-auto h-9 w-9 text-black/20" />
-        <h2 className="mt-4 text-xl font-black">Upload the first case-sales report</h2>
-        <p className="mx-auto mt-2 max-w-[650px] text-sm leading-6 text-black/50">Use the Commerce7 order CSV. Central groups Bottle Quantity (column CK) by Order Number (column E), counts 12–23 bottles as 1 case, 24–35 as 2 cases, and so on. When Channel is included, only POS sales are counted.</p>
+        <h2 className="mt-4 text-2xl font-black">Upload the first case-sales report</h2>
+        <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Central uses only rows where Type = Wine, groups those rows by transaction Id, totals Bottle Quantity across the entire transaction, and uses Quantity only when Bottle Quantity is blank. Whole cases are calculated only after the transaction is combined. Linked refunds and exchanges are then applied back to the original case transaction.</p>
       </div> :
       <>
-        <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[.14em] text-[#326eac]">Current progress</p>
-              <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
-                <span className="text-5xl font-black leading-none tracking-[-.04em]">{summary.casesSold.toLocaleString()}</span>
-                <span className="pb-1 text-lg font-black text-black/42">{summary.goalCases ? `of ${summary.goalCases.toLocaleString()} cases` : 'cases sold'}</span>
-              </div>
-              <p className="mt-3 text-sm font-bold text-black/52">As of {caseSalesDisplayDate(summary.asOfDate)}{summary.goalEndDate && summary.goalCases ? ` · Goal through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : ''}</p>
-            </div>
-            <div className="max-w-[680px] xl:text-right">
-              {!summary.goalCases ? <p className="text-base font-black">Set a goal in Admin to calculate cases remaining and the daily pace needed.</p> :
-                metrics?.goalReached ? <p className="text-lg font-black text-emerald-700">Goal reached{overGoal > 0 ? ` — ${overGoal} cases above goal.` : '.'}</p> :
-                <p className="text-lg font-black">{metrics?.remainingCases?.toLocaleString()} cases to go{metrics?.remainingDays !== null ? ` · ${metrics?.remainingDays} days remaining` : ''}{metrics?.casesPerDayNeeded !== null ? ` · ${metrics?.casesPerDayNeeded.toFixed(1)} cases/day needed` : ''}</p>}
-            </div>
-          </div>
+        {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Upload the Commerce7 CSV again to apply the updated transaction, Wine-only, and linked-refund calculation.</div>}
 
-          {summary.goalCases && <div className="mt-6">
-            <div className="h-4 overflow-hidden rounded-full bg-black/[.07]"><div className="h-full rounded-full bg-[#326eac] transition-all" style={{ width: `${Math.max(1, progress)}%` }} /></div>
-            <div className="mt-2 flex items-center justify-between text-[11px] font-black text-black/42"><span>{progress.toFixed(1)}% of goal</span><span>{summary.goalCases.toLocaleString()} cases</span></div>
-          </div>}
+        <section className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+          <div className="grid gap-7 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.14em] text-[#326eac]">Current progress</p>
+              <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+                <span className="text-6xl font-black leading-none tracking-[-.05em]">{netCases.toLocaleString()}</span>
+                <span className="pb-1 text-xl font-black text-black/50">{summary.goalCases ? `of ${summary.goalCases.toLocaleString()} cases` : 'cases counting toward goal'}</span>
+              </div>
+              <p className="mt-4 text-base font-bold text-black/60">As of {caseSalesDisplayDate(summary.asOfDate)}{summary.goalEndDate && summary.goalCases ? ` · Goal through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : ''}</p>
+
+              {summary.goalCases && <div className="mt-6">
+                <div className="h-5 overflow-hidden rounded-full bg-black/[.07]"><div className="h-full rounded-full bg-[#326eac] transition-all" style={{ width: `${Math.max(1, progress)}%` }} /></div>
+                <div className="mt-3 flex items-center justify-between text-sm font-black text-black/55"><span>{progress.toFixed(1)}% of goal</span><span>{summary.goalCases.toLocaleString()} cases</span></div>
+              </div>}
+            </div>
+
+            {summary.goalCases ? <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+              <CaseSalesKpi label="Cases to go" value={metrics?.remainingCases !== null && metrics?.remainingCases !== undefined ? metrics.remainingCases.toLocaleString() : '—'} detail={metrics?.goalReached ? `Goal reached${overGoal ? ` · ${overGoal} over` : ''}` : 'Remaining'} />
+              <CaseSalesKpi label="Days remaining" value={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? metrics.remainingDays.toLocaleString() : '—'} detail={summary.goalEndDate ? `Through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : 'Set in Admin'} />
+              <CaseSalesKpi label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Cases/day'} />
+            </div> : <div className="rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">Set a goal in Admin to calculate cases remaining, days left, and the daily pace needed.</div>}
+          </div>
         </section>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <CaseSalesStat label="Cases sold" value={summary.casesSold.toLocaleString()} detail={`${summary.caseOrders.toLocaleString()} case-sale orders`} />
-          <CaseSalesStat label="Goal" value={summary.goalCases ? summary.goalCases.toLocaleString() : '—'} detail={summary.goalEndDate ? `Through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : 'Set in Admin'} />
-          <CaseSalesStat label="Cases to go" value={metrics?.remainingCases !== null && metrics?.remainingCases !== undefined ? metrics.remainingCases.toLocaleString() : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Remaining to goal'} />
-          <CaseSalesStat label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? `${metrics.remainingDays} days remaining` : 'Set a goal date'} />
-        </div>
+        <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="text-2xl font-black">Daily Case Sales</h2><p className="mt-1 text-base font-semibold text-black/55">Every day in {caseSalesDisplayDate(summary.asOfDate, { month: 'long', year: 'numeric' })}. Totals count whole cases remaining after any linked refunds.</p></div>
+            <div className="text-base font-black text-[#326eac]">{netCases.toLocaleString()} cases through {caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}</div>
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            {monthDays.map((day) => {
+              const adjusted = !day.future && day.grossCases !== day.cases;
+              return <div key={day.date} className={`rounded-2xl border p-4 ${day.future ? 'border-black/[.06] bg-black/[.025] text-black/30' : day.date === summary.asOfDate ? 'border-[#326eac]/45 bg-[#eef5fd]' : 'border-black/[.08] bg-white'}`}>
+                <p className="text-sm font-black">{caseSalesDisplayDate(day.date, { month: 'short', day: 'numeric' })}</p>
+                <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black leading-none">{day.future ? '—' : day.cases}</span>{!day.future && <span className="pb-0.5 text-sm font-bold text-black/50">{day.cases === 1 ? 'case' : 'cases'}</span>}</div>
+                {day.future ? <p className="mt-2 text-sm font-semibold">Not reported</p> : adjusted ? <p className="mt-2 text-sm font-bold text-amber-700">{day.grossCases} gross · refund adjusted</p> : <p className="mt-2 text-sm font-semibold text-black/45">{day.caseOrders} case {day.caseOrders === 1 ? 'transaction' : 'transactions'}</p>}
+              </div>;
+            })}
+          </div>
+        </section>
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
-          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-end justify-between gap-4"><div><h2 className="text-lg font-black">Recent case sales</h2><p className="mt-1 text-xs font-semibold text-black/45">Case equivalents by order date</p></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">Last {recentDays.length} sales days</span></div>
-            <div className="mt-5 space-y-3">
-              {recentDays.length ? recentDays.map((day) => <div key={day.date} className="grid grid-cols-[84px_1fr_48px] items-center gap-3">
-                <span className="text-xs font-black text-black/55">{caseSalesDisplayDate(day.date, { month: 'short', day: 'numeric' })}</span>
-                <div className="h-2.5 overflow-hidden rounded-full bg-black/[.06]"><div className="h-full rounded-full bg-[#5ba3f8]" style={{ width: `${Math.max(4, (day.cases / maxDailyCases) * 100)}%` }} /></div>
-                <span className="text-right text-sm font-black">{day.cases}</span>
-              </div>) : <p className="py-8 text-center text-sm font-semibold text-black/40">No case-sale orders were found yet.</p>}
+        {role === 'admin' && <>
+          <section className="mt-5 rounded-3xl border border-black/10 bg-[#f8f9fb] p-6 md:p-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div><h2 className="text-xl font-black">Goal settings</h2><p className="mt-1 text-base font-semibold text-black/55">Set the case goal and the final day the team has to reach it.</p></div>
+              <div className="grid gap-3 sm:grid-cols-[170px_200px_auto]">
+                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Case goal</span><input type="number" min="1" step="1" value={goalCases} onChange={(event) => setGoalCases(event.target.value)} className="field-input h-12 text-base" placeholder="300" /></label>
+                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Goal end date</span><input type="date" value={goalEndDate} onChange={(event) => setGoalEndDate(event.target.value)} className="field-input h-12 text-base" /></label>
+                <button onClick={() => void saveGoal()} disabled={savingGoal || !goalCases || !goalEndDate} className="flex h-12 items-center justify-center gap-2 self-end rounded-xl bg-[#326eac] px-5 text-base font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save goal</button>
+              </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-black">Report details</h2>
-            <dl className="mt-4 space-y-3 text-sm">
+          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+            <h2 className="text-2xl font-black">Admin Report Details</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <CaseSalesAdminStat label="Gross Number of Cases Sold" value={grossCases.toLocaleString()} />
+              <CaseSalesAdminStat label="Cases Remaining After Linked Refunds" value={netCases.toLocaleString()} />
+              <CaseSalesAdminStat label="Transactions Featuring a Case or More" value={summary.caseOrders.toLocaleString()} />
+              <CaseSalesAdminStat label="Wine Transactions Reviewed" value={wineTransactionsReviewed.toLocaleString()} />
+            </div>
+            <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-black/[.07] pt-5 text-base md:grid-cols-2">
               <CaseSalesDetail label="Sales period" value={`${caseSalesDisplayDate(summary.periodStartDate, { month: 'short', day: 'numeric' })} – ${caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}`} />
-              <CaseSalesDetail label="POS orders reviewed" value={summary.posOrdersReviewed.toLocaleString()} />
-              <CaseSalesDetail label="Case-sale orders" value={summary.caseOrders.toLocaleString()} />
+              <CaseSalesDetail label="Wine rows reviewed" value={(summary.wineRowsReviewed ?? 0).toLocaleString()} />
               <CaseSalesDetail label="Source file" value={summary.sourceFilename} />
               <CaseSalesDetail label="Last updated" value={new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(summary.importedAt))} />
             </dl>
-            <div className="mt-5 rounded-xl bg-[#f5f7f9] p-3 text-[11px] font-semibold leading-5 text-black/55"><strong className="text-black/75">How cases are counted:</strong> Central totals Bottle Quantity by Order Number. Every complete group of 12 bottles counts as one case: 12–23 = 1, 24–35 = 2, etc. Negative/refund-only orders never create a case.</div>
-            <p className="mt-3 text-[10px] font-semibold leading-4 text-black/35">For privacy, Central stores only this aggregate summary in Blob. The uploaded CSV and its customer/order details are not retained.</p>
+            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</div>
+            <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, the raw Commerce7 CSV and customer details are not retained. Central stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
           </section>
-        </div>
 
-        {role === 'admin' && <section className="mt-4 rounded-2xl border border-black/10 bg-[#f8f9fb] p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div><h2 className="text-base font-black">Goal settings</h2><p className="mt-1 text-xs font-semibold text-black/45">Set the case goal and the final day the team has to reach it.</p></div>
-            <div className="grid gap-3 sm:grid-cols-[160px_190px_auto]">
-              <label><span className="mb-1.5 block text-[10px] font-black uppercase tracking-[.12em] text-black/42">Case goal</span><input type="number" min="1" step="1" value={goalCases} onChange={(event) => setGoalCases(event.target.value)} className="field-input h-11" placeholder="300" /></label>
-              <label><span className="mb-1.5 block text-[10px] font-black uppercase tracking-[.12em] text-black/42">Goal end date</span><input type="date" value={goalEndDate} onChange={(event) => setGoalEndDate(event.target.value)} className="field-input h-11" /></label>
-              <button onClick={() => void saveGoal()} disabled={savingGoal || !goalCases || !goalEndDate} className="flex h-11 items-center justify-center gap-2 self-end rounded-xl bg-[#326eac] px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save goal</button>
+          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+            <h2 className="text-2xl font-black">Case Refund Review</h2>
+            {refundRows.length ? <>
+              <p className="mt-2 text-base font-semibold leading-7 text-black/55">Linked Wine refunds/exchanges affecting an original case transaction are shown here. Gross case sales remain visible separately from the adjusted total.</p>
+              <div className="mt-5 overflow-x-auto rounded-2xl border border-black/[.08]">
+                <table className="min-w-[900px] w-full border-collapse text-left text-sm">
+                  <thead className="bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Original Order</th><th className="p-4 font-black">Refund / Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Wine Product SubTotal</th><th className="p-4 font-black">Gross Cases</th><th className="p-4 font-black">Cases Remaining</th></tr></thead>
+                  <tbody>{refundRows.flatMap((item) => item.linkedRefunds.map((refund, refundIndex) => <tr key={`${item.id}-${refund.id}`} className="border-t border-black/[.07]"><td className="p-4 font-black">{item.orderNumber}</td><td className="p-4 font-black">{refund.orderNumber || '—'}</td><td className="p-4 font-black">{formatCaseQuantity(refund.wineBottles)}</td><td className="p-4 font-black">{formatSignedMoney(refund.wineProductSubtotal)}</td><td className="p-4 font-black">{refundIndex === 0 ? item.grossWholeCases : '—'}</td><td className="p-4 font-black">{refundIndex === 0 ? item.casesRemainingAfterRefunds : '—'}</td></tr>))}</tbody>
+                </table>
+              </div>
+            </> : <p className="mt-3 rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">No case-sale refunds or exchanges were found. Gross Number of Cases Sold and Cases Remaining After Linked Refunds are the same.</p>}
+          </section>
+
+          <details className="mt-5 rounded-3xl border border-black/10 bg-white shadow-sm">
+            <summary className="cursor-pointer list-none px-6 py-5 text-xl font-black md:px-7">Validation Table · {validationRows.length.toLocaleString()} qualifying case transactions</summary>
+            <div className="border-t border-black/[.07] px-4 pb-6 pt-4 md:px-6">
+              <p className="mb-4 text-base font-semibold leading-7 text-black/55">Every original positive Wine transaction containing at least 12 bottles is listed here before the final totals are reported.</p>
+              <div className="max-h-[680px] overflow-auto rounded-2xl border border-black/[.08]">
+                <table className="min-w-[1320px] w-full border-collapse text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Order Number</th><th className="p-4 font-black">Id</th><th className="p-4 font-black">Original Wine Bottles</th><th className="p-4 font-black">Gross Whole Cases</th><th className="p-4 font-black">Linked Refund/Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Remaining Wine Bottles</th><th className="p-4 font-black">Cases Remaining After Refunds</th></tr></thead>
+                  <tbody>{validationRows.map((item) => <tr key={item.id} className="border-t border-black/[.07] align-top"><td className="p-4 font-black">{item.orderNumber}</td><td className="max-w-[270px] break-all p-4 font-mono text-xs font-bold text-black/65">{item.id}</td><td className="p-4 font-black">{formatCaseQuantity(item.originalWineBottles)}</td><td className="p-4 font-black">{item.grossWholeCases}</td><td className="p-4 font-black">{item.linkedRefunds.length ? item.linkedRefunds.map((refund) => refund.orderNumber).filter(Boolean).join(', ') : ''}</td><td className="p-4 font-black">{item.linkedRefunds.length ? formatCaseQuantity(item.refundedWineBottles) : ''}</td><td className="p-4 font-black">{formatCaseQuantity(item.remainingWineBottles)}</td><td className="p-4 font-black">{item.casesRemainingAfterRefunds}</td></tr>)}</tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        </section>}
+          </details>
+        </>}
       </>}
   </div>;
 }
 
-function CaseSalesStat({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm"><p className="text-[10px] font-black uppercase tracking-[.13em] text-black/38">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p><p className="mt-1 text-xs font-bold text-black/42">{detail}</p></div>;
+function CaseSalesKpi({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="rounded-2xl border border-black/[.08] bg-[#f7f9fb] p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p><p className="mt-2 text-sm font-bold text-black/50">{detail}</p></div>;
+}
+
+function CaseSalesAdminStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl border border-black/[.08] bg-[#f8f9fb] p-5"><p className="text-sm font-black leading-5 text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p></div>;
 }
 
 function CaseSalesDetail({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-4 border-b border-black/[.06] pb-3 last:border-0 last:pb-0"><dt className="font-bold text-black/45">{label}</dt><dd className="max-w-[60%] text-right font-black text-black/75">{value}</dd></div>;
+  return <div className="flex items-start justify-between gap-4 border-b border-black/[.06] pb-3 last:border-0 last:pb-0"><dt className="font-bold text-black/55">{label}</dt><dd className="max-w-[62%] text-right font-black text-black/80">{value}</dd></div>;
 }
 
 function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; role: AccessRole }) {
