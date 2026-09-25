@@ -64,6 +64,7 @@ export type TechSheetDraft = {
   abv: string;
   casePack: string;
   upc: string;
+  gtin: string;
   retailerCost: string;
   distributorCost: string;
   srp: string;

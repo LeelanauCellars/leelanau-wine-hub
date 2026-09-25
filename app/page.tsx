@@ -555,10 +555,11 @@ function shouldAutoIncludeCasePackaging(wine: WineRecord, tastingNotes: string, 
   return projectedContentHeight <= 790;
 }
 
-function draftFromWine(wine: WineRecord): TechSheetDraft {
+function draftFromWine(wine: WineRecord, distributionWines: DistributionWine[] = DISTRIBUTION_WINES): TechSheetDraft {
   const casePackaging = casePackagingForWine(wine);
   const tastingNotes = shortCommerce7TastingNotes(wine) || wine.tastingNotes || wine.shortDescription || '';
   const highlights = commerce7SalesHighlights(wine);
+  const distributionItem = distributionItemForWine(wine, distributionWines);
   return {
     wineId: wine.id,
     wineName: wine.name,
@@ -567,6 +568,7 @@ function draftFromWine(wine: WineRecord): TechSheetDraft {
     abv: wine.abv || '',
     casePack: wine.casePack || (wine.volumeMl ? `12–${wine.volumeMl} mL bottles` : ''),
     upc: formatUpc(wine.upc || ''),
+    gtin: distributionItem?.gtin || '',
     retailerCost: '',
     distributorCost: '',
     srp: wine.price === undefined ? '' : `$${wine.price.toFixed(2)}`,
@@ -682,7 +684,7 @@ export default function WineHub() {
 
   useEffect(() => {
     if (!activeWine) return;
-    setTechDraft(draftFromWine(activeWine));
+    setTechDraft(draftFromWine(activeWine, distributionWines));
   }, [activeWineId]);
 
   useEffect(() => {
@@ -787,7 +789,7 @@ export default function WineHub() {
   function openTech(wine = activeWine) {
     if (!wine || !canUseTechSheets) return;
     setActiveWineId(wine.id);
-    setTechDraft(draftFromWine(wine));
+    setTechDraft(draftFromWine(wine, distributionWines));
     setView('tech');
     setMobileNav(false);
   }
@@ -925,24 +927,24 @@ export default function WineHub() {
             {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => { setView('awards'); setMobileNav(false); }} />}
           </nav>
 
-          <div className="mt-auto space-y-3">
+          {isPortalAdmin && <div className="mt-auto space-y-3">
             <div className="rounded-2xl border border-black/10 bg-white p-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-black/35">Portal</p>
-                <p className="mt-1 text-xs font-black">{portalRole === 'admin' ? 'Admin' : portalRole === 'sales' ? 'Sales' : portalRole === 'tasting' ? 'Tasting Room' : 'Distributors'}</p>
+                <p className="mt-1 text-xs font-black">Admin</p>
               </div>
               {access.enabled && <button onClick={() => void logout()} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-2 text-[10px] font-black text-black/55 hover:bg-black/[.04]"><LogOut className="h-3.5 w-3.5" /> Log out</button>}
             </div>
             <div className="rounded-2xl border border-black/10 bg-[#f8f9fb] p-3">
-            <div className="flex items-start gap-2.5">
-              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${sync.configured ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-              <div className="min-w-0"><p className="text-xs font-bold">Data source</p><p className="mt-1 text-[11px] leading-4 text-black/55">{sync.message}</p></div>
+              <div className="flex items-start gap-2.5">
+                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${sync.configured ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                <div className="min-w-0"><p className="text-xs font-bold">Data source</p><p className="mt-1 text-[11px] leading-4 text-black/55">{sync.message}</p></div>
+              </div>
+              <button onClick={() => void syncCommerce7()} disabled={!sync.configured || sync.loading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45">
+                {sync.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sync now
+              </button>
             </div>
-            <button onClick={() => void syncCommerce7()} disabled={!sync.configured || sync.loading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45">
-              {sync.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sync now
-            </button>
-            </div>
-          </div>
+          </div>}
         </div>
       </aside>
 
@@ -955,7 +957,7 @@ export default function WineHub() {
         </div>
 
         {view === 'library' && canUseWineLibrary && (
-          <WineLibrary wines={filteredWines} allWines={wines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} collection={wineCollection} setCollection={setWineCollection} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
+          <WineLibrary wines={filteredWines} allWines={wines} distributionWines={distributionWines} categories={categories} query={query} setQuery={setQuery} category={category} setCategory={setCategory} collection={wineCollection} setCollection={setWineCollection} openWine={openWine} openTech={openTech} sync={sync} allowTechSheets={canUseTechSheets} />
         )}
         {view === 'profile' && canUseWineLibrary && activeWine && (
           <WineProfile wine={activeWine} distributionWines={distributionWines} tab={profileTab} setTab={setProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => setView('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
@@ -972,10 +974,10 @@ export default function WineHub() {
         )}
         {view === 'quickfacts' && canUseQuickFacts && <QuickFactsView />}
         {view === 'tech-library' && canUseTechSheets && (
-          <TechSheetLibrary wines={wines} openTech={openTech} />
+          <TechSheetLibrary wines={wines} distributionWines={distributionWines} openTech={openTech} />
         )}
         {view === 'tech' && canUseTechSheets && (
-          <TechSheetBuilder wines={wines} activeWine={activeWine} activeWineId={activeWineId} setActiveWineId={setActiveWineId} draft={techDraft} setDraft={setTechDraft} back={() => setView('tech-library')} />
+          <TechSheetBuilder wines={wines} distributionWines={distributionWines} activeWine={activeWine} activeWineId={activeWineId} setActiveWineId={setActiveWineId} draft={techDraft} setDraft={setTechDraft} back={() => setView('tech-library')} />
         )}
         {view === 'awards' && canUseAwards && <AwardsView wines={wines} openWine={openWine} />}
       </main>
@@ -1188,6 +1190,17 @@ function distributionPercent(value: string | number | null | undefined) {
   return `${distributionValue(value)}%`;
 }
 
+function packagingMeasure(value: unknown, suffix = '') {
+  if (value === undefined || value === null || value === '' || value === '-' || value === 0 || value === '0') return '—';
+  const formatted = distributionValue(value);
+  if (!suffix) return formatted;
+  const compact = formatted.toLowerCase().replace(/\s+/g, '');
+  if (suffix === 'in' && /(?:\"|in|inch|inches)$/.test(compact)) return formatted;
+  if (suffix === 'oz' && /oz$/.test(compact)) return formatted;
+  if (suffix === 'lb' && /(?:lb|lbs|pound|pounds)$/.test(compact)) return formatted.replace(/(\d)(lbs?)/i, '$1 $2');
+  return `${formatted} ${suffix}`;
+}
+
 function distributionCollectionForItem(item: DistributionWine, wines: WineRecord[]): WineCollectionName {
   // Distribution workbook family names are intentional brand assignments. Keep those
   // authoritative so a legacy/matched Commerce7 record cannot move a product into
@@ -1249,7 +1262,7 @@ function DistributionLibrary({ wines, distributionWines, collection, setCollecti
   const showProducts = Boolean(collection) || Boolean(needle);
 
   return <div className="no-print mx-auto max-w-[1480px] p-5 md:p-8 xl:p-10">
-    <PageHeader eyebrow="Distributor resources" title="Distribution Wines" description="Start with a collection, then find product codes, technical specifications, packaging measurements and sales assets for the wine you need." right={<div className="flex gap-2"><Stat value={currentCount} label="current" /></div>} />
+    <PageHeader title="Distribution Wines" right={<div className="flex gap-2"><Stat value={currentCount} label="current" /></div>} />
 
     <div className="mb-6">
       <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={collection ? `Search ${collection} products…` : 'Search all distribution products…'} className="h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm shadow-sm outline-none focus:border-black/30" /></div>
@@ -1446,8 +1459,8 @@ function DistributionFacts({ rows }: { rows: readonly (readonly [string, unknown
   return <dl className="grid gap-x-5 gap-y-4 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="min-w-0 border-b border-black/[.06] pb-3"><dt className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</dt><dd className="mt-1 break-words text-sm font-bold">{distributionValue(value)}</dd></div>)}</dl>;
 }
 
-function WineLibrary({ wines, allWines, categories, query, setQuery, category, setCategory, collection, setCollection, openWine, openTech, sync, allowTechSheets }: {
-  wines: WineRecord[]; allWines: WineRecord[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; collection: WineCollectionName | null; setCollection: (value: WineCollectionName | null) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState; allowTechSheets: boolean;
+function WineLibrary({ wines, allWines, distributionWines, categories, query, setQuery, category, setCategory, collection, setCollection, openWine, openTech, sync, allowTechSheets }: {
+  wines: WineRecord[]; allWines: WineRecord[]; distributionWines: DistributionWine[]; categories: string[]; query: string; setQuery: (value: string) => void; category: string; setCategory: (value: string) => void; collection: WineCollectionName | null; setCollection: (value: WineCollectionName | null) => void; openWine: (wine: WineRecord) => void; openTech: (wine: WineRecord) => void; sync: SyncState; allowTechSheets: boolean;
 }) {
   const [batchMode, setBatchMode] = useState(false);
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
@@ -1523,7 +1536,7 @@ function WineLibrary({ wines, allWines, categories, query, setQuery, category, s
 
     {allowTechSheets && batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">
       {selectedWines.map((wine) => {
-        const batchDraft = { ...draftFromWine(wine), headerColor: batchColors[wine.id] || TECH_COLOR };
+        const batchDraft = { ...draftFromWine(wine, distributionWines), headerColor: batchColors[wine.id] || TECH_COLOR };
         return <div key={`batch-${wine.id}`} className="batch-tech-page"><TechSheetPaper draft={batchDraft} wine={wine} /></div>;
       })}
     </div>}
@@ -1594,7 +1607,7 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
 
     {tab === 'sales' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Sales highlights">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /> : <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul>}</ProfileBlock><ProfileBlock title="Production / vineyard notes">{isEditing ? <><label className="field-label">Production notes</label><Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /><label className="field-label mt-4">Vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></> : <div className="space-y-5"><div><p className="field-label">Production notes</p><p className="profile-copy">{shown.productionNotes || 'No production notes added.'}</p></div><div><p className="field-label">Vineyard notes</p><p className="profile-copy">{shown.vineyardNotes || 'No vineyard notes added.'}</p></div></div>}</ProfileBlock></div>}
 
-    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><QuickFact label="GTIN" value={gtin} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock></div>}
+    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><QuickFact label="GTIN" value={gtin} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock><div className="lg:col-span-2"><ProfileBlock title="Unit & case dimensions / weight" badge="Distribution data"><div className="grid gap-6 md:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Unit</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.height, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.width, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.weightOz, 'oz')} /><QuickFact label="Pack" value={packagingMeasure(distributionItem?.imperial.pack)} /></dl></div><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Case</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.caseHeight, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.caseWidth, 'in')} /><QuickFact label="Length" value={packagingMeasure(distributionItem?.imperial.caseLength, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.caseWeight, 'lb')} /></dl></div></div>{!distributionItem && <p className="mt-4 text-xs font-semibold text-black/40">No matching distribution packaging record is available for this wine yet.</p>}</ProfileBlock></div></div>}
 
     {tab === 'assets' && <WineProfileAssets wine={shown} />}
   </div>;
@@ -2103,7 +2116,7 @@ function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (
   </div>;
 }
 
-function TechSheetLibrary({ wines, openTech }: { wines: WineRecord[]; openTech: (wine: WineRecord) => void }) {
+function TechSheetLibrary({ wines, distributionWines, openTech }: { wines: WineRecord[]; distributionWines: DistributionWine[]; openTech: (wine: WineRecord) => void }) {
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('All');
   const [collection, setCollection] = useState<WineCollectionName | null>(null);
@@ -2147,12 +2160,13 @@ function TechSheetLibrary({ wines, openTech }: { wines: WineRecord[]; openTech: 
         {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
       </>}
     </div>
-    {batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">{selectedWines.map((wine) => { const batchDraft = { ...draftFromWine(wine), headerColor: batchColors[wine.id] || TECH_COLOR }; return <div key={`tech-library-batch-${wine.id}`} className="batch-tech-page"><TechSheetPaper draft={batchDraft} wine={wine} /></div>; })}</div>}
+    {batchMode && selectedWines.length > 0 && <div className="batch-tech-print print-root hidden print:block">{selectedWines.map((wine) => { const batchDraft = { ...draftFromWine(wine, distributionWines), headerColor: batchColors[wine.id] || TECH_COLOR }; return <div key={`tech-library-batch-${wine.id}`} className="batch-tech-page"><TechSheetPaper draft={batchDraft} wine={wine} /></div>; })}</div>}
   </>;
 }
 
-function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, draft, setDraft, back }: {
+function TechSheetBuilder({ wines, distributionWines, activeWine, activeWineId, setActiveWineId, draft, setDraft, back }: {
   wines: WineRecord[];
+  distributionWines: DistributionWine[];
   activeWine?: WineRecord;
   activeWineId: string;
   setActiveWineId: (id: string) => void;
@@ -2170,7 +2184,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
   const setWine = (id: string) => {
     setActiveWineId(id);
     const wine = wines.find((item) => item.id === id);
-    if (wine) setDraft(draftFromWine(wine));
+    if (wine) setDraft(draftFromWine(wine, distributionWines));
   };
 
   const loadImageFile = (file: File | undefined, key: 'awardGraphic' | 'casePackagingImage' | 'bottleImage' | 'displayImage') => {
@@ -2226,7 +2240,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
       <div className="flex items-center gap-3"><button onClick={back} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-black text-black/60"><ChevronLeft className="h-3.5 w-3.5" /> Tech Sheets</button><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Tech sheet builder</p><p className="text-sm font-black">Document overrides never change Commerce7</p></div></div>
       <div className="mt-3 flex flex-wrap items-center gap-2 xl:mt-0">
         <select value={activeWineId} onChange={(event) => setWine(event.target.value)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-bold">{wines.map((wine) => <option key={wine.id} value={wine.id}>{wine.name} · {wine.vintage}</option>)}</select>
-        <button onClick={() => activeWine && setDraft(draftFromWine(activeWine))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Start over</button>
+        <button onClick={() => activeWine && setDraft(draftFromWine(activeWine, distributionWines))} className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" /> Start over</button>
         <button onClick={() => printWithTitle(`Leelanau Cellars - ${activeWine?.name || draft.wineName}${activeWine?.vintage && activeWine.vintage !== 'NV' ? ` ${activeWine.vintage}` : ''} - Tech Sheet`)} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Download className="h-3.5 w-3.5" /> Print / Save PDF</button>
       </div>
     </div>
@@ -2267,6 +2281,7 @@ function TechSheetBuilder({ wines, activeWine, activeWineId, setActiveWineId, dr
             <div className="grid grid-cols-2 gap-3"><EditField label="ABV" value={draft.abv} onChange={(value) => update('abv', value)} /><EditField label="SRP" value={draft.srp} onChange={(value) => update('srp', value)} /></div>
             <div className="mt-3"><EditField label="Case size" value={draft.casePack} onChange={(value) => update('casePack', value)} /></div>
             <div className="mt-3"><EditField label="UPC" value={draft.upc} onChange={(value) => update('upc', value)} /></div>
+            <div className="mt-3"><EditField label="GTIN" value={draft.gtin} onChange={(value) => update('gtin', value)} /></div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <EditField label="Cost (Distributor)" value={draft.distributorCost} onChange={(value) => update('distributorCost', value)} />
               <EditField label="Cost (Retailer)" value={draft.retailerCost} onChange={(value) => update('retailerCost', value)} />
@@ -2427,7 +2442,7 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
     <div className="relative flex-1 overflow-hidden bg-white">
       <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
         <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]"><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>
-        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
+        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="GTIN" value={draft.gtin} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
         <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
         {(draft.includeCasePackaging || draft.displayImage) && <div className={`grid items-start ${draft.includeCasePackaging && draft.displayImage ? 'grid-cols-2 gap-5' : 'grid-cols-1'}`}>
           {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className={`${draft.displayImage ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}
