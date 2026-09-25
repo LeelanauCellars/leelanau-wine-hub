@@ -6,6 +6,9 @@ import { CURRENT_TASTING_MENU_TEXT } from '@/lib/tasting-room-content';
 const FALLBACK_MENU = '/tasting-room/current-menu.pdf';
 const FALLBACK_UPDATED = '2026-09-22T00:00:00.000Z';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 async function menuStorageState() {
   try {
     const blobs = await listMenuBlobs();
@@ -64,8 +67,11 @@ export async function GET(request: NextRequest) {
     source: current ? 'vercel-blob' : 'bundled',
     storageConfigured,
     canReplace: role === 'admin',
-    downloadUrl: '/api/tasting-room/menu?download=1',
-    viewUrl: '/api/tasting-room/menu?inline=1',
+    // Blob is public, so use its native URLs for the current uploaded menu.
+    // This keeps View/Download working even if the metadata route encounters a
+    // separate notes-text parsing issue. The bundled fallback still uses this API.
+    downloadUrl: current?.downloadUrl || '/api/tasting-room/menu?download=1',
+    viewUrl: current?.url || '/api/tasting-room/menu?inline=1',
     menuText,
     textSource,
     textError,

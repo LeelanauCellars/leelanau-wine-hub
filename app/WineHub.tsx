@@ -2152,6 +2152,18 @@ function notesSelectionKey(wine: WineRecord) {
   return `${winePermalinkSlug(wine)}::${routeSlug(wine.vintage || 'NV') || 'nv'}`;
 }
 
+async function menuApiJson(response: Response) {
+  const raw = await response.text();
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    const message = response.ok
+      ? 'Central received an unexpected response while loading the tasting-room menu.'
+      : `The tasting-room menu service returned an unexpected server response (${response.status}).`;
+    throw new Error(message);
+  }
+}
+
 function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; role: AccessRole }) {
   const [q, setQ] = useState('');
   const [showPicker, setShowPicker] = useState(false);
@@ -2181,7 +2193,7 @@ function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: 
     setMenuLoading(true);
     try {
       const response = await fetch('/api/tasting-room/menu', { cache: 'no-store' });
-      const data = await response.json();
+      const data = await menuApiJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to load menu information.');
       setMenuInfo(data);
     } catch (error) {
@@ -2200,7 +2212,7 @@ function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: 
       const form = new FormData();
       form.append('file', file);
       const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
-      const data = await response.json();
+      const data = await menuApiJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
       await loadMenuInfo();
       setMenuUploadNotice('Menu updated. Central created a text version and rebuilt the Notes list from the PDF.');
@@ -2222,7 +2234,7 @@ function TastingRoom({ wines, selected, setSelected, openWine, role }: { wines: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedSlugs }),
       });
-      const data = await response.json();
+      const data = await menuApiJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to save the Notes list.');
       setSelectionNotice(notice);
       await loadMenuInfo();
