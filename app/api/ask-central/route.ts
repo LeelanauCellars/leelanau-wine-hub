@@ -79,6 +79,165 @@ function sourceBlock(sources: AskCentralSource[]) {
   return sources.map((source) => `${source.id} | ${source.type.toUpperCase()} | ${source.title}\n${source.summary}`).join('\n\n');
 }
 
+function parsedSummary(source: AskCentralSource) {
+  try {
+    const parsed = JSON.parse(source.summary) as unknown;
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function displayValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '';
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== null && item !== undefined && item !== '')
+      .slice(0, 6)
+      .map(([key, item]) => `${key}: ${String(item)}`)
+      .join(' · ');
+  }
+  return String(value);
+}
+
+function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) {
+  const q = question.toLowerCase();
+
+  if (!sources.length) {
+    return "I couldn't find enough information in Central to answer that.";
+  }
+
+  const caseSource = sources.find((source) => source.type === 'case-sales');
+  if (caseSource && /\b(case|cases|goal|sales|sold|pace|remaining|per day|tracker)\b/i.test(question)) {
+    const data = parsedSummary(caseSource);
+    if (data) {
+      const metrics = data.metrics && typeof data.metrics === 'object' ? data.metrics as Record<string, unknown> : {};
+      const sold = displayValue(data.casesRemainingAfterLinkedRefunds);
+      const gross = displayValue(data.grossCasesSold);
+      const goal = displayValue(data.goalCases);
+      const remaining = displayValue(metrics.remainingCases);
+      const perDay = displayValue(metrics.casesPerDayNeeded);
+      const asOf = displayValue(data.asOfDate);
+      const pieces = [
+        sold ? `**Cases sold:** ${sold}` : '',
+        gross && gross !== sold ? `**Gross cases:** ${gross}` : '',
+        goal ? `**Goal:** ${goal}` : '',
+        remaining ? `**Cases to go:** ${remaining}` : '',
+        perDay ? `**Needed per day:** ${perDay}` : '',
+        asOf ? `**As of:** ${asOf}` : '',
+      ].filter(Boolean);
+      return `Gemini is busy, but Central can still pull the live tracker directly.\n\n${pieces.join('\n')} [${caseSource.id}]`;
+    }
+  }
+
+  const factsSource = sources.find((source) => source.type === 'quick-facts');
+  if (factsSource) {
+    const year = q.match(/\b20\d{2}\b/)?.[0];
+    if (year) {
+      const vintage = QUICK_FACTS.vintages.find((item) => item.year === year);
+      if (vintage) {
+        return `Gemini is busy, but Central found the ${year} vintage notes directly:\n\n${vintage.bullets.map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
+      }
+    }
+
+    if (/\b(history|founded|founder|owner|family|story)\b/i.test(question)) {
+      return `Gemini is busy, but Central found the winery history directly:\n\n${QUICK_FACTS.story.bullets.slice(0, 4).map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
+    }
+
+    if (/\b(vineyard|acre|acres|site|omena|pleasant hill|hilltop|m204)\b/i.test(question)) {
+      const sites = QUICK_FACTS.vineyards.map((item) => `• **${item.site}:** ${item.features}`).join('\n');
+      return `Gemini is busy, but Central found the vineyard information directly:\n\n${QUICK_FACTS.vineyardNote}\n${sites} [${factsSource.id}]`;
+    }
+  }
+
+  const distributionSource = sources.find((source) => source.type === 'distribution');
+  if (distributionSource) {
+    const data = parsedSummary(distributionSource);
+    if (data) {
+      const specs = data.specs && typeof data.specs === 'object' ? data.specs as Record<string, unknown> : {};
+      const imperial = data.imperial && typeof data.imperial === 'object' ? data.imperial as Record<string, unknown> : {};
+      const lines: string[] = [];
+      const add = (label: string, value: unknown) => {
+        const shown = displayValue(value);
+        if (shown) lines.push(`**${label}:** ${shown}`);
+      };
+
+      add('Wine', data.name);
+      if (/\bgtin\b/i.test(question)) add('GTIN', data.gtin);
+      if (/\bupc\b/i.test(question)) add('UPC', data.upc);
+      if (/\b(size|package|case|dimension|weight|spec)\b/i.test(question)) {
+        add('Package size', specs.size);
+        Object.entries(imperial).slice(0, 6).forEach(([key, value]) => add(key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()), value));
+      }
+      if (/\b(abv|alcohol)\b/i.test(question)) add('ABV', specs.abv);
+      if (/\b(composition|blend|grape)\b/i.test(question)) add('Composition', specs.composition);
+
+      if (lines.length <= 1) {
+        add('GTIN', data.gtin);
+        add('UPC', data.upc);
+        add('Package size', specs.size);
+        add('ABV', specs.abv);
+        add('Composition', specs.composition);
+      }
+
+      return `Gemini is busy, but Central found the closest distribution record directly:\n\n${lines.join('\n')} [${distributionSource.id}]`;
+    }
+  }
+
+  const wineSource = sources.find((source) => source.type === 'wine');
+  if (wineSource) {
+    const data = parsedSummary(wineSource);
+    if (data) {
+      const lines: string[] = [];
+      const add = (label: string, value: unknown) => {
+        const shown = displayValue(value);
+        if (shown) lines.push(`**${label}:** ${shown}`);
+      };
+
+      add('Wine', data.name);
+      add('Vintage', data.vintage);
+      if (/\b(price|cost|dollar|\$)\b/i.test(question)) add('Price', data.price);
+      if (/\bupc\b/i.test(question)) add('UPC', data.upc);
+      if (/\b(abv|alcohol)\b/i.test(question)) add('ABV', data.abv);
+      if (/\b(sweet|dry|sweetness)\b/i.test(question)) add('Sweetness', data.sweetness);
+      if (/\b(pair|food)\b/i.test(question)) add('Pairings', data.pairings);
+      if (/\b(award|gold|silver|bronze|class)\b/i.test(question)) add('Awards', data.awards);
+      if (/\b(taste|flavor|note|description|about|detail)\b/i.test(question)) {
+        add('Tasting notes', data.tastingNotes);
+        add('Description', data.shortDescription);
+      }
+
+      if (lines.length <= 2) {
+        add('Varietal', data.varietal);
+        add('Price', data.price);
+        add('ABV', data.abv);
+        add('Sweetness', data.sweetness);
+        add('Tasting notes', data.tastingNotes);
+      }
+
+      return `Gemini is busy, but Central found the closest wine record directly:\n\n${lines.slice(0, 7).join('\n')} [${wineSource.id}]`;
+    }
+  }
+
+  const menuSource = sources.find((source) => source.type === 'tasting-menu');
+  if (menuSource) {
+    const items = menuSource.summary.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    const terms = q.split(/[^a-z0-9]+/).filter((term) => term.length > 3);
+    const matches = items.filter((item) => terms.some((term) => item.toLowerCase().includes(term))).slice(0, 12);
+    if (matches.length) {
+      return `Gemini is busy, but Central found these matching wines on the current tasting menu:\n\n${matches.map((item) => `• ${item}`).join('\n')} [${menuSource.id}]`;
+    }
+  }
+
+  return `Gemini is busy right now, but Central found matching information in **${sources[0].title}**. Open Sources below to view it. [${sources[0].id}]`;
+}
+
 export async function POST(request: NextRequest) {
   const session = await sessionRole();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -167,8 +326,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const primaryModel = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.1-flash-lite';
-  const fallbackModel = process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.5-flash';
+  const primaryModel = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
+  const fallbackModel = process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
   const historyText = history.length ? `\nRECENT CONVERSATION:\n${history.map((item) => `${item.role.toUpperCase()}: ${item.content}`).join('\n')}` : '';
 
   // Keep the Gemini prompt lean. Earlier versions could pass dozens of matching
@@ -244,7 +403,10 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemInstruction }] },
               contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: { maxOutputTokens: 450, temperature: 0.2 },
+              generationConfig: {
+                maxOutputTokens: 450,
+                thinkingConfig: { thinkingLevel: 'minimal' },
+              },
             }),
             cache: 'no-store',
             signal: controller.signal,
@@ -345,23 +507,24 @@ export async function POST(request: NextRequest) {
       }, { status: 502 });
     }
 
-    if (status === 429) {
+    if (status === 429 || status >= 500) {
       return NextResponse.json({
-        error: 'Ask Central is temporarily at its Gemini usage limit.',
-        hint: 'Both Gemini models were tried automatically. Please try again in a moment.',
-      }, { status: 503 });
-    }
-
-    if (status >= 500) {
-      return NextResponse.json({
-        error: 'Ask Central is busy right now.',
-        hint: 'Ask Central tried both Gemini models automatically. Please try again in a moment.',
-      }, { status: 503 });
+        answer: retrievalFallbackAnswer(question, selectedSources),
+        sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+        model: 'central-direct',
+        provider: 'central-retrieval',
+        fallbackUsed: true,
+        degraded: true,
+      });
     }
 
     return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Ask Central is temporarily unavailable.',
-      hint: 'Ask Central automatically tries a backup Gemini model when the first one is unavailable.',
-    }, { status: 502 });
+      answer: retrievalFallbackAnswer(question, selectedSources),
+      sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+      model: 'central-direct',
+      provider: 'central-retrieval',
+      fallbackUsed: true,
+      degraded: true,
+    });
   }
 }
