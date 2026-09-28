@@ -2,7 +2,7 @@
 
 import './central.css';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { SEED_WINES } from '@/lib/seed';
 import type { Award, TechSheetDraft, WineRecord } from '@/lib/types';
@@ -1254,11 +1254,55 @@ type AskMessage = {
   sources?: Array<{ id: string; type: string; title: string; path: string }>;
 };
 
+function askSourceNumber(id: string) {
+  return id.replace(/^S/i, '');
+}
+
+function AskInlineContent({ text, sources = [], openPath }: { text: string; sources?: AskMessage['sources']; openPath: (path: string) => void }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\[S\d+\])/gi).filter(Boolean);
+  return <>{parts.map((part, index) => {
+    const bold = part.match(/^\*\*(.+)\*\*$/s);
+    if (bold) return <strong key={`${part}-${index}`} className="font-black text-black/90">{bold[1]}</strong>;
+
+    const citation = part.match(/^\[S(\d+)\]$/i);
+    if (citation) {
+      const sourceId = `S${citation[1]}`;
+      const source = sources?.find((item) => item.id.toUpperCase() === sourceId.toUpperCase());
+      const badge = <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[#3976b7]/25 bg-[#3976b7]/10 px-1 text-[9px] font-black leading-none text-[#3976b7]">{citation[1]}</span>;
+      return source
+        ? <button key={`${part}-${index}`} type="button" onClick={() => openPath(source.path)} title={`Source: ${source.title}`} aria-label={`Open source ${citation[1]}: ${source.title}`} className="mx-0.5 inline-flex translate-y-[-1px] align-middle hover:scale-105">{badge}</button>
+        : <span key={`${part}-${index}`} className="mx-0.5 inline-flex translate-y-[-1px] align-middle">{badge}</span>;
+    }
+
+    return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+  })}</>;
+}
+
+function AskAnswer({ content, sources = [], openPath }: { content: string; sources?: AskMessage['sources']; openPath: (path: string) => void }) {
+  const lines = content.replace(/\r/g, '').split('\n');
+  return <div className="space-y-2.5">{lines.map((rawLine, index) => {
+    const trimmed = rawLine.trim();
+    if (!trimmed) return <div key={`space-${index}`} className="h-1" />;
+
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      const nested = rawLine.length - rawLine.trimStart().length >= 2;
+      return <div key={`line-${index}`} className={`flex items-start gap-2 ${nested ? 'ml-4' : ''}`}>
+        <span className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#3976b7]" />
+        <p className="min-w-0"><AskInlineContent text={bullet[1]} sources={sources} openPath={openPath} /></p>
+      </div>;
+    }
+
+    return <p key={`line-${index}`}><AskInlineContent text={trimmed} sources={sources} openPath={openPath} /></p>;
+  })}</div>;
+}
+
 function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines: WineRecord[]; distributionWines: DistributionWine[]; portalRole: PortalRole; openPath: (path: string) => void }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const askInFlightRef = useRef(false);
 
   const suggestions = portalRole === 'tasting'
     ? ['Which dry white wines are on the current tasting menu?', 'How are we doing on the case sales goal?', 'What should I tell a guest about Baco Noir?']
@@ -1316,31 +1360,41 @@ function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines:
 
   async function ask(text = question) {
     const clean = text.trim();
-    if (!clean || loading) return;
+    if (!clean || askInFlightRef.current) return;
+    askInFlightRef.current = true;
     setQuestion('');
     setError('');
     const userMessage: AskMessage = { id: `u-${Date.now()}`, role: 'user', content: clean };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setLoading(true);
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 15000);
     try {
       const response = await fetch('/api/ask-central', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           question: clean,
           portalRole,
           wines: portalRole === 'distribution' ? [] : compactWines,
           distributionWines: portalRole === 'tasting' ? [] : compactDistribution,
-          history: messages.slice(-6).map(({ role, content }) => ({ role, content })),
+          history: messages.slice(-4).map(({ role, content }) => ({ role, content })),
         }),
       });
       const payload = await response.json() as { answer?: string; sources?: AskMessage['sources']; error?: string; hint?: string };
       if (!response.ok || !payload.answer) throw new Error([payload.error, payload.hint].filter(Boolean).join(' ') || 'Ask Central could not answer that question.');
       setMessages([...nextMessages, { id: `a-${Date.now()}`, role: 'assistant', content: payload.answer, sources: payload.sources || [] }]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ask Central is temporarily unavailable.');
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('Ask Central took too long to answer. Please try that question again.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Ask Central is temporarily unavailable.');
+      }
     } finally {
+      window.clearTimeout(requestTimeout);
+      askInFlightRef.current = false;
       setLoading(false);
     }
   }
@@ -1372,19 +1426,19 @@ function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines:
       <div className="mt-4 min-h-[280px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">
         {!messages.length ? <div className="flex min-h-[220px] flex-col items-center justify-center px-5 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3976b7]/10 text-[#3976b7]"><Sparkles className="h-6 w-6" /></div><h3 className="mt-4 text-lg font-black">Ask Central anything</h3><p className="mt-2 max-w-md text-sm font-semibold leading-6 text-black/45">Need a quick answer? Ask for a wine detail, menu note, tech-sheet spec, or case-sales update.</p></div> : <div className="space-y-5">
           {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-            <div className={message.role === 'user' ? 'max-w-[82%] rounded-2xl rounded-br-md bg-black px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[92%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
-              <div className="whitespace-pre-wrap">{message.content}</div>
-              {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-black/45">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35">{source.id} · {source.title}</button>)}</div></details> : null}
+            <div className={message.role === 'user' ? 'max-w-[82%] rounded-2xl rounded-br-md bg-[#3976b7] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[92%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
+              {message.role === 'assistant' ? <AskAnswer content={message.content} sources={message.sources} openPath={openPath} /> : <div className="whitespace-pre-wrap">{message.content}</div>}
+              {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
             </div>
           </div>)}
-          {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin" /> Looking through Central…</div></div>}
+          {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div>}
         </div>}
       </div>
 
       {error && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
 
       <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className="sticky bottom-3 mt-4 rounded-[22px] border border-black/10 bg-white p-3 shadow-xl shadow-black/10">
-        <div className="flex gap-3"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={2} placeholder="Ask Central a question…" className="min-h-[64px] flex-1 resize-none rounded-xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-base font-semibold leading-6 outline-none transition focus:border-[#3976b7]/50 focus:bg-white" /><button type="submit" disabled={!question.trim() || loading} className="self-stretch rounded-xl bg-[#3976b7] px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Ask</button></div>
+        <div className="flex gap-3"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={2} placeholder="Ask Central a question…" className="min-h-[64px] flex-1 resize-none rounded-xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-base font-semibold leading-6 outline-none transition focus:border-[#3976b7]/50 focus:bg-white" /><button type="submit" disabled={!question.trim() || loading} className="self-stretch rounded-xl bg-[#3976b7] px-5 text-sm font-black text-white transition hover:bg-[#2f68a4] disabled:cursor-not-allowed disabled:bg-[#3976b7]/50">Ask</button></div>
         <p className="mt-2 px-1 text-[10px] font-semibold leading-4 text-black/35">Enter sends · Shift + Enter starts a new line.</p>
       </form>
     </div>

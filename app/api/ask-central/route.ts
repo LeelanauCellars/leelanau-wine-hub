@@ -53,8 +53,8 @@ function safeHistory(value: unknown) {
   if (!Array.isArray(value)) return [] as HistoryItem[];
   return value
     .filter((item): item is HistoryItem => Boolean(item && typeof item === 'object' && ((item as HistoryItem).role === 'user' || (item as HistoryItem).role === 'assistant') && typeof (item as HistoryItem).content === 'string'))
-    .slice(-6)
-    .map((item) => ({ ...item, content: item.content.slice(0, 1800) }));
+    .slice(-4)
+    .map((item) => ({ ...item, content: item.content.slice(0, 1000) }));
 }
 
 async function currentMenuText() {
@@ -184,10 +184,10 @@ export async function POST(request: NextRequest) {
     ...operationalSources,
     ...(distributionPriority ? distributionSources.slice(0, 8) : wineSources.slice(0, 9)),
     ...(distributionPriority ? wineSources.slice(0, 4) : distributionSources.slice(0, 5)),
-  ].slice(0, 14).map((source, index) => ({ ...source, id: `S${index + 1}` }));
+  ].slice(0, 10).map((source, index) => ({ ...source, id: `S${index + 1}` }));
 
   const context = sourceBlock(selectedSources);
-  const systemInstruction = `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`;
+  const systemInstruction = `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff. Prefer short paragraphs or 3-6 bullets instead of long responses.\n- You may use **bold** for short labels. Do not use markdown headings.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`;
   const prompt = `PORTAL: ${portalRole}\nQUESTION: ${question}${historyText}\n\nCENTRAL SOURCES:\n${context || '(No matching Central source was found.)'}`;
 
   try {
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemInstruction }] },
               contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: { maxOutputTokens: 600 },
+              generationConfig: { maxOutputTokens: 450, temperature: 0.2 },
             }),
             cache: 'no-store',
             signal: controller.signal,
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
     for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
       const model = models[modelIndex];
       try {
-        const answer = await generate(model, modelIndex === 0 ? 7000 : 9000);
+        const answer = await generate(model, modelIndex === 0 ? 4500 : 6500);
         return NextResponse.json({
           answer,
           sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
@@ -355,13 +355,13 @@ export async function POST(request: NextRequest) {
     if (status >= 500) {
       return NextResponse.json({
         error: 'Ask Central is busy right now.',
-        hint: 'The primary Gemini model was retried and the Flash-Lite backup was tried automatically. Please try again in a moment.',
+        hint: 'Ask Central tried both Gemini models automatically. Please try again in a moment.',
       }, { status: 503 });
     }
 
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Ask Central is temporarily unavailable.',
-      hint: 'Ask Central automatically retries temporary Gemini errors and falls back to Flash-Lite when possible.',
+      hint: 'Ask Central automatically tries a backup Gemini model when the first one is unavailable.',
     }, { status: 502 });
   }
 }
