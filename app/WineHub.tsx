@@ -1348,20 +1348,33 @@ function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines:
   return <div className="p-5 md:p-8 lg:p-10">
     <PageHeader title="Ask Central" />
     <div className="mx-auto max-w-[980px]">
-      <div className="rounded-[26px] border border-black/10 bg-[#f7f9fc] p-5 md:p-7">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div><h2 className="text-xl font-black tracking-[-.025em]">What do you need?</h2><p className="mt-1 text-sm font-semibold leading-6 text-black/55">Ask about wines, tasting-room information, distribution specs, awards, tech-sheet details or case sales. Answers are limited to what Central can actually find.</p></div>
-          <span className="mt-2 inline-flex w-fit items-center rounded-full border border-[#3976b7]/20 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-[#3976b7] md:mt-0">Central sources only</span>
+      <div className="rounded-[26px] border border-black/10 bg-[#f7f9fc] p-5 md:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-xl font-black tracking-[-.025em]">Let’s get to work</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-black/55">Ask about wines, specs, awards, menus, or case sales.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex w-fit items-center rounded-full border border-[#3976b7]/20 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-[#3976b7]">Central sources only</span>
+            <details className="relative group rounded-full border border-black/10 bg-white shadow-sm">
+              <summary className="cursor-pointer list-none rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-black/65">Help</summary>
+              <div className="absolute right-0 z-20 mt-2 w-[280px] rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-xl shadow-black/10 md:w-[320px]">
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {suggestions.map((item) => <li key={item}><button type="button" onClick={() => void ask(item)} disabled={loading} className="text-left font-semibold text-black/75 hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
+                </ul>
+              </div>
+            </details>
+          </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">{suggestions.map((item) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading} className="rounded-full border border-black/10 bg-white px-3.5 py-2 text-xs font-bold text-black/65 shadow-sm hover:border-[#3976b7]/35 hover:text-[#3976b7] disabled:opacity-50">{item}</button>)}</div>
       </div>
 
-      <div className="mt-5 min-h-[360px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">
-        {!messages.length ? <div className="flex min-h-[300px] flex-col items-center justify-center px-5 text-center"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#3976b7]/10 text-[#3976b7]"><Sparkles className="h-7 w-7" /></div><h3 className="mt-4 text-lg font-black">Ask a question about Central</h3><p className="mt-2 max-w-md text-sm font-semibold leading-6 text-black/45">Try an exact lookup like a GTIN, a broader question about the tasting menu, or ask how the tasting room is tracking toward its case goal.</p></div> : <div className="space-y-5">
+      <div className="mt-4 min-h-[280px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">
+        {!messages.length ? <div className="flex min-h-[220px] flex-col items-center justify-center px-5 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3976b7]/10 text-[#3976b7]"><Sparkles className="h-6 w-6" /></div><h3 className="mt-4 text-lg font-black">Ask Central anything</h3><p className="mt-2 max-w-md text-sm font-semibold leading-6 text-black/45">Need a quick answer? Ask for a wine detail, menu note, tech-sheet spec, or case-sales update.</p></div> : <div className="space-y-5">
           {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
             <div className={message.role === 'user' ? 'max-w-[82%] rounded-2xl rounded-br-md bg-black px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[92%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
               <div className="whitespace-pre-wrap">{message.content}</div>
-              {message.role === 'assistant' && message.sources?.length ? <div className="mt-4 border-t border-black/10 pt-3"><p className="mb-2 text-[9px] font-black uppercase tracking-[.16em] text-black/35">Sources in Central</p><div className="flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35">{source.id} · {source.title}</button>)}</div></div> : null}
+              {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-black/45">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35">{source.id} · {source.title}</button>)}</div></details> : null}
             </div>
           </div>)}
           {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin" /> Looking through Central…</div></div>}
@@ -1370,9 +1383,9 @@ function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines:
 
       {error && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
 
-      <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className="sticky bottom-3 mt-5 rounded-[22px] border border-black/10 bg-white p-3 shadow-xl shadow-black/10">
+      <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className="sticky bottom-3 mt-4 rounded-[22px] border border-black/10 bg-white p-3 shadow-xl shadow-black/10">
         <div className="flex gap-3"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={2} placeholder="Ask Central a question…" className="min-h-[64px] flex-1 resize-none rounded-xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-base font-semibold leading-6 outline-none transition focus:border-[#3976b7]/50 focus:bg-white" /><button type="submit" disabled={!question.trim() || loading} className="self-stretch rounded-xl bg-[#3976b7] px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Ask</button></div>
-        <p className="mt-2 px-1 text-[10px] font-semibold leading-4 text-black/35">Enter sends · Shift + Enter starts a new line · If Central does not contain the answer, the assistant should say so.</p>
+        <p className="mt-2 px-1 text-[10px] font-semibold leading-4 text-black/35">Enter sends · Shift + Enter starts a new line.</p>
       </form>
     </div>
   </div>;

@@ -167,10 +167,26 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const primaryModel = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
-  const fallbackModel = process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
+  const primaryModel = process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.1-flash-lite';
+  const fallbackModel = process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.5-flash';
   const historyText = history.length ? `\nRECENT CONVERSATION:\n${history.map((item) => `${item.role.toUpperCase()}: ${item.content}`).join('\n')}` : '';
-  const context = sourceBlock(sources);
+
+  // Keep the Gemini prompt lean. Earlier versions could pass dozens of matching
+  // records even though staff usually need one or two exact answers. Operational
+  // sources always stay in the prompt, then we keep the strongest wine/distribution
+  // matches. This materially reduces model input latency without changing what
+  // Central searches.
+  const operationalSources = sources.filter((source) => source.type === 'case-sales' || source.type === 'tasting-menu' || source.type === 'quick-facts');
+  const wineSources = sources.filter((source) => source.type === 'wine');
+  const distributionSources = sources.filter((source) => source.type === 'distribution');
+  const distributionPriority = /\b(gtin|dimension|weight|case pack|package|meijer|target|distribution|distributor)\b/i.test(retrievalQuestion);
+  const selectedSources = [
+    ...operationalSources,
+    ...(distributionPriority ? distributionSources.slice(0, 8) : wineSources.slice(0, 9)),
+    ...(distributionPriority ? wineSources.slice(0, 4) : distributionSources.slice(0, 5)),
+  ].slice(0, 14).map((source, index) => ({ ...source, id: `S${index + 1}` }));
+
+  const context = sourceBlock(selectedSources);
   const systemInstruction = `You are Ask Central, the internal Leelanau Cellars information assistant.\n\nRULES:\n- Answer ONLY from the CENTRAL SOURCES supplied in the prompt. Do not use general wine knowledge, web knowledge, or assumptions.\n- If Central does not contain enough information, say exactly that you could not find the answer in Central.\n- Never invent UPCs, GTINs, prices, dimensions, awards, vintages, menu status, case-sales numbers, or other facts.\n- Keep answers concise and practical for winery staff.\n- When a factual statement comes from a source, cite its source ID in square brackets, for example [S1].\n- Prefer exact identifiers and measurements when they are available.\n- For current tasting-menu questions, only call a wine current if the Current Tasting Room Menu source supports it.\n- For case-sales questions, distinguish gross cases from cases remaining after linked refunds when relevant.\n- Do not expose information outside the current portal's supplied sources.`;
   const prompt = `PORTAL: ${portalRole}\nQUESTION: ${question}${historyText}\n\nCENTRAL SOURCES:\n${context || '(No matching Central source was found.)'}`;
 
@@ -211,25 +227,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+    async function generate(model: string, timeoutMs: number) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response;
 
-    async function generate(model: string) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': requiredApiKey,
+      try {
+        response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': requiredApiKey,
+            },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 600 },
+            }),
+            cache: 'no-store',
+            signal: controller.signal,
           },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 1000 },
-          }),
-          cache: 'no-store',
-        },
-      );
+        );
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new GeminiHttpError(`${model} took too long to respond.`, 504, true, true);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
 
       const raw = await response.text();
       let payload: GeminiPayload = {};
@@ -271,42 +299,34 @@ export async function POST(request: NextRequest) {
       return answer;
     }
 
+    // Speed-first failover: one fast attempt on Flash-Lite, then immediately
+    // try the stronger Flash model if the first model is overloaded, rate-limited,
+    // missing, or slow. No multi-second exponential retry chain.
     const models = Array.from(new Set([primaryModel, fallbackModel].filter(Boolean)));
     let lastError: unknown = null;
 
     for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
       const model = models[modelIndex];
-      // Try the primary model up to three times. The fallback gets two attempts.
-      const attempts = modelIndex === 0 ? 3 : 2;
+      try {
+        const answer = await generate(model, modelIndex === 0 ? 7000 : 9000);
+        return NextResponse.json({
+          answer,
+          sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+          model,
+          provider: 'google-gemini',
+          fallbackUsed: modelIndex > 0,
+        });
+      } catch (error) {
+        lastError = error;
+        const geminiError = error instanceof GeminiHttpError ? error : null;
 
-      for (let attempt = 0; attempt < attempts; attempt += 1) {
-        try {
-          const answer = await generate(model);
-          return NextResponse.json({
-            answer,
-            sources: sources.slice(0, 12).map(({ id, type, title, path }) => ({ id, type, title, path })),
-            model,
-            provider: 'google-gemini',
-            fallbackUsed: modelIndex > 0,
-          });
-        } catch (error) {
-          lastError = error;
-          const geminiError = error instanceof GeminiHttpError ? error : null;
+        // Authentication/configuration failures should surface immediately.
+        if (geminiError && !geminiError.canFallback && !geminiError.retryable) throw error;
 
-          // Authentication/configuration failures should surface immediately.
-          if (geminiError && !geminiError.canFallback && !geminiError.retryable) throw error;
-
-          // Retry temporary demand/rate-limit failures with a short exponential backoff.
-          if (geminiError?.retryable && attempt < attempts - 1) {
-            const delay = attempt === 0 ? 350 : 900;
-            await sleep(delay);
-            continue;
-          }
-
-          // After the primary exhausts its attempts, transparently try Flash-Lite.
-          if (modelIndex < models.length - 1 && (geminiError?.canFallback ?? false)) break;
-          throw error;
-        }
+        // Temporary demand, rate-limit, missing-model, and timeout failures move
+        // straight to the fallback instead of making staff wait through retries.
+        if (modelIndex < models.length - 1 && (geminiError?.canFallback ?? false)) continue;
+        throw error;
       }
     }
 
