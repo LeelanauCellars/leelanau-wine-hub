@@ -772,6 +772,7 @@ export default function WineHub() {
   const [saveNotice, setSaveNotice] = useState('');
   const [distributionEdits, setDistributionEdits] = useState<Record<string, Partial<DistributionWine>>>({});
   const [pendingRoute, setPendingRoute] = useState<CentralRoute | null>(null);
+  const [askDrawerOpen, setAskDrawerOpen] = useState(false);
 
   const distributionWines = useMemo(() => buildDistributionCatalog(wines, DISTRIBUTION_WINES, distributionEdits), [wines, distributionEdits]);
   const activeWine = wines.find((wine) => wine.id === activeWineId) ?? wines[0];
@@ -957,6 +958,7 @@ export default function WineHub() {
 
   function switchPortal() {
     setMobileNav(false);
+    setAskDrawerOpen(false);
     setEditingWine(null);
     setPortalRole(null);
     setPendingRoute(null);
@@ -989,6 +991,7 @@ export default function WineHub() {
     setEntryStage('welcome');
     setView('library');
     setMobileNav(false);
+    setAskDrawerOpen(false);
     setPendingRoute(null);
     writeCentralPath(centralPath('/'), true);
   }
@@ -1209,9 +1212,11 @@ export default function WineHub() {
       {mobileNav && <button className="no-print fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close menu overlay" />}
 
       <main className="min-h-screen lg:pl-[292px]">
+        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="no-print fixed right-6 top-20 z-30 hidden items-center gap-2 rounded-full border border-[#3976b7]/20 bg-white px-4 py-2.5 text-xs font-black text-[#3976b7] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-[#3976b7]/40 hover:shadow-xl lg:inline-flex"><AskCentralMark className="h-4 w-4" /> Ask Central</button>}
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
-          <span className="font-bold">Leelanau Cellars Central · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
+          <span className="min-w-0 flex-1 truncate font-bold">Leelanau Cellars Central · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
+          {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3976b7] text-white shadow-sm" aria-label="Open Ask Central"><AskCentralMark className="h-[18px] w-[18px]" /></button>}
         </div>
 
         {view === 'ask' && <AskCentral wines={wines} distributionWines={distributionWines} portalRole={portalRole} openPath={(path) => { const fullPath = centralPath(path); const route = parseCentralRoute(fullPath); if (!route) return; setPendingRoute(route); writeCentralPath(fullPath); applyRouteState(route, portalRole); }} />}
@@ -1241,6 +1246,13 @@ export default function WineHub() {
         )}
         {view === 'awards' && canUseAwards && <AwardsView wines={wines} openWine={openWine} />}
       </main>
+
+      <div className={`no-print fixed inset-0 z-[70] transition ${askDrawerOpen ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'}`} aria-hidden={!askDrawerOpen}>
+        <button type="button" className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" onClick={() => setAskDrawerOpen(false)} aria-label="Close Ask Central" tabIndex={askDrawerOpen ? 0 : -1} />
+        <aside className={`absolute inset-y-0 right-0 w-full max-w-[560px] border-l border-black/10 bg-white shadow-2xl transition-transform duration-200 ${askDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <AskCentral wines={wines} distributionWines={distributionWines} portalRole={portalRole} embedded onClose={() => setAskDrawerOpen(false)} openPath={(path) => { const fullPath = centralPath(path); const route = parseCentralRoute(fullPath); if (!route) return; setPendingRoute(route); writeCentralPath(fullPath); applyRouteState(route, portalRole); setAskDrawerOpen(false); }} />
+        </aside>
+      </div>
     </div>
   );
 }
@@ -1253,6 +1265,27 @@ type AskMessage = {
   content: string;
   sources?: Array<{ id: string; type: string; title: string; path: string }>;
 };
+
+function AskCentralMark({ className = 'h-5 w-5' }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+    <path d="M11.6 2.3c.25-.73 1.28-.73 1.53 0l1.03 3.02c.08.24.27.43.51.51l3.02 1.03c.73.25.73 1.28 0 1.53l-3.02 1.03a.81.81 0 0 0-.51.51l-1.03 3.02c-.25.73-1.28.73-1.53 0l-1.03-3.02a.81.81 0 0 0-.51-.51L7.04 8.38c-.73-.25-.73-1.28 0-1.53l3.02-1.03a.81.81 0 0 0 .51-.51L11.6 2.3Z" />
+    <path d="M18.15 12.95c.18-.52.91-.52 1.09 0l.55 1.61c.06.17.19.3.36.36l1.61.55c.52.18.52.91 0 1.09l-1.61.55a.57.57 0 0 0-.36.36l-.55 1.61c-.18.52-.91.52-1.09 0l-.55-1.61a.57.57 0 0 0-.36-.36l-1.61-.55c-.52-.18-.52-.91 0-1.09l1.61-.55a.57.57 0 0 0 .36-.36l.55-1.61ZM4.25 13.35c.16-.46.82-.46.98 0l.45 1.31c.05.15.17.27.32.32l1.31.45c.46.16.46.82 0 .98L6 16.86a.52.52 0 0 0-.32.32l-.45 1.31c-.16.46-.82.46-.98 0l-.45-1.31a.52.52 0 0 0-.32-.32l-1.31-.45c-.46-.16-.46-.82 0-.98l1.31-.45a.52.52 0 0 0 .32-.32l.45-1.31Z" />
+  </svg>;
+}
+
+function AskCentralHelp({ suggestions, ask, loading, align = 'right' }: { suggestions: string[]; ask: (text?: string) => Promise<void>; loading: boolean; align?: 'left' | 'right' }) {
+  return <details className="relative group">
+    <summary className="cursor-pointer list-none rounded-full border border-black/10 bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-black/60 shadow-sm transition hover:border-[#3976b7]/30 hover:text-[#3976b7]">Help</summary>
+    <div className={`absolute z-[90] mt-2 w-[300px] rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-2xl shadow-black/15 sm:w-[340px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
+      <p className="font-bold leading-6 text-black/75">Ask Central is a fast way to find information about Leelanau Cellars. Powered by Google Gemini, this AI Chat finds answers through sources only found on Leelanau Cellars Central.</p>
+      <p className="mt-4 text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
+      <ul className="mt-2 space-y-2">
+        {suggestions.map((item) => <li key={item}><button type="button" onClick={(event) => { const details = event.currentTarget.closest('details'); if (details) details.removeAttribute('open'); void ask(item); }} disabled={loading} className="text-left text-sm font-semibold text-black/65 transition hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
+      </ul>
+      <p className="mt-4 border-t border-black/10 pt-3 text-[10px] font-bold uppercase tracking-[.12em] text-black/35">Central sources only</p>
+    </div>
+  </details>;
+}
 
 function askSourceNumber(id: string) {
   return id.replace(/^S/i, '');
@@ -1297,7 +1330,7 @@ function AskAnswer({ content, sources = [], openPath }: { content: string; sourc
   })}</div>;
 }
 
-function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines: WineRecord[]; distributionWines: DistributionWine[]; portalRole: PortalRole; openPath: (path: string) => void }) {
+function AskCentral({ wines, distributionWines, portalRole, openPath, embedded = false, onClose }: { wines: WineRecord[]; distributionWines: DistributionWine[]; portalRole: PortalRole; openPath: (path: string) => void; embedded?: boolean; onClose?: () => void }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1399,48 +1432,46 @@ function AskCentral({ wines, distributionWines, portalRole, openPath }: { wines:
     }
   }
 
+  const conversation = messages.length ? <div className="space-y-5">
+    {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+      <div className={message.role === 'user' ? 'max-w-[86%] rounded-2xl rounded-br-md bg-[#3976b7] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[94%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
+        {message.role === 'assistant' ? <AskAnswer content={message.content} sources={message.sources} openPath={openPath} /> : <div className="whitespace-pre-wrap">{message.content}</div>}
+        {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
+      </div>
+    </div>)}
+    {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div>}
+  </div> : loading ? <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div> : null;
+
+  const composer = <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className={`${messages.length ? 'sticky bottom-3' : ''} rounded-full border border-black/10 bg-white p-2 shadow-xl shadow-black/10`}>
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center text-[#3976b7]"><AskCentralMark className="h-5 w-5" /></span>
+      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={1} placeholder="Ask Central a question…" className="min-h-[48px] max-h-[120px] flex-1 resize-none bg-transparent px-1 py-3 text-base font-semibold leading-6 text-black outline-none placeholder:text-black/40" />
+      <button type="submit" disabled={!question.trim() || loading} className="shrink-0 rounded-full bg-[#3976b7] px-5 py-3.5 text-sm font-black text-white transition hover:bg-[#2f68a4] disabled:cursor-not-allowed disabled:bg-[#3976b7]/45 sm:px-6">Ask</button>
+    </div>
+  </form>;
+
+  const help = <AskCentralHelp suggestions={suggestions} ask={ask} loading={loading} align="right" />;
+
+  if (embedded) {
+    return <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><AskCentralMark className="h-5 w-5" /></span><div className="min-w-0"><h2 className="text-lg font-black tracking-[-.025em]">Ask Central</h2><p className="text-[10px] font-black uppercase tracking-[.13em] text-black/35">Central sources only</p></div></div>
+        <div className="flex items-center gap-2">{help}<button type="button" onClick={onClose} className="rounded-full border border-black/10 bg-white p-2 text-black/55 shadow-sm transition hover:text-black" aria-label="Close Ask Central"><X className="h-4 w-4" /></button></div>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
+        {messages.length || loading ? <div className="min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-black/10 bg-white p-4 sm:p-5">{conversation}</div> : null}
+        {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
+        {composer}
+      </div>
+    </div>;
+  }
+
   return <div className="p-5 md:p-8 lg:p-10">
-    <PageHeader title="Ask Central" />
+    <PageHeader title="Ask Central" right={help} />
     <div className="mx-auto max-w-[980px]">
-      <div className="rounded-[26px] border border-black/10 bg-[#f7f9fc] p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h2 className="text-xl font-black tracking-[-.025em]">Let’s get to work</h2>
-            <p className="mt-1 text-sm font-semibold leading-6 text-black/55">Ask about wines, specs, awards, menus, or case sales.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex w-fit items-center rounded-full border border-[#3976b7]/20 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-[#3976b7]">Central sources only</span>
-            <details className="relative group rounded-full border border-black/10 bg-white shadow-sm">
-              <summary className="cursor-pointer list-none rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-black/65">Help</summary>
-              <div className="absolute right-0 z-20 mt-2 w-[280px] rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-xl shadow-black/10 md:w-[320px]">
-                <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
-                <ul className="mt-2 space-y-1.5 text-sm">
-                  {suggestions.map((item) => <li key={item}><button type="button" onClick={() => void ask(item)} disabled={loading} className="text-left font-semibold text-black/75 hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
-                </ul>
-              </div>
-            </details>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 min-h-[280px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">
-        {!messages.length ? <div className="flex min-h-[220px] flex-col items-center justify-center px-5 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3976b7]/10 text-[#3976b7]"><Sparkles className="h-6 w-6" /></div><h3 className="mt-4 text-lg font-black">Ask Central anything</h3><p className="mt-2 max-w-md text-sm font-semibold leading-6 text-black/45">Need a quick answer? Ask for a wine detail, menu note, tech-sheet spec, or case-sales update.</p></div> : <div className="space-y-5">
-          {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-            <div className={message.role === 'user' ? 'max-w-[82%] rounded-2xl rounded-br-md bg-[#3976b7] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[92%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
-              {message.role === 'assistant' ? <AskAnswer content={message.content} sources={message.sources} openPath={openPath} /> : <div className="whitespace-pre-wrap">{message.content}</div>}
-              {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
-            </div>
-          </div>)}
-          {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div>}
-        </div>}
-      </div>
-
-      {error && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
-
-      <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className="sticky bottom-3 mt-4 rounded-[22px] border border-black/10 bg-white p-3 shadow-xl shadow-black/10">
-        <div className="flex gap-3"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={2} placeholder="Ask Central a question…" className="min-h-[64px] flex-1 resize-none rounded-xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-base font-semibold leading-6 outline-none transition focus:border-[#3976b7]/50 focus:bg-white" /><button type="submit" disabled={!question.trim() || loading} className="self-stretch rounded-xl bg-[#3976b7] px-5 text-sm font-black text-white transition hover:bg-[#2f68a4] disabled:cursor-not-allowed disabled:bg-[#3976b7]/50">Ask</button></div>
-        <p className="mt-2 px-1 text-[10px] font-semibold leading-4 text-black/35">Enter sends · Shift + Enter starts a new line.</p>
-      </form>
+      {messages.length || loading ? <div className="mb-4 min-h-[220px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">{conversation}</div> : null}
+      {error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
+      {composer}
     </div>
   </div>;
 }
