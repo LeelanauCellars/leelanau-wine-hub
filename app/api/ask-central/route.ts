@@ -132,32 +132,39 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) 
         perDay ? `**Needed per day:** ${perDay}` : '',
         asOf ? `**As of:** ${asOf}` : '',
       ].filter(Boolean);
-      return `Gemini is busy, but Central can still pull the live tracker directly.\n\n${pieces.join('\n')} [${caseSource.id}]`;
+      return `Central pulled the live tracker directly.\n\n${pieces.join('\n')} [${caseSource.id}]`;
     }
   }
+
+  const distributionIntent = /\b(gtin|upc|dimension|dimensions|weight|case pack|package|meijer|target|distribution|distributor|spec|specs)\b/i.test(question);
+  const distributionSource = sources.find((source) => source.type === 'distribution');
+  const wineSource = sources.find((source) => source.type === 'wine');
 
   const factsSource = sources.find((source) => source.type === 'quick-facts');
   if (factsSource) {
     const year = q.match(/\b20\d{2}\b/)?.[0];
-    if (year) {
+    if (year && !wineSource) {
       const vintage = QUICK_FACTS.vintages.find((item) => item.year === year);
       if (vintage) {
-        return `Gemini is busy, but Central found the ${year} vintage notes directly:\n\n${vintage.bullets.map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
+        return `Central found the ${year} vintage notes directly:\n\n${vintage.bullets.map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
       }
     }
 
     if (/\b(history|founded|founder|owner|family|story)\b/i.test(question)) {
-      return `Gemini is busy, but Central found the winery history directly:\n\n${QUICK_FACTS.story.bullets.slice(0, 4).map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
+      return `Central found the winery history directly:\n\n${QUICK_FACTS.story.bullets.slice(0, 4).map((item) => `• ${item}`).join('\n')} [${factsSource.id}]`;
     }
 
     if (/\b(vineyard|acre|acres|site|omena|pleasant hill|hilltop|m204)\b/i.test(question)) {
       const sites = QUICK_FACTS.vineyards.map((item) => `• **${item.site}:** ${item.features}`).join('\n');
-      return `Gemini is busy, but Central found the vineyard information directly:\n\n${QUICK_FACTS.vineyardNote}\n${sites} [${factsSource.id}]`;
+      return `Central found the vineyard information directly:\n\n${QUICK_FACTS.vineyardNote}\n${sites} [${factsSource.id}]`;
     }
   }
 
-  const distributionSource = sources.find((source) => source.type === 'distribution');
-  if (distributionSource) {
+  // General wine questions should stay on the Wine Library record. v63 checked
+  // distribution first, which meant a Gemini outage could turn a question like
+  // “What do you know about the 2021 Baco?” into an unrelated distribution wine.
+  // Distribution only wins when the question explicitly asks for distribution/spec data.
+  if (distributionIntent && distributionSource) {
     const data = parsedSummary(distributionSource);
     if (data) {
       const specs = data.specs && typeof data.specs === 'object' ? data.specs as Record<string, unknown> : {};
@@ -171,7 +178,7 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) 
       add('Wine', data.name);
       if (/\bgtin\b/i.test(question)) add('GTIN', data.gtin);
       if (/\bupc\b/i.test(question)) add('UPC', data.upc);
-      if (/\b(size|package|case|dimension|weight|spec)\b/i.test(question)) {
+      if (/\b(size|package|case|dimension|dimensions|weight|spec|specs)\b/i.test(question)) {
         add('Package size', specs.size);
         Object.entries(imperial).slice(0, 6).forEach(([key, value]) => add(key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()), value));
       }
@@ -186,11 +193,10 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) 
         add('Composition', specs.composition);
       }
 
-      return `Gemini is busy, but Central found the closest distribution record directly:\n\n${lines.join('\n')} [${distributionSource.id}]`;
+      return `Central found the matching distribution record directly:\n\n${lines.join('\n')} [${distributionSource.id}]`;
     }
   }
 
-  const wineSource = sources.find((source) => source.type === 'wine');
   if (wineSource) {
     const data = parsedSummary(wineSource);
     if (data) {
@@ -221,7 +227,26 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) 
         add('Tasting notes', data.tastingNotes);
       }
 
-      return `Gemini is busy, but Central found the closest wine record directly:\n\n${lines.slice(0, 7).join('\n')} [${wineSource.id}]`;
+      return `Central found the matching wine record directly:\n\n${lines.slice(0, 7).join('\n')} [${wineSource.id}]`;
+    }
+  }
+
+  if (distributionSource) {
+    const data = parsedSummary(distributionSource);
+    if (data) {
+      const specs = data.specs && typeof data.specs === 'object' ? data.specs as Record<string, unknown> : {};
+      const lines: string[] = [];
+      const add = (label: string, value: unknown) => {
+        const shown = displayValue(value);
+        if (shown) lines.push(`**${label}:** ${shown}`);
+      };
+      add('Wine', data.name);
+      add('GTIN', data.gtin);
+      add('UPC', data.upc);
+      add('Package size', specs.size);
+      add('ABV', specs.abv);
+      add('Composition', specs.composition);
+      return `Central found the closest available distribution record directly:\n\n${lines.join('\n')} [${distributionSource.id}]`;
     }
   }
 
@@ -231,11 +256,11 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[]) 
     const terms = q.split(/[^a-z0-9]+/).filter((term) => term.length > 3);
     const matches = items.filter((item) => terms.some((term) => item.toLowerCase().includes(term))).slice(0, 12);
     if (matches.length) {
-      return `Gemini is busy, but Central found these matching wines on the current tasting menu:\n\n${matches.map((item) => `• ${item}`).join('\n')} [${menuSource.id}]`;
+      return `Central found these matching wines on the current tasting menu:\n\n${matches.map((item) => `• ${item}`).join('\n')} [${menuSource.id}]`;
     }
   }
 
-  return `Gemini is busy right now, but Central found matching information in **${sources[0].title}**. Open Sources below to view it. [${sources[0].id}]`;
+  return `Central found matching information in **${sources[0].title}**. Open Sources below to view it. [${sources[0].id}]`;
 }
 
 export async function POST(request: NextRequest) {
