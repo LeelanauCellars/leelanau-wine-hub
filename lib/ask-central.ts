@@ -58,7 +58,7 @@ export type AskDistributionWine = {
 
 export type AskCentralSource = {
   id: string;
-  type: 'wine' | 'distribution' | 'quick-facts' | 'tasting-menu' | 'case-sales';
+  type: 'wine' | 'distribution' | 'quick-facts' | 'tasting-menu' | 'case-sales' | 'merch';
   title: string;
   path: string;
   summary: string;
@@ -261,5 +261,5 @@ export function questionNeedsCaseSales(question: string) {
 }
 
 export function questionNeedsTastingMenu(question: string) {
-  return /\b(tasting menu|tasting room|current menu|on the menu|currently pouring|pouring)\b/i.test(question);
+  return /\b(tasting menu|tasting room|current menu|on the menu|currently pouring|pouring|currently selling|selling in the tasting room|current offerings?|offering in the tasting room)\b/i.test(question);
 }
