@@ -1261,7 +1261,7 @@ function askSourceNumber(id: string) {
 function AskInlineContent({ text, sources = [], openPath }: { text: string; sources?: AskMessage['sources']; openPath: (path: string) => void }) {
   const parts = text.split(/(\*\*[^*]+\*\*|\[S\d+\])/gi).filter(Boolean);
   return <>{parts.map((part, index) => {
-    const bold = part.match(/^\*\*(.+)\*\*$/s);
+    const bold = part.match(/^\*\*([\s\S]+)\*\*$/);
     if (bold) return <strong key={`${part}-${index}`} className="font-black text-black/90">{bold[1]}</strong>;
 
     const citation = part.match(/^\[S(\d+)\]$/i);
