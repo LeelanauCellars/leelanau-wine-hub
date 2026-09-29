@@ -167,6 +167,10 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return NextResponse.json(fallbackEdit(prompt, document, selectedLayerId));
 
+  // Preserve the runtime guard as a concrete string for the nested Gemini helper.
+  // TypeScript does not retain narrowing of an outer optional variable inside a closure.
+  const requiredApiKey: string = apiKey;
+
   const primaryModel = process.env.LABEL_STUDIO_GEMINI_MODEL?.trim() || process.env.ASK_CENTRAL_GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
   const fallbackModel = process.env.LABEL_STUDIO_GEMINI_FALLBACK_MODEL?.trim() || process.env.ASK_CENTRAL_GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.1-flash-lite';
 
@@ -227,7 +231,7 @@ OUTPUT SHAPE:
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': requiredApiKey },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents: [{ role: 'user', parts: [{ text: promptText }] }],
