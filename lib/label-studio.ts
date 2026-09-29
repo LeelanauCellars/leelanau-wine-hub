@@ -1,4 +1,4 @@
-export type LabelLayerType = 'text' | 'shape' | 'image';
+export type LabelLayerType = 'text' | 'shape' | 'image' | 'vector';
 export type LabelTextAlign = 'left' | 'center' | 'right';
 
 export type LabelLayer = {
@@ -26,6 +26,7 @@ export type LabelLayer = {
   radius?: number;
   src?: string;
   fit?: 'contain' | 'cover' | 'fill';
+  svg?: string;
 };
 
 export type LabelDocument = {
@@ -147,7 +148,7 @@ export function createStarterLabelDocument(projectSlug: string, projectName: str
 export function sanitizeLabelLayer(value: unknown): LabelLayer | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Partial<LabelLayer>;
-  if (!raw.id || typeof raw.id !== 'string' || !raw.type || !['text', 'shape', 'image'].includes(raw.type)) return null;
+  if (!raw.id || typeof raw.id !== 'string' || !raw.type || !['text', 'shape', 'image', 'vector'].includes(raw.type)) return null;
   const number = (input: unknown, fallback: number) => typeof input === 'number' && Number.isFinite(input) ? input : fallback;
   const clamp = (input: number, min: number, max: number) => Math.min(max, Math.max(min, input));
   const layer: LabelLayer = {
@@ -181,6 +182,9 @@ export function sanitizeLabelLayer(value: unknown): LabelLayer | null {
   if (raw.type === 'image') {
     layer.src = typeof raw.src === 'string' ? raw.src.slice(0, 4_000_000) : '';
     layer.fit = raw.fit === 'cover' || raw.fit === 'fill' ? raw.fit : 'contain';
+  }
+  if (raw.type === 'vector') {
+    layer.svg = typeof raw.svg === 'string' ? raw.svg.slice(0, 8_000_000) : '';
   }
   return layer;
 }

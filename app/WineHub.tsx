@@ -15,7 +15,7 @@ import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViti
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
 import MerchApparel from '@/app/components/MerchApparel';
-import LabelStudio from '@/app/components/LabelStudio';
+import Labels from '@/app/components/Labels';
 import { WINE_COLLECTIONS, canonicalWineCollection, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 import type { CaseSalesGoalMetrics, CaseSalesSummary } from '@/lib/case-sales';
 import { CENTRAL_PROJECTS, projectBySlug, type CentralProject, type CentralProjectFile } from '@/lib/projects';
@@ -54,19 +54,18 @@ const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>
 type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
-type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'label-studio' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
+type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
 type CentralRoute =
-  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
+  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
   | { kind: 'wine'; slug: string; tab: ProfileTab }
   | { kind: 'project'; slug: string }
-  | { kind: 'label-studio'; slug: string }
   | { kind: 'tech'; slug: string }
   | { kind: 'distribution'; slug: string };
 
 const CENTRAL_PATH_PREFIX = (process.env.NEXT_PUBLIC_CENTRAL_PATH_PREFIX || '').replace(/\/+$/, '');
-const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'tasting-menu', 'case-sales', 'merch-apparel', 'quick-facts', 'awards', 'ask']);
+const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'labels', 'tasting-menu', 'case-sales', 'merch-apparel', 'quick-facts', 'awards', 'ask']);
 
 function routeSlug(value = '') {
   return value
@@ -142,17 +141,14 @@ function projectPath(project: CentralProject) {
   return centralPath(`/projects/${project.slug}`);
 }
 
-function labelStudioPath(project: CentralProject) {
-  return centralPath(`/projects/${project.slug}/label-studio`);
-}
-
-type SectionView = 'library' | 'distribution' | 'projects' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
+type SectionView = 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
 
 function sectionPath(view: SectionView) {
   const map: Record<string, string> = {
     library: '/wine-library',
     distribution: '/distribution-wines',
     projects: '/projects',
+    labels: '/labels',
     tasting: '/tasting-menu',
     'case-sales': '/case-sales',
     merch: '/merch-apparel',
@@ -177,11 +173,8 @@ function parseCentralRoute(pathname: string): CentralRoute | null {
   }
   if (section === 'tech-sheets') return slug ? { kind: 'tech', slug } : { kind: 'section', view: 'tech-library' };
   if (section === 'distribution-wines') return slug ? { kind: 'distribution', slug } : { kind: 'section', view: 'distribution' };
-  if (section === 'projects') {
-    if (!slug) return { kind: 'section', view: 'projects' };
-    if (third === 'label-studio') return { kind: 'label-studio', slug };
-    return { kind: 'project', slug };
-  }
+  if (section === 'projects') return slug ? { kind: 'project', slug } : { kind: 'section', view: 'projects' };
+  if (section === 'labels') return { kind: 'section', view: 'labels' };
   if (section === 'tasting-menu') return { kind: 'section', view: 'tasting' };
   if (section === 'case-sales') return { kind: 'section', view: 'case-sales' };
   if (section === 'merch-apparel') return { kind: 'section', view: 'merch' };
@@ -204,7 +197,7 @@ function routeForView(view: SectionView): CentralRoute {
 
 function preferredPortalForRoute(route: CentralRoute, accessRole: AccessRole | null): PortalRole {
   if (accessRole === 'admin') return 'admin';
-  if (route.kind === 'tech' || route.kind === 'project' || route.kind === 'label-studio' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects'))) return 'sales';
+  if (route.kind === 'tech' || route.kind === 'project' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels'))) return 'sales';
   if (route.kind === 'distribution' || (route.kind === 'section' && route.view === 'distribution')) return 'distribution';
   if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'merch')) return 'tasting';
   if (route.kind === 'section' && route.view === 'quickfacts') return accessRole === 'sales' ? 'sales' : 'tasting';
@@ -806,6 +799,7 @@ export default function WineHub() {
   const canUseQuickFacts = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
   const canUseAwards = portalRole === 'admin' || portalRole === 'sales';
   const canUseProjects = portalRole === 'admin' || portalRole === 'sales';
+  const canUseLabels = portalRole === 'admin' || portalRole === 'sales';
 
   useEffect(() => {
     try {
@@ -938,12 +932,12 @@ export default function WineHub() {
       setView('distribution-profile');
       return;
     }
-    if (route.kind === 'project' || route.kind === 'label-studio') {
+    if (route.kind === 'project') {
       if (!(role === 'admin' || role === 'sales')) return;
       const project = projectBySlug(route.slug);
       if (!project) return;
       setActiveProjectSlug(project.slug);
-      setView(route.kind === 'label-studio' ? 'label-studio' : 'project');
+      setView('project');
       return;
     }
 
@@ -952,7 +946,7 @@ export default function WineHub() {
       route.view === 'distribution' ? role === 'admin' || role === 'sales' || role === 'distribution' :
       route.view === 'tasting' || route.view === 'case-sales' || route.view === 'merch' ? role === 'admin' || role === 'tasting' :
       route.view === 'quickfacts' ? role === 'admin' || role === 'tasting' || role === 'sales' :
-      route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' ? role === 'admin' || role === 'sales' :
+      route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels' ? role === 'admin' || role === 'sales' :
       route.view === 'ask' ? true : false;
     if (!allowed) return;
     setView(route.view);
@@ -1097,15 +1091,6 @@ export default function WineHub() {
     writeCentralPath(projectPath(project));
   }
 
-  function openLabelStudio(project: CentralProject) {
-    const route: CentralRoute = { kind: 'label-studio', slug: project.slug };
-    setPendingRoute(route);
-    setActiveProjectSlug(project.slug);
-    setView('label-studio');
-    setMobileNav(false);
-    setAskDrawerOpen(false);
-    writeCentralPath(labelStudioPath(project));
-  }
 
   function openTech(wine = activeWine) {
     if (!wine || !canUseTechSheets) return;
@@ -1227,7 +1212,8 @@ export default function WineHub() {
           <nav className="space-y-2" aria-label="Section navigation">
             <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
             {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label={portalRole === 'tasting' ? 'Wines' : 'Wine Library'} onClick={() => navigateSection('library')} />}
-            {canUseProjects && <NavButton active={view === 'projects' || view === 'project' || view === 'label-studio'} icon={<Briefcase />} label="Projects" onClick={() => navigateSection('projects')} />}
+            {canUseProjects && <NavButton active={view === 'projects' || view === 'project'} icon={<Briefcase />} label="Projects" onClick={() => navigateSection('projects')} />}
+            {canUseLabels && <NavButton active={view === 'labels'} icon={<ImageIcon />} label="Labels" onClick={() => navigateSection('labels')} />}
             {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => navigateSection('distribution')} />}
             {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />}
             {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu and Notes" onClick={() => navigateSection('tasting')} />}
@@ -1261,11 +1247,11 @@ export default function WineHub() {
       {mobileNav && <button className="no-print fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close menu overlay" />}
 
       <main className="min-h-screen lg:pl-[292px]">
-        {view !== 'ask' && view !== 'label-studio' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="no-print fixed right-6 top-20 z-30 hidden items-center gap-2 rounded-full border border-[#3976b7]/20 bg-white px-4 py-2.5 text-xs font-black text-[#3976b7] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-[#3976b7]/40 hover:shadow-xl lg:inline-flex"><AskCentralMark className="h-4 w-4" /> Ask Central</button>}
+        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="no-print fixed right-6 top-20 z-30 hidden items-center gap-2 rounded-full border border-[#3976b7]/20 bg-white px-4 py-2.5 text-xs font-black text-[#3976b7] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-[#3976b7]/40 hover:shadow-xl lg:inline-flex"><AskCentralMark className="h-4 w-4" /> Ask Central</button>}
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
           <span className="min-w-0 flex-1 truncate font-bold">Leelanau Cellars Central · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
-          {view !== 'ask' && view !== 'label-studio' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3976b7] text-white shadow-sm" aria-label="Open Ask Central"><AskCentralMark className="h-[18px] w-[18px]" /></button>}
+          {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3976b7] text-white shadow-sm" aria-label="Open Ask Central"><AskCentralMark className="h-[18px] w-[18px]" /></button>}
         </div>
 
         {view === 'ask' && <AskCentral wines={wines} distributionWines={distributionWines} portalRole={portalRole} openPath={(path) => { const fullPath = centralPath(path); const route = parseCentralRoute(fullPath); if (!route) return; setPendingRoute(route); writeCentralPath(fullPath); applyRouteState(route, portalRole); }} />}
@@ -1276,8 +1262,8 @@ export default function WineHub() {
           <WineProfile wine={activeWine} distributionWines={distributionWines} tab={profileTab} setTab={changeProfileTab} editing={editingWine} setEditing={setEditingWine} save={saveMasterWine} saving={savingMaster} saveNotice={saveNotice} addAward={addAwardToEditing} back={() => navigateSection('library')} openTech={() => openTech(activeWine)} allowTechSheets={canUseTechSheets} />
         )}
         {view === 'projects' && canUseProjects && <ProjectsLibrary projects={CENTRAL_PROJECTS} openProject={openProject} />}
-        {view === 'project' && canUseProjects && activeProject && <ProjectDetail project={activeProject} back={() => navigateSection('projects')} openLabelStudio={() => openLabelStudio(activeProject)} />}
-        {view === 'label-studio' && canUseProjects && activeProject && <LabelStudio project={activeProject} back={() => openProject(activeProject)} />}
+        {view === 'project' && canUseProjects && activeProject && <ProjectDetail project={activeProject} back={() => navigateSection('projects')} />}
+        {view === 'labels' && canUseLabels && <Labels isAdmin={isPortalAdmin} />}
         {view === 'distribution' && canUseDistribution && (
           <DistributionLibrary wines={wines} distributionWines={distributionWines} collection={distributionCollection} setCollection={setDistributionCollection} openWine={openDistributionWine} />
         )}
@@ -1821,7 +1807,7 @@ function ProjectFileCard({ file }: { file: CentralProjectFile }) {
   </article>;
 }
 
-function ProjectDetail({ project, back, openLabelStudio }: { project: CentralProject; back: () => void; openLabelStudio: () => void }) {
+function ProjectDetail({ project, back }: { project: CentralProject; back: () => void }) {
   return <div className="mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
     <button onClick={back} className="mb-5 flex items-center gap-1.5 text-xs font-bold text-black/50 hover:text-black"><ChevronLeft className="h-4 w-4" /> Projects</button>
     <div className="mb-7 overflow-hidden rounded-[24px] border border-black/10 bg-white shadow-sm">
@@ -1834,7 +1820,6 @@ function ProjectDetail({ project, back, openLabelStudio }: { project: CentralPro
           <h1 className="mt-5 text-4xl font-black tracking-[-.04em] md:text-5xl">{project.name}</h1>
           <p className="mt-4 max-w-xl text-base font-semibold leading-7 text-black/55">{project.description}</p>
           <div className="mt-6 flex flex-wrap gap-x-7 gap-y-2 text-xs font-bold text-black/40"><span>{project.updated}</span><span>{project.files.length} project file{project.files.length === 1 ? '' : 's'}</span></div>
-          <div className="mt-7"><button type="button" onClick={openLabelStudio} className="inline-flex items-center gap-2 rounded-xl bg-[#326eac] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#285d93] hover:shadow-md"><Sparkles className="h-4 w-4" /> Open in Label Studio</button><p className="mt-2 text-[11px] font-semibold text-black/35">Layered prototype · Gemini edits · SVG/JSON export</p></div>
         </div>
       </div>
     </div>
