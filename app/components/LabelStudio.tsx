@@ -397,13 +397,103 @@ function starterDocument(label: LabelLibraryItem): LabelDocument {
 }
 
 function textEditChanges(changes: Partial<LabelLayer>) {
-  return ['text', 'fontSize', 'fontWeight', 'fontFamily', 'letterSpacing', 'align'].some((key) => key in changes);
+  // Wording changes are handled separately so original Illustrator outline glyphs
+  // can be preserved whenever possible. Only explicit typography controls switch
+  // an object into browser-rendered live text.
+  return ['fontSize', 'fontWeight', 'fontFamily', 'letterSpacing', 'align'].some((key) => key in changes);
+}
+
+type OutlineGlyph = { id: string; definition: string };
+type OutlineTextResult = { svg: string | null; reason?: string };
+
+function svgUseHref(element: Element) {
+  return element.getAttribute('href') || element.getAttribute('xlink:href') || element.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
+}
+
+function outlineGlyphAtlas(doc: LabelDocument, sourceFontFamily: string) {
+  const atlas = new Map<string, OutlineGlyph>();
+  if (!sourceFontFamily || typeof DOMParser === 'undefined') return atlas;
+  const parser = new DOMParser();
+  for (const candidate of doc.layers) {
+    if (candidate.type !== 'text' || candidate.sourceFontFamily !== sourceFontFamily || !candidate.outlineSvg || !candidate.text) continue;
+    try {
+      const parsed = parser.parseFromString(candidate.outlineSvg, 'image/svg+xml');
+      if (parsed.querySelector('parsererror')) continue;
+      const uses = Array.from(parsed.querySelectorAll('use'));
+      const chars = Array.from(candidate.text);
+      if (uses.length !== chars.length) continue;
+      const definitions = new Map(Array.from(parsed.querySelectorAll('defs [id]')).map((element) => [element.id, element.outerHTML]));
+      chars.forEach((char, index) => {
+        if (atlas.has(char)) return;
+        const id = svgUseHref(uses[index]).replace(/^#/, '');
+        const definition = definitions.get(id);
+        if (id && definition) atlas.set(char, { id, definition });
+      });
+    } catch {
+      // A malformed source fragment should not make the rest of the label unusable.
+    }
+  }
+  return atlas;
+}
+
+function replaceOutlineTextExact(doc: LabelDocument, layer: LabelLayer, nextText: string): OutlineTextResult {
+  if (layer.type !== 'text' || layer.renderMode !== 'outline' || !layer.outlineSvg || !layer.text) return { svg: null, reason: 'This object is not original outline text.' };
+  const family = layer.sourceFontFamily || '';
+  if (!family) return { svg: null, reason: 'The original font family could not be identified.' };
+  const oldChars = Array.from(layer.text);
+  const nextChars = Array.from(nextText);
+  if (oldChars.length !== nextChars.length) return { svg: null, reason: `Exact outline editing currently keeps the same character count (${oldChars.length}).` };
+  if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') return { svg: null, reason: 'Outline editing is not available in this browser.' };
+
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(layer.outlineSvg, 'image/svg+xml');
+  if (parsed.querySelector('parsererror')) return { svg: null, reason: 'The original outline could not be read.' };
+  const uses = Array.from(parsed.querySelectorAll('use'));
+  if (uses.length !== oldChars.length) return { svg: null, reason: 'The original glyph layout is more complex than this precision editor currently supports.' };
+
+  const atlas = outlineGlyphAtlas(doc, family);
+  const missing = Array.from(new Set(nextChars.filter((char) => !atlas.has(char))));
+  if (missing.length) return { svg: null, reason: `The original ${family} artwork does not contain glyph${missing.length === 1 ? '' : 's'} for ${missing.map((char) => JSON.stringify(char)).join(', ')} yet.` };
+
+  let defs = parsed.querySelector('defs');
+  if (!defs) {
+    defs = parsed.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    parsed.documentElement.insertBefore(defs, parsed.documentElement.firstChild);
+  }
+  const existingIds = new Set(Array.from(parsed.querySelectorAll('[id]')).map((element) => element.id));
+  nextChars.forEach((char, index) => {
+    const glyph = atlas.get(char)!;
+    if (!existingIds.has(glyph.id)) {
+      const holder = parser.parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${glyph.definition}</svg>`, 'image/svg+xml');
+      const node = holder.documentElement.firstElementChild;
+      if (node) {
+        defs!.appendChild(parsed.importNode(node, true));
+        existingIds.add(glyph.id);
+      }
+    }
+    uses[index].setAttribute('href', `#${glyph.id}`);
+    uses[index].setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${glyph.id}`);
+  });
+  return { svg: new XMLSerializer().serializeToString(parsed.documentElement) };
+}
+
+function TextValueControl({ value, outline, sourceFontFamily, onCommit }: { value: string; outline: boolean; sourceFontFamily?: string; onCommit: (text: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => onCommit(draft);
+  return <div>
+    <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); commit(); } if (event.key === 'Escape') setDraft(value); }} rows={3} className="w-full resize-none rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold outline-none focus:border-[#3976b7]/50" />
+    <div className="mt-1.5 flex items-center justify-between gap-2">
+      <span className="text-[9px] font-semibold leading-4 text-black/35">{outline ? `Preserves original ${sourceFontFamily || 'Illustrator'} outlines when the replacement can use the existing glyphs.` : 'Live text'}</span>
+      <button type="button" onClick={commit} disabled={draft === value} className="shrink-0 rounded-lg border border-[#3976b7]/20 bg-white px-2.5 py-1.5 text-[9px] font-black text-[#3976b7] disabled:opacity-30">Apply text</button>
+    </div>
+  </div>;
 }
 
 export default function LabelStudio({ label, back }: { label: LabelLibraryItem; back: () => void }) {
   const [side, setSide] = useState<'front' | 'back'>('front');
-  const storageKey = `lwc-label-studio-v5:${label.slug}:${side}`;
-  const versionsKey = `lwc-label-studio-versions-v5:${label.slug}:${side}`;
+  const storageKey = `lwc-label-studio-v6:${label.slug}:${side}`;
+  const versionsKey = `lwc-label-studio-versions-v6:${label.slug}:${side}`;
   const [doc, setDoc] = useState<LabelDocument>(() => starterDocument(label));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<LabelDocument[]>([]);
@@ -418,6 +508,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   const [showVersions, setShowVersions] = useState(false);
   const [zoom, setZoom] = useState(58);
   const artboardRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<DragState>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const traceInputRef = useRef<HTMLInputElement | null>(null);
   const [vectorizing, setVectorizing] = useState(false);
@@ -501,39 +592,68 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   }, [versions, hydrated, versionsKey]);
 
   useEffect(() => {
-    if (!drag) return;
-    const move = (event: PointerEvent) => {
-      const rect = artboardRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const scale = rect.width / doc.width;
-      const dx = (event.clientX - drag.startX) / scale;
-      const dy = (event.clientY - drag.startY) / scale;
-      setDoc((current) => ({
-        ...current,
-        updatedAt: new Date().toISOString(),
-        layers: current.layers.map((layer) => {
-          if (layer.id !== drag.layerId) return layer;
-          if (drag.mode === 'move') return { ...layer, x: Math.round(drag.base.x + dx), y: Math.round(drag.base.y + dy) };
-          return {
-            ...layer,
-            width: Math.round(clamp(drag.base.width + dx, 20, doc.width * 2)),
-            height: Math.round(clamp(drag.base.height + dy, 20, doc.height * 2)),
-          };
-        }),
-      }));
+    const keydown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (event.key === 'Escape') { setSelectedId(null); return; }
+      if (!selectedId || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      const active = doc.layers.find((layer) => layer.id === selectedId);
+      if (!active || active.locked) return;
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+      const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+      commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selectedId ? { ...layer, x: layer.x + dx, y: layer.y + dy } : layer) }));
     };
-    const up = () => {
-      setUndoStack((stack) => [...stack.slice(-39), drag.before]);
-      setRedoStack([]);
-      setDrag(null);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up, { once: true });
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-  }, [drag, doc.width, doc.height]);
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
+  }, [selectedId, doc.layers]);
+
+  function beginDrag(event: React.PointerEvent<HTMLElement>, layer: LabelLayer, mode: 'move' | 'resize') {
+    event.stopPropagation();
+    setSelectedId(layer.id);
+    if (layer.locked) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const state: DragState = { mode, layerId: layer.id, startX: event.clientX, startY: event.clientY, base: { ...layer }, before: cloneDoc(doc) };
+    dragRef.current = state;
+    setDrag(state);
+  }
+
+  function continueDrag(event: React.PointerEvent<HTMLElement>) {
+    const active = dragRef.current;
+    if (!active) return;
+    event.preventDefault();
+    const rect = artboardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const scale = rect.width / doc.width;
+    if (!scale) return;
+    const dx = (event.clientX - active.startX) / scale;
+    const dy = (event.clientY - active.startY) / scale;
+    setDoc((current) => ({
+      ...current,
+      updatedAt: new Date().toISOString(),
+      layers: current.layers.map((layer) => {
+        if (layer.id !== active.layerId) return layer;
+        if (active.mode === 'move') return { ...layer, x: Math.round(active.base.x + dx), y: Math.round(active.base.y + dy) };
+        return {
+          ...layer,
+          width: Math.round(clamp(active.base.width + dx, 20, doc.width * 2)),
+          height: Math.round(clamp(active.base.height + dy, 20, doc.height * 2)),
+        };
+      }),
+    }));
+  }
+
+  function finishDrag(event?: React.PointerEvent<HTMLElement>) {
+    const active = dragRef.current;
+    if (!active) return;
+    event?.preventDefault();
+    dragRef.current = null;
+    setUndoStack((stack) => [...stack.slice(-39), active.before]);
+    setRedoStack([]);
+    setDrag(null);
+  }
 
   function commit(mutator: (current: LabelDocument) => LabelDocument) {
     setDoc((current) => {
@@ -550,6 +670,23 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
     if (!selected) return;
     const effective = selected.type === 'text' && textEditChanges(changes) ? { ...changes, renderMode: 'live' as const } : changes;
     commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id ? ({ ...layer, ...effective } as LabelLayer) : layer) }));
+  }
+
+  function applySelectedText(nextText: string) {
+    if (!selected || selected.type !== 'text' || selected.locked || nextText === selected.text) return;
+    if (selected.renderMode === 'outline' && selected.outlineSvg) {
+      const exact = replaceOutlineTextExact(doc, selected, nextText);
+      if (!exact.svg) {
+        setAssistantMessage(`I kept the original lettering intact. ${exact.reason || 'That wording cannot be rebuilt exactly from the current outline glyphs.'} If you deliberately want an approximate browser font instead, choose “Make text live.”`);
+        setAssistantMeta('Exact font preserved · edit not applied');
+        return;
+      }
+      commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id && layer.type === 'text' ? { ...layer, text: nextText, outlineSvg: exact.svg!, renderMode: 'outline' as const } : layer) }));
+      setAssistantMessage(`Updated ${selected.name} using the original ${selected.sourceFontFamily || 'Illustrator'} vector glyphs. No substitute browser font was used.`);
+      setAssistantMeta('Exact outline text');
+      return;
+    }
+    updateSelected({ text: nextText });
   }
 
   function updateTextColor(color: string) {
@@ -773,11 +910,28 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   }
 
   function applyOperations(operations: LabelStudioOperation[]) {
-    if (!operations.length) return;
+    if (!operations.length) return [] as string[];
+    const blockedTextEdits: string[] = [];
+    const prepared = operations.slice(0, 20).map((operation) => {
+      if (operation.type !== 'update' || typeof operation.changes.text !== 'string') return operation;
+      const layer = doc.layers.find((item) => item.id === operation.layerId);
+      if (!layer || layer.type !== 'text' || layer.renderMode !== 'outline' || !layer.outlineSvg || operation.changes.text === layer.text) return operation;
+      const exact = replaceOutlineTextExact(doc, layer, operation.changes.text);
+      if (exact.svg) return { ...operation, changes: { ...operation.changes, outlineSvg: exact.svg, renderMode: 'outline' as const } };
+      blockedTextEdits.push(`${layer.name}: ${exact.reason || 'exact outline replacement was unavailable'}`);
+      const changes = { ...operation.changes };
+      delete changes.text;
+      delete changes.fontFamily;
+      delete changes.fontSize;
+      delete changes.fontWeight;
+      delete changes.letterSpacing;
+      delete changes.align;
+      return { ...operation, changes };
+    });
     commit((current) => {
       let layers = [...current.layers];
       let background = current.background;
-      for (const operation of operations.slice(0, 20)) {
+      for (const operation of prepared) {
         if (operation.type === 'update') {
           layers = layers.map((layer) => {
             if (layer.id !== operation.layerId || layer.locked) return layer;
@@ -829,6 +983,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       }
       return { ...current, layers, background };
     });
+    return blockedTextEdits;
   }
 
   async function askGemini(text = assistantText) {
@@ -844,8 +999,8 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       });
       const data = await response.json() as LabelStudioAssistResponse & { error?: string; hint?: string };
       if (!response.ok) throw new Error(data.error || data.hint || 'Label Assistant could not complete that edit.');
-      applyOperations(Array.isArray(data.operations) ? data.operations : []);
-      setAssistantMessage(data.message || 'Applied the requested edit.');
+      const blocked = applyOperations(Array.isArray(data.operations) ? data.operations : []);
+      setAssistantMessage(blocked.length ? `I kept the original Illustrator lettering rather than substituting the wrong font. ${blocked.join(' ')}` : (data.message || 'Applied the requested edit.'));
       setAssistantMeta(data.provider === 'google-gemini' ? `Gemini · ${data.model || 'model'}` : data.degraded ? 'Local edit fallback' : 'Label Assistant');
       setAssistantText('');
     } catch (error) {
@@ -902,7 +1057,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
 
       <section className="relative flex min-h-[760px] flex-col overflow-hidden bg-[#dfe4e9]">
         <div className="no-print flex min-h-11 items-center justify-between gap-3 border-b border-black/10 bg-[#f8f9fa] px-4">
-          <p className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{importingOriginal ? 'Importing original artwork…' : `${doc.width} × ${doc.height} px · ${side} · ${doc.layers.length} editable objects`}</p>
+          <div><p className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{importingOriginal ? 'Importing original artwork…' : `${doc.width} × ${doc.height} px · ${side} · ${doc.layers.length} editable objects`}</p><p className="mt-0.5 text-[9px] font-semibold text-black/30">Drag any unlocked object directly · Arrow keys nudge 1px · Shift + Arrow nudges 10px</p></div>
           <div className="flex items-center gap-2 text-[10px] font-black text-black/45"><span>Zoom</span><input aria-label="Zoom" type="range" min="35" max="90" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><span className="w-9 text-right">{zoom}%</span></div>
         </div>
         <div className="flex flex-1 items-center justify-center overflow-auto p-8 md:p-12" onPointerDown={() => setSelectedId(null)}>
@@ -923,21 +1078,18 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
                 transform: `rotate(${layer.rotation}deg)`,
                 transformOrigin: 'center center',
                 opacity: layer.opacity,
-                cursor: layer.locked ? 'default' : 'move',
+                cursor: layer.locked ? 'default' : (drag?.layerId === layer.id && drag.mode === 'move' ? 'grabbing' : 'grab'),
                 userSelect: 'none',
                 touchAction: 'none',
               };
               return <div
                 key={layer.id}
                 style={style}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  setSelectedId(layer.id);
-                  if (layer.locked) return;
-                  event.currentTarget.setPointerCapture?.(event.pointerId);
-                  setDrag({ mode: 'move', layerId: layer.id, startX: event.clientX, startY: event.clientY, base: { ...layer }, before: cloneDoc(doc) });
-                }}
-                className={`${selectedId === layer.id ? 'outline outline-2 outline-[#3976b7] outline-offset-[-1px]' : ''}`}
+                onPointerDown={(event) => beginDrag(event, layer, 'move')}
+                onPointerMove={continueDrag}
+                onPointerUp={finishDrag}
+                onPointerCancel={finishDrag}
+                className={`${selectedId === layer.id ? 'outline outline-2 outline-[#3976b7] outline-offset-[-1px]' : ''} ${drag?.layerId === layer.id && drag.mode === 'move' ? 'cursor-grabbing' : ''}`}
               >
                 {layer.type === 'shape' && <div className="h-full w-full" style={{ background: layer.fill, border: `${(layer.strokeWidth || 0) * scale}px solid ${layer.stroke || 'transparent'}`, borderRadius: `${(layer.radius || 0) * scale}px` }} />}
                 {layer.type === 'image' && <img src={layer.src || ''} alt="" draggable={false} className="h-full w-full pointer-events-none" style={{ objectFit: layer.fit || 'contain' }} />}
@@ -947,10 +1099,10 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
                 {selectedId === layer.id && !layer.locked && <button
                   type="button"
                   aria-label="Resize selected layer"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                    setDrag({ mode: 'resize', layerId: layer.id, startX: event.clientX, startY: event.clientY, base: { ...layer }, before: cloneDoc(doc) });
-                  }}
+                  onPointerDown={(event) => beginDrag(event, layer, 'resize')}
+                  onPointerMove={continueDrag}
+                  onPointerUp={finishDrag}
+                  onPointerCancel={finishDrag}
                   className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#3976b7] shadow"
                 />}
               </div>;
@@ -974,10 +1126,12 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
             <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Rotation</span><input type="number" value={selected.rotation} onChange={(event) => updateSelected({ rotation: num(event.target.value) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Opacity</span><input type="number" min="0" max="1" step=".05" value={selected.opacity} onChange={(event) => updateSelected({ opacity: clamp(num(event.target.value, 1), 0, 1) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
             {selected.type === 'text' && <>
               {selected.outlineSvg && <div className="rounded-xl border border-[#3976b7]/15 bg-[#f7fbff] p-3 text-[10px] font-semibold leading-4 text-black/55"><p className="font-black text-black/70">{selected.renderMode === 'outline' ? 'Exact original outline' : 'Live editable text'}</p><p className="mt-1">{selected.renderMode === 'outline' ? `This is the exact vector lettering from Illustrator${selected.sourceFontFamily ? ` (${selected.sourceFontFamily})` : ''}. Changing the wording/font switches this object to live text.` : 'The wording is now live text. Use Reset if you want the exact original outline back.'}</p>{selected.renderMode === 'outline' && <button type="button" onClick={() => updateSelected({ renderMode: 'live' })} className="mt-2 rounded-lg border border-[#3976b7]/20 bg-white px-2.5 py-1.5 text-[9px] font-black text-[#3976b7]">Make text live</button>}</div>}
-              <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Text</span><textarea value={selected.text || ''} onChange={(event) => updateSelected({ text: event.target.value })} rows={3} className="w-full resize-none rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
-              <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Font size</span><input type="number" value={selected.fontSize || 48} onChange={(event) => updateSelected({ fontSize: num(event.target.value, 48) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Weight</span><input type="number" step="100" min="100" max="1000" value={selected.fontWeight || 700} onChange={(event) => updateSelected({ fontWeight: num(event.target.value, 700) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
-              <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Font family</span><input value={selected.fontFamily || ''} onChange={(event) => updateSelected({ fontFamily: event.target.value })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
-              <div className="grid grid-cols-[1fr_1fr] gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Color</span><HexColorControl value={selected.color || '#111111'} onCommit={updateTextColor} /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Align</span><select value={selected.align || 'center'} onChange={(event) => updateSelected({ align: event.target.value as 'left' | 'center' | 'right' })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold"><option>left</option><option>center</option><option>right</option></select></label></div>
+              <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Text</span><TextValueControl value={selected.text || ''} outline={selected.renderMode === 'outline' && Boolean(selected.outlineSvg)} sourceFontFamily={selected.sourceFontFamily} onCommit={applySelectedText} /></label>
+              {selected.renderMode === 'outline' && selected.outlineSvg ? <div className="rounded-xl border border-black/5 bg-[#fafafa] p-3 text-[9px] font-semibold leading-4 text-black/45">Keep this in <b>Exact original outline</b> mode for the real Illustrator lettering. Resize the object on the canvas or change Width/Height above. Font size, weight and family controls only appear if you intentionally switch to live text.</div> : <>
+                <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Font size</span><input type="number" value={selected.fontSize || 48} onChange={(event) => updateSelected({ fontSize: num(event.target.value, 48) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Weight</span><input type="number" step="100" min="100" max="1000" value={selected.fontWeight || 700} onChange={(event) => updateSelected({ fontWeight: num(event.target.value, 700) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
+                <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Font family</span><input value={selected.fontFamily || ''} onChange={(event) => updateSelected({ fontFamily: event.target.value })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
+              </>}
+              <div className={`grid gap-2 ${selected.renderMode === 'outline' && selected.outlineSvg ? 'grid-cols-1' : 'grid-cols-[1fr_1fr]'}`}><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Color</span><HexColorControl value={selected.color || '#111111'} onCommit={updateTextColor} /></label>{!(selected.renderMode === 'outline' && selected.outlineSvg) && <label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Align</span><select value={selected.align || 'center'} onChange={(event) => updateSelected({ align: event.target.value as 'left' | 'center' | 'right' })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold"><option>left</option><option>center</option><option>right</option></select></label>}</div>
             </>}
             {selected.type === 'shape' && <div className="space-y-2"><label className="block"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Fill</span><HexColorControl value={selected.fill || '#ffffff'} onCommit={(color) => updateSelected({ fill: color })} /></label><label className="block"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Stroke</span><HexColorControl value={selected.stroke || '#111111'} onCommit={(color) => updateSelected({ stroke: color })} /></label><div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Stroke width</span><input type="number" min="0" value={selected.strokeWidth || 0} onChange={(event) => updateSelected({ strokeWidth: num(event.target.value) })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Corners</span><input type="number" value={selected.radius || 0} onChange={(event) => updateSelected({ radius: num(event.target.value) })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold" /></label></div></div>}
             {selected.type === 'image' && <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Image fit</span><select value={selected.fit || 'contain'} onChange={(event) => updateSelected({ fit: event.target.value as 'contain' | 'cover' | 'fill' })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold"><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Stretch</option></select></label>}

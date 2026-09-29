@@ -165,9 +165,36 @@ function safeOperations(value: unknown, document: LabelDocument): LabelStudioOpe
     if (type === 'update' && typeof raw.layerId === 'string' && validIds.has(raw.layerId) && raw.changes && typeof raw.changes === 'object') {
       const original = document.layers.find((layer) => layer.id === raw.layerId);
       if (!original || original.locked) continue;
-      const safe = sanitizeLabelLayer({ ...original, ...(raw.changes as object), id: original.id, type: original.type });
+      const requested = raw.changes as Record<string, unknown>;
+      const safe = sanitizeLabelLayer({ ...original, ...requested, id: original.id, type: original.type });
       if (!safe) continue;
-      const { id: _id, type: _type, ...safeChanges } = safe;
+      const safeChanges: Partial<LabelLayer> = {};
+      const requestedKeys = new Set(Object.keys(requested));
+      if (requestedKeys.has('name')) safeChanges.name = safe.name;
+      if (requestedKeys.has('visible')) safeChanges.visible = safe.visible;
+      if (requestedKeys.has('x')) safeChanges.x = safe.x;
+      if (requestedKeys.has('y')) safeChanges.y = safe.y;
+      if (requestedKeys.has('width')) safeChanges.width = safe.width;
+      if (requestedKeys.has('height')) safeChanges.height = safe.height;
+      if (requestedKeys.has('rotation')) safeChanges.rotation = safe.rotation;
+      if (requestedKeys.has('opacity')) safeChanges.opacity = safe.opacity;
+      if (original.type === 'text') {
+        if (requestedKeys.has('text')) safeChanges.text = safe.text;
+        if (requestedKeys.has('fontSize')) safeChanges.fontSize = safe.fontSize;
+        if (requestedKeys.has('fontWeight')) safeChanges.fontWeight = safe.fontWeight;
+        if (requestedKeys.has('fontFamily')) safeChanges.fontFamily = safe.fontFamily;
+        if (requestedKeys.has('letterSpacing')) safeChanges.letterSpacing = safe.letterSpacing;
+        if (requestedKeys.has('align')) safeChanges.align = safe.align;
+        if (requestedKeys.has('color')) safeChanges.color = safe.color;
+      }
+      if (original.type === 'shape') {
+        if (requestedKeys.has('fill')) safeChanges.fill = safe.fill;
+        if (requestedKeys.has('stroke')) safeChanges.stroke = safe.stroke;
+        if (requestedKeys.has('strokeWidth')) safeChanges.strokeWidth = safe.strokeWidth;
+        if (requestedKeys.has('radius')) safeChanges.radius = safe.radius;
+      }
+      if (original.type === 'image' && requestedKeys.has('fit')) safeChanges.fit = safe.fit;
+      if (!Object.keys(safeChanges).length) continue;
       operations.push({ type: 'update', layerId: original.id, changes: safeChanges });
       continue;
     }
@@ -254,7 +281,7 @@ export async function POST(request: NextRequest) {
     height: layer.height,
     rotation: layer.rotation,
     opacity: layer.opacity,
-    ...(layer.type === 'text' ? { text: layer.text, fontSize: layer.fontSize, fontWeight: layer.fontWeight, fontFamily: layer.fontFamily, letterSpacing: layer.letterSpacing, align: layer.align, color: layer.color } : {}),
+    ...(layer.type === 'text' ? { text: layer.text, fontSize: layer.fontSize, fontWeight: layer.fontWeight, fontFamily: layer.fontFamily, sourceFontFamily: layer.sourceFontFamily, renderMode: layer.renderMode, letterSpacing: layer.letterSpacing, align: layer.align, color: layer.color } : {}),
     ...(layer.type === 'shape' ? { fill: layer.fill, stroke: layer.stroke, strokeWidth: layer.strokeWidth, radius: layer.radius } : {}),
     ...(layer.type === 'image' ? { fit: layer.fit, hasImage: Boolean(layer.src) } : {}),
     ...(layer.type === 'vector' ? { paints: svgPaintSummary(layer.svg || '') } : {}),
@@ -270,11 +297,13 @@ RULES:
 - Prefer precise update operations over recreating layers.
 - Vector artwork stores its real colors inside SVG. NEVER try to recolor a vector with an update operation. Use a recolor operation and copy the exact "from" value from that layer's paints list.
 - For an outlined text layer, a color-only request should preserve the exact outline and use recolor (or an update with color only); do not switch fonts or recreate the text.
+- For an outlined text wording change, send ONLY the requested text value (plus position only if explicitly requested). Label Studio will rebuild the wording from original Illustrator glyph outlines when it can; never add fontFamily/fontSize/fontWeight just because text changed.
+- For an outlined text size change, scale width and height proportionally instead of changing fontSize. This preserves the exact Illustrator lettering.
 - When the user asks to change the label/background color, use set-background. This changes the visible imported label background as well as the artboard.
 - When the user says "this", "selected", or otherwise refers to the current object, use SELECTED_LAYER_ID.
 - Coordinates and sizes are document pixels. The artboard origin is top-left.
 - For "center" without another qualifier, horizontally center the selected/referenced layer: x=(document width-layer width)/2.
-- For percentage size changes to text, change fontSize by that percentage. Do not scale unrelated layers.
+- For percentage size changes to LIVE text, change fontSize by that percentage. For OUTLINE text, scale width and height by that percentage. Do not scale unrelated layers.
 - If the user asks for a creative improvement but does not identify exact objects, make at most 3 restrained edits and describe them in message.
 - Do not invent regulatory facts, UPCs, alcohol percentages, legal copy, winery addresses, or factual wine data.
 - You may add text or simple rectangular/rounded shape layers. Do not claim you created vector illustrations or native Adobe Illustrator files.
