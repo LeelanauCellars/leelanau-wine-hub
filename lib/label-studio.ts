@@ -1,5 +1,6 @@
 export type LabelLayerType = 'text' | 'shape' | 'image' | 'vector';
 export type LabelTextAlign = 'left' | 'center' | 'right';
+export type LabelPaintTarget = 'fill' | 'stroke' | 'both';
 
 export type LabelLayer = {
   id: string;
@@ -51,7 +52,9 @@ export type LabelStudioOperation =
   | { type: 'add-shape'; layer: LabelLayer }
   | { type: 'delete'; layerId: string }
   | { type: 'duplicate'; layerId: string }
-  | { type: 'move-layer'; layerId: string; direction: 'front' | 'back' | 'forward' | 'backward' };
+  | { type: 'move-layer'; layerId: string; direction: 'front' | 'back' | 'forward' | 'backward' }
+  | { type: 'recolor'; layerId: string; from: string; to: string; target: LabelPaintTarget }
+  | { type: 'set-background'; color: string };
 
 export type LabelStudioAssistResponse = {
   message: string;

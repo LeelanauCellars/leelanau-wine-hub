@@ -54,6 +54,171 @@ function sizedVectorSvg(svg: string, width: number, height: number) {
   });
 }
 
+type SvgPaint = { raw: string; hex: string; target: 'fill' | 'stroke'; count: number };
+
+function cssColorToHex(value = ''): string | null {
+  const raw = value.trim().toLowerCase();
+  if (!raw || raw === 'none' || raw === 'transparent' || raw.startsWith('url(') || raw === 'currentcolor' || raw === 'inherit') return null;
+  const short = raw.match(/^#([0-9a-f]{3})$/i);
+  if (short) return `#${short[1].split('').map((part) => part + part).join('')}`.toUpperCase();
+  const full = raw.match(/^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i);
+  if (full) return `#${full[1]}`.toUpperCase();
+  const rgb = raw.match(/^rgba?\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,\)]+)(?:\s*,[^\)]*)?\)$/i);
+  if (rgb) {
+    const channel = (input: string) => {
+      const text = input.trim();
+      const numeric = Number.parseFloat(text);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.round(clamp(text.endsWith('%') ? numeric * 2.55 : numeric, 0, 255));
+    };
+    return `#${[channel(rgb[1]), channel(rgb[2]), channel(rgb[3])].map((item) => item.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+  }
+  const named: Record<string, string> = { white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#008000', blue: '#0000FF', gray: '#808080', grey: '#808080', yellow: '#FFFF00', orange: '#FFA500', purple: '#800080', pink: '#FFC0CB', navy: '#000080', gold: '#FFD700', burgundy: '#800020', maroon: '#800000', cream: '#FFFDD0', beige: '#F5F5DC' };
+  return named[raw] || null;
+}
+
+function extractSvgPaints(svg = ''): SvgPaint[] {
+  const values = new Map<string, SvgPaint>();
+  const add = (target: 'fill' | 'stroke', rawValue: string) => {
+    const raw = rawValue.trim();
+    const hex = cssColorToHex(raw);
+    if (!hex) return;
+    const key = `${target}:${raw.toLowerCase().replace(/\s+/g, '')}`;
+    const existing = values.get(key);
+    if (existing) existing.count += 1;
+    else values.set(key, { raw, hex, target, count: 1 });
+  };
+  for (const match of svg.matchAll(/\b(fill|stroke)\s*=\s*["']([^"']+)["']/gi)) add(match[1].toLowerCase() as 'fill' | 'stroke', match[2]);
+  for (const match of svg.matchAll(/\bstyle\s*=\s*["']([^"']+)["']/gi)) {
+    for (const part of match[1].split(';')) {
+      const style = part.match(/^\s*(fill|stroke)\s*:\s*(.+?)\s*$/i);
+      if (style) add(style[1].toLowerCase() as 'fill' | 'stroke', style[2]);
+    }
+  }
+  return Array.from(values.values());
+}
+
+function replaceSvgPaint(svg: string, from: string, to: string, target: 'fill' | 'stroke' | 'both' = 'both') {
+  if (!svg || !from || !to) return svg;
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let next = svg;
+  const targets = target === 'both' ? ['fill', 'stroke'] : [target];
+  for (const property of targets) {
+    next = next.replace(new RegExp(`(${property}\\s*=\\s*["'])${escaped}(["'])`, 'gi'), `$1${to}$2`);
+    next = next.replace(new RegExp(`(${property}\\s*:\s*)${escaped}(?=\\s*(?:;|["']))`, 'gi'), `$1${to}`);
+  }
+  return next;
+}
+
+function recolorLayerPaint(layer: LabelLayer, from: string, to: string, target: 'fill' | 'stroke' | 'both' = 'both'): LabelLayer {
+  if (layer.type === 'vector' && layer.svg) return { ...layer, svg: replaceSvgPaint(layer.svg, from, to, target) };
+  if (layer.type === 'text' && layer.renderMode === 'outline' && layer.outlineSvg) {
+    const next = { ...layer, outlineSvg: replaceSvgPaint(layer.outlineSvg, from, to, target) };
+    if (target !== 'stroke') next.color = to;
+    return next;
+  }
+  return layer;
+}
+
+function pathBounds(d: string) {
+  const tokens = d.match(/[a-zA-Z]|[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?/g) || [];
+  let index = 0, command = '', x = 0, y = 0, startX = 0, startY = 0;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const point = (px: number, py: number) => { minX = Math.min(minX, px); minY = Math.min(minY, py); maxX = Math.max(maxX, px); maxY = Math.max(maxY, py); };
+  const number = () => Number(tokens[index++]);
+  while (index < tokens.length) {
+    if (/^[a-zA-Z]$/.test(tokens[index])) command = tokens[index++];
+    if (!command) break;
+    const relative = command === command.toLowerCase();
+    const upper = command.toUpperCase();
+    if (upper === 'Z') { x = startX; y = startY; point(x, y); command = ''; continue; }
+    const remaining = () => index < tokens.length && !/^[a-zA-Z]$/.test(tokens[index]);
+    if (!remaining()) continue;
+    if (upper === 'M' || upper === 'L' || upper === 'T') {
+      const nx = number(), ny = number(); x = relative ? x + nx : nx; y = relative ? y + ny : ny; if (upper === 'M') { startX = x; startY = y; command = relative ? 'l' : 'L'; } point(x, y); continue;
+    }
+    if (upper === 'H') { const nx = number(); x = relative ? x + nx : nx; point(x, y); continue; }
+    if (upper === 'V') { const ny = number(); y = relative ? y + ny : ny; point(x, y); continue; }
+    if (upper === 'C') {
+      const values = Array.from({ length: 6 }, number); const baseX = x, baseY = y;
+      for (let i = 0; i < 6; i += 2) point(relative ? baseX + values[i] : values[i], relative ? baseY + values[i + 1] : values[i + 1]);
+      x = relative ? baseX + values[4] : values[4]; y = relative ? baseY + values[5] : values[5]; continue;
+    }
+    if (upper === 'S' || upper === 'Q') {
+      const values = Array.from({ length: 4 }, number); const baseX = x, baseY = y;
+      for (let i = 0; i < 4; i += 2) point(relative ? baseX + values[i] : values[i], relative ? baseY + values[i + 1] : values[i + 1]);
+      x = relative ? baseX + values[2] : values[2]; y = relative ? baseY + values[3] : values[3]; continue;
+    }
+    if (upper === 'A') {
+      const values = Array.from({ length: 7 }, number); const baseX = x, baseY = y;
+      x = relative ? baseX + values[5] : values[5]; y = relative ? baseY + values[6] : values[6]; point(x, y); continue;
+    }
+    index += 1;
+  }
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  return { minX, minY, maxX, maxY, width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) };
+}
+
+function largeBackgroundPaint(svg = ''): SvgPaint | null {
+  const view = svg.match(/viewBox\s*=\s*["']\s*([-+\d.eE]+)[ ,]+([-+\d.eE]+)[ ,]+([-+\d.eE]+)[ ,]+([-+\d.eE]+)\s*["']/i);
+  const sourceWidth = view ? Math.abs(Number(view[3])) : 0;
+  const sourceHeight = view ? Math.abs(Number(view[4])) : 0;
+  if (!sourceWidth || !sourceHeight) return null;
+  for (const tag of svg.matchAll(/<(path|rect)\b([^>]*)>/gi)) {
+    const attrs = tag[2];
+    const fill = attrs.match(/\bfill\s*=\s*["']([^"']+)["']/i)?.[1];
+    const hex = fill ? cssColorToHex(fill) : null;
+    if (!fill || !hex) continue;
+    let width = 0, height = 0;
+    if (tag[1].toLowerCase() === 'rect') {
+      width = Number(attrs.match(/\bwidth\s*=\s*["']([^"']+)["']/i)?.[1]) || 0;
+      height = Number(attrs.match(/\bheight\s*=\s*["']([^"']+)["']/i)?.[1]) || 0;
+    } else {
+      const d = attrs.match(/\bd\s*=\s*["']([^"']+)["']/i)?.[1] || '';
+      const bounds = pathBounds(d); width = bounds?.width || 0; height = bounds?.height || 0;
+    }
+    if ((width * height) / (sourceWidth * sourceHeight) >= 0.65) return { raw: fill.trim(), hex, target: 'fill', count: 1 };
+  }
+  return null;
+}
+
+function backgroundVectorPaint(doc: LabelDocument): { layerId: string; paint: SvgPaint } | null {
+  const candidates = [
+    ...doc.layers.filter((layer) => layer.type === 'vector' && !layer.locked && /original vector artwork/i.test(layer.name)),
+    ...doc.layers.filter((layer) => layer.type === 'vector' && !layer.locked && !/original vector artwork/i.test(layer.name)),
+  ];
+  for (const layer of candidates) {
+    const paint = largeBackgroundPaint(layer.svg || '');
+    if (paint) return { layerId: layer.id, paint };
+  }
+  return null;
+}
+
+function setVisibleLabelBackground(doc: LabelDocument, color: string): LabelDocument {
+  const candidate = backgroundVectorPaint(doc);
+  return {
+    ...doc,
+    background: color,
+    layers: candidate ? doc.layers.map((layer) => layer.id === candidate.layerId ? recolorLayerPaint(layer, candidate.paint.raw, color, 'fill') : layer) : doc.layers,
+  };
+}
+
+function documentVectorPaints(doc: LabelDocument): SvgPaint[] {
+  const merged = new Map<string, SvgPaint>();
+  for (const layer of doc.layers) {
+    if (layer.locked) continue;
+    const svg = layer.type === 'vector' ? layer.svg : layer.type === 'text' && layer.renderMode === 'outline' ? layer.outlineSvg : '';
+    if (!svg) continue;
+    for (const paint of extractSvgPaints(svg)) {
+      const key = `${paint.target}:${paint.raw.toLowerCase().replace(/\s+/g, '')}`;
+      const current = merged.get(key);
+      if (current) current.count += paint.count;
+      else merged.set(key, { ...paint });
+    }
+  }
+  return Array.from(merged.values()).sort((a, b) => b.count - a.count);
+}
+
 async function downscaleRasterDataUrl(dataUrl: string, maxDimension = 1200) {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
@@ -209,13 +374,13 @@ function starterDocument(label: LabelLibraryItem): LabelDocument {
 }
 
 function textEditChanges(changes: Partial<LabelLayer>) {
-  return ['text', 'fontSize', 'fontWeight', 'fontFamily', 'letterSpacing', 'align', 'color'].some((key) => key in changes);
+  return ['text', 'fontSize', 'fontWeight', 'fontFamily', 'letterSpacing', 'align'].some((key) => key in changes);
 }
 
 export default function LabelStudio({ label, back }: { label: LabelLibraryItem; back: () => void }) {
   const [side, setSide] = useState<'front' | 'back'>('front');
-  const storageKey = `lwc-label-studio-v3:${label.slug}:${side}`;
-  const versionsKey = `lwc-label-studio-versions-v3:${label.slug}:${side}`;
+  const storageKey = `lwc-label-studio-v4:${label.slug}:${side}`;
+  const versionsKey = `lwc-label-studio-versions-v4:${label.slug}:${side}`;
   const [doc, setDoc] = useState<LabelDocument>(() => starterDocument(label));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<LabelDocument[]>([]);
@@ -236,6 +401,15 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   const [importingOriginal, setImportingOriginal] = useState(false);
 
   const selected = useMemo(() => doc.layers.find((layer) => layer.id === selectedId) || null, [doc.layers, selectedId]);
+  const selectedPaints = useMemo(() => {
+    if (!selected) return [] as SvgPaint[];
+    if (selected.type === 'vector') return extractSvgPaints(selected.svg || '');
+    if (selected.type === 'text' && selected.renderMode === 'outline') return extractSvgPaints(selected.outlineSvg || '');
+    return [] as SvgPaint[];
+  }, [selected]);
+  const labelPaints = useMemo(() => documentVectorPaints(doc), [doc]);
+  const labelBackgroundPaint = useMemo(() => backgroundVectorPaint(doc), [doc]);
+  const labelBackgroundHex = labelBackgroundPaint?.paint.hex || cssColorToHex(doc.background) || '#FFFFFF';
   const referenceSrc = side === 'back' ? (label.previewBack || label.preview || '') : (label.preview || label.previewBack || '');
   const editableSource = side === 'back' ? label.editable?.back : label.editable?.front;
 
@@ -353,6 +527,42 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
     if (!selected) return;
     const effective = selected.type === 'text' && textEditChanges(changes) ? { ...changes, renderMode: 'live' as const } : changes;
     commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id ? ({ ...layer, ...effective } as LabelLayer) : layer) }));
+  }
+
+  function updateTextColor(color: string) {
+    if (!selected || selected.type !== 'text') return;
+    commit((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => {
+        if (layer.id !== selected.id || layer.type !== 'text') return layer;
+        if (layer.renderMode === 'outline' && layer.outlineSvg) {
+          let nextSvg = layer.outlineSvg;
+          const fills = extractSvgPaints(nextSvg).filter((paint) => paint.target === 'fill');
+          for (const paint of fills) nextSvg = replaceSvgPaint(nextSvg, paint.raw, color, 'fill');
+          return { ...layer, color, outlineSvg: nextSvg };
+        }
+        return { ...layer, color };
+      }),
+    }));
+  }
+
+  function recolorSelectedPaint(from: string, to: string, target: 'fill' | 'stroke') {
+    if (!selected || selected.locked) return;
+    commit((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => layer.id === selected.id ? recolorLayerPaint(layer, from, to, target) : layer),
+    }));
+  }
+
+  function recolorEverywhere(from: string, to: string, target: 'fill' | 'stroke') {
+    commit((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => layer.locked ? layer : recolorLayerPaint(layer, from, to, target)),
+    }));
+  }
+
+  function changeLabelBackground(color: string) {
+    commit((current) => setVisibleLabelBackground(current, color));
   }
 
   function addText() {
@@ -543,19 +753,36 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
     if (!operations.length) return;
     commit((current) => {
       let layers = [...current.layers];
+      let background = current.background;
       for (const operation of operations.slice(0, 20)) {
         if (operation.type === 'update') {
           layers = layers.map((layer) => {
             if (layer.id !== operation.layerId || layer.locked) return layer;
             const incoming = layer.type === 'text' && textEditChanges(operation.changes) ? { ...operation.changes, renderMode: 'live' as const } : operation.changes;
             const safe = sanitizeLabelLayer({ ...layer, ...incoming, id: layer.id, type: layer.type });
-            return safe || layer;
+            if (!safe) return layer;
+            if (safe.type === 'text' && safe.renderMode === 'outline' && safe.outlineSvg && typeof operation.changes.color === 'string') {
+              let outlineSvg = safe.outlineSvg;
+              for (const paint of extractSvgPaints(outlineSvg).filter((item) => item.target === 'fill')) outlineSvg = replaceSvgPaint(outlineSvg, paint.raw, operation.changes.color, 'fill');
+              return { ...safe, outlineSvg, color: operation.changes.color };
+            }
+            return safe;
           });
           continue;
         }
         if (operation.type === 'add-text' || operation.type === 'add-shape') {
           const safe = sanitizeLabelLayer(operation.layer);
           if (safe && safe.type === (operation.type === 'add-text' ? 'text' : 'shape')) layers.push({ ...safe, id: `${safe.id}-${Date.now()}-${layers.length}` });
+          continue;
+        }
+        if (operation.type === 'recolor') {
+          layers = layers.map((layer) => layer.id === operation.layerId && !layer.locked ? recolorLayerPaint(layer, operation.from, operation.to, operation.target) : layer);
+          continue;
+        }
+        if (operation.type === 'set-background') {
+          const next = setVisibleLabelBackground({ ...current, layers, background }, operation.color);
+          layers = next.layers;
+          background = next.background;
           continue;
         }
         if (operation.type === 'delete') {
@@ -577,7 +804,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
           else layers.splice(Math.max(0, index - 1), 0, item);
         }
       }
-      return { ...current, layers };
+      return { ...current, layers, background };
     });
   }
 
@@ -712,6 +939,10 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       <aside className="no-print border-l border-black/10 bg-white">
         <div className="border-b border-black/10 p-4">
           <div className="mb-3 flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-black/35">Properties</p><p className="text-xs font-black">{selected?.name || 'No layer selected'}</p></div>{selected && <span className="rounded-full bg-[#f1f3f5] px-2 py-1 text-[9px] font-black uppercase tracking-[.1em] text-black/45">{selected.type}</span>}</div>
+          <div className="mb-3 rounded-xl border border-black/10 bg-[#fafbfc] p-3">
+            <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-black">Label background</p><p className="mt-0.5 text-[9px] font-semibold leading-4 text-black/40">Changes the visible imported label background, not just the artboard behind it.</p></div><input aria-label="Label background color" type="color" value={labelBackgroundHex} onChange={(event) => changeLabelBackground(event.target.value)} className="h-9 w-12 shrink-0 rounded-lg border border-black/10 p-1" /></div>
+            {labelPaints.length > 0 && <div className="mt-3 border-t border-black/5 pt-3"><p className="text-[9px] font-black uppercase tracking-[.1em] text-black/35">Label vector colors</p><div className="mt-2 grid grid-cols-2 gap-1.5">{labelPaints.slice(0, 10).map((paint, index) => <label key={`${paint.target}-${paint.raw}-${index}`} className="flex items-center gap-2 rounded-lg border border-black/5 bg-white px-2 py-1.5" title={`Replace ${paint.raw} everywhere`}><input type="color" value={paint.hex} onChange={(event) => recolorEverywhere(paint.raw, event.target.value, paint.target)} className="h-6 w-7 rounded border-0 bg-transparent p-0" /><span className="min-w-0 flex-1 truncate text-[9px] font-bold text-black/50">{paint.target} · {paint.hex}</span></label>)}</div><p className="mt-2 text-[9px] font-semibold leading-4 text-black/35">These replace the same vector color everywhere on this side of the label.</p></div>}
+          </div>
           {selected ? <div className="space-y-3">
             <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Layer name</span><input value={selected.name} onChange={(event) => updateSelected({ name: event.target.value })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold outline-none focus:border-[#3976b7]/50" /></label>
             <div className="grid grid-cols-2 gap-2">
@@ -723,11 +954,11 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
               <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Text</span><textarea value={selected.text || ''} onChange={(event) => updateSelected({ text: event.target.value })} rows={3} className="w-full resize-none rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
               <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Font size</span><input type="number" value={selected.fontSize || 48} onChange={(event) => updateSelected({ fontSize: num(event.target.value, 48) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Weight</span><input type="number" step="100" min="100" max="1000" value={selected.fontWeight || 700} onChange={(event) => updateSelected({ fontWeight: num(event.target.value, 700) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
               <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Font family</span><input value={selected.fontFamily || ''} onChange={(event) => updateSelected({ fontFamily: event.target.value })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
-              <div className="grid grid-cols-[1fr_1fr] gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Color</span><input type="color" value={selected.color || '#111111'} onChange={(event) => updateSelected({ color: event.target.value })} className="h-9 w-full rounded-lg border border-black/10 p-1" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Align</span><select value={selected.align || 'center'} onChange={(event) => updateSelected({ align: event.target.value as 'left' | 'center' | 'right' })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold"><option>left</option><option>center</option><option>right</option></select></label></div>
+              <div className="grid grid-cols-[1fr_1fr] gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Color</span><input type="color" value={selected.color || '#111111'} onChange={(event) => updateTextColor(event.target.value)} className="h-9 w-full rounded-lg border border-black/10 p-1" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Align</span><select value={selected.align || 'center'} onChange={(event) => updateSelected({ align: event.target.value as 'left' | 'center' | 'right' })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold"><option>left</option><option>center</option><option>right</option></select></label></div>
             </>}
             {selected.type === 'shape' && <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Fill</span><input type="color" value={selected.fill || '#ffffff'} onChange={(event) => updateSelected({ fill: event.target.value })} className="h-9 w-full rounded-lg border border-black/10 p-1" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Corners</span><input type="number" value={selected.radius || 0} onChange={(event) => updateSelected({ radius: num(event.target.value) })} className="h-9 w-full rounded-lg border border-black/10 px-2 text-xs font-semibold" /></label></div>}
             {selected.type === 'image' && <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Image fit</span><select value={selected.fit || 'contain'} onChange={(event) => updateSelected({ fit: event.target.value as 'contain' | 'cover' | 'fill' })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold"><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Stretch</option></select></label>}
-            {selected.type === 'vector' && <div className="rounded-xl border border-[#3976b7]/15 bg-[#f7fbff] p-3 text-[10px] font-semibold leading-4 text-black/55">Vector artwork stays sharp at any size and is preserved in SVG export. This beta treats a trace as one vector object; path-by-path editing is the next step.</div>}
+            {selected.type === 'vector' && <div className="rounded-xl border border-[#3976b7]/15 bg-[#f7fbff] p-3"><p className="text-[10px] font-black text-black/70">Vector colors</p><p className="mt-1 text-[9px] font-semibold leading-4 text-black/45">Each swatch below is a real fill or stroke inside this imported vector object. Changing it rewrites the SVG artwork.</p>{selectedPaints.length ? <div className="mt-2 space-y-1.5">{selectedPaints.map((paint, index) => <label key={`${paint.target}-${paint.raw}-${index}`} className="flex items-center gap-2 rounded-lg border border-black/5 bg-white px-2 py-1.5"><input type="color" value={paint.hex} onChange={(event) => recolorSelectedPaint(paint.raw, event.target.value, paint.target)} className="h-7 w-8 rounded border-0 bg-transparent p-0" /><span className="min-w-0 flex-1 truncate text-[9px] font-bold text-black/50">{paint.target} · {paint.hex}</span><span className="text-[8px] font-black text-black/25">×{paint.count}</span></label>)}</div> : <p className="mt-2 text-[9px] font-semibold text-black/35">No direct solid fills or strokes were found in this object.</p>}</div>}
             <div className="grid grid-cols-4 gap-1"><button onClick={() => moveLayer(selected.id, 'back')} className="rounded-lg border border-black/10 px-1 py-2 text-[9px] font-black">Back</button><button onClick={() => moveLayer(selected.id, 'backward')} className="rounded-lg border border-black/10 px-1 py-2 text-[9px] font-black">−1</button><button onClick={() => moveLayer(selected.id, 'forward')} className="rounded-lg border border-black/10 px-1 py-2 text-[9px] font-black">+1</button><button onClick={() => moveLayer(selected.id, 'front')} className="rounded-lg border border-black/10 px-1 py-2 text-[9px] font-black">Front</button></div>
             <div className="grid grid-cols-2 gap-2"><button onClick={duplicateSelected} className="rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black hover:bg-black/[.04]">Duplicate</button><button onClick={deleteSelected} disabled={selected.locked} className="rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black text-red-600 disabled:opacity-30">Delete</button></div>
           </div> : <div className="rounded-xl bg-[#f7f8fa] p-4 text-xs font-semibold leading-5 text-black/45">Select a layer on the canvas or in the Layers panel to edit exact values.</div>}
@@ -737,11 +968,11 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
           <div className="mb-3 flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><SparkleIcon /></span><div><p className="text-xs font-black">Gemini Label Assistant</p><p className="text-[9px] font-black uppercase tracking-[.1em] text-black/30">{assistantMeta}</p></div></div>
           <div className="rounded-xl border border-[#3976b7]/15 bg-[#f7fbff] p-3 text-[11px] font-semibold leading-5 text-black/60">{assistantMessage}</div>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {['Make the selected text 15% larger', 'Center the selected layer', 'Move the selected layer down 40px', 'Make this feel bolder without changing the locked layers'].map((suggestion) => <button key={suggestion} onClick={() => setAssistantText(suggestion)} className="rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-[9px] font-black text-black/55 hover:border-[#3976b7]/30 hover:text-[#3976b7]">{suggestion}</button>)}
+            {['Change the label background to navy', 'Change the selected vector white to gold', 'Make the selected text 15% larger', 'Center the selected layer'].map((suggestion) => <button key={suggestion} onClick={() => setAssistantText(suggestion)} className="rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-[9px] font-black text-black/55 hover:border-[#3976b7]/30 hover:text-[#3976b7]">{suggestion}</button>)}
           </div>
           <textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void askGemini(); } }} placeholder="Try: Make the selected wine name 12% larger and move it up 20px. Keep everything else unchanged." rows={4} className="mt-3 w-full resize-none rounded-xl border border-black/10 p-3 text-xs font-semibold leading-5 outline-none focus:border-[#3976b7]/45" />
           <button type="button" onClick={() => void askGemini()} disabled={!assistantText.trim() || assistantBusy} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3976b7] px-4 py-3 text-xs font-black text-white shadow-sm disabled:opacity-40"><SparkleIcon /> {assistantBusy ? 'Editing…' : 'Apply with Gemini'}</button>
-          <p className="mt-2 text-[9px] font-semibold leading-4 text-black/35">Locked layers are protected from AI edits. Gemini returns structured edit commands; Central applies them to the label objects.</p>
+          <p className="mt-2 text-[9px] font-semibold leading-4 text-black/35">Locked layers are protected from AI edits. Gemini can now issue real vector recolor and label-background commands, which Central applies directly to the SVG artwork.</p>
         </div>
       </aside>
     </div>

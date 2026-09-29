@@ -42,10 +42,62 @@ function selectedLayer(document: LabelDocument, selectedLayerId: string | null) 
   return selectedLayerId ? document.layers.find((layer) => layer.id === selectedLayerId) || null : null;
 }
 
+function safeColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const color = value.trim().slice(0, 80);
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
+  if (/^rgba?\([^\)]{1,70}\)$/i.test(color)) return color;
+  if (/^[a-z]{3,24}$/i.test(color)) return color;
+  return null;
+}
+
+function promptColor(prompt: string): string | null {
+  const hex = prompt.match(/#[0-9a-f]{3,8}\b/i)?.[0];
+  if (hex) return safeColor(hex);
+  const named: Record<string, string> = {
+    white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#008000', blue: '#0000FF', navy: '#000080',
+    gold: '#FFD700', yellow: '#FFFF00', orange: '#FFA500', purple: '#800080', pink: '#FFC0CB', burgundy: '#800020',
+    maroon: '#800000', gray: '#808080', grey: '#808080', cream: '#FFFDD0', beige: '#F5F5DC',
+  };
+  const lower = prompt.toLowerCase();
+  for (const [name, value] of Object.entries(named)) if (new RegExp(`\\b${name}\\b`, 'i').test(lower)) return value;
+  return null;
+}
+
+function svgPaintSummary(svg = '') {
+  const counts = new Map<string, { value: string; target: 'fill' | 'stroke'; count: number }>();
+  const add = (target: 'fill' | 'stroke', raw: string) => {
+    const value = raw.trim();
+    if (!value || /^(none|transparent|inherit|currentcolor)$/i.test(value) || /^url\(/i.test(value)) return;
+    const key = `${target}:${value.toLowerCase().replace(/\s+/g, '')}`;
+    const existing = counts.get(key);
+    if (existing) existing.count += 1;
+    else counts.set(key, { value, target, count: 1 });
+  };
+  for (const match of svg.matchAll(/\b(fill|stroke)\s*=\s*["']([^"']+)["']/gi)) add(match[1].toLowerCase() as 'fill' | 'stroke', match[2]);
+  for (const match of svg.matchAll(/\bstyle\s*=\s*["']([^"']+)["']/gi)) {
+    for (const part of match[1].split(';')) {
+      const style = part.match(/^\s*(fill|stroke)\s*:\s*(.+?)\s*$/i);
+      if (style) add(style[1].toLowerCase() as 'fill' | 'stroke', style[2]);
+    }
+  }
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count).slice(0, 12);
+}
+
 function fallbackEdit(prompt: string, document: LabelDocument, selectedLayerId: string | null): LabelStudioAssistResponse {
   const layer = selectedLayer(document, selectedLayerId);
   const text = prompt.toLowerCase();
   const operations: LabelStudioOperation[] = [];
+
+  const requestedColor = promptColor(prompt);
+  if (/background/.test(text) && requestedColor) {
+    return {
+      message: `Changed the visible label background to ${requestedColor}. Gemini was unavailable, so no other objects were changed.`,
+      operations: [{ type: 'set-background', color: requestedColor }],
+      provider: 'label-studio-local',
+      degraded: true,
+    };
+  }
 
   if (!layer) {
     return {
@@ -131,6 +183,21 @@ function safeOperations(value: unknown, document: LabelDocument): LabelStudioOpe
       operations.push({ type: 'add-shape', layer: safe });
       continue;
     }
+    if (type === 'recolor' && typeof raw.layerId === 'string' && validIds.has(raw.layerId)) {
+      const original = document.layers.find((layer) => layer.id === raw.layerId);
+      const from = typeof raw.from === 'string' ? raw.from.trim().slice(0, 120) : '';
+      const to = safeColor(raw.to);
+      const target = raw.target === 'stroke' || raw.target === 'both' ? raw.target : 'fill';
+      if (!original || original.locked || !from || !to || !(original.type === 'vector' || (original.type === 'text' && original.renderMode === 'outline' && original.outlineSvg))) continue;
+      operations.push({ type: 'recolor', layerId: original.id, from, to, target });
+      continue;
+    }
+    if (type === 'set-background') {
+      const color = safeColor(raw.color);
+      if (!color) continue;
+      operations.push({ type: 'set-background', color });
+      continue;
+    }
     if ((type === 'delete' || type === 'duplicate') && typeof raw.layerId === 'string' && validIds.has(raw.layerId)) {
       const original = document.layers.find((layer) => layer.id === raw.layerId);
       if (!original || (type === 'delete' && original.locked)) continue;
@@ -190,6 +257,8 @@ export async function POST(request: NextRequest) {
     ...(layer.type === 'text' ? { text: layer.text, fontSize: layer.fontSize, fontWeight: layer.fontWeight, fontFamily: layer.fontFamily, letterSpacing: layer.letterSpacing, align: layer.align, color: layer.color } : {}),
     ...(layer.type === 'shape' ? { fill: layer.fill, stroke: layer.stroke, strokeWidth: layer.strokeWidth, radius: layer.radius } : {}),
     ...(layer.type === 'image' ? { fit: layer.fit, hasImage: Boolean(layer.src) } : {}),
+    ...(layer.type === 'vector' ? { paints: svgPaintSummary(layer.svg || '') } : {}),
+    ...(layer.type === 'text' && layer.renderMode === 'outline' && layer.outlineSvg ? { outlinePaints: svgPaintSummary(layer.outlineSvg) } : {}),
   }));
 
   const systemInstruction = `You are Gemini inside Leelanau Cellars Label Studio, a precision wine-label editor. Convert the user's request into safe structured edits to the existing layered document.
@@ -199,6 +268,9 @@ RULES:
 - Preserve every layer the user did not ask to change.
 - NEVER edit, delete, duplicate, or reorder a locked layer.
 - Prefer precise update operations over recreating layers.
+- Vector artwork stores its real colors inside SVG. NEVER try to recolor a vector with an update operation. Use a recolor operation and copy the exact "from" value from that layer's paints list.
+- For an outlined text layer, a color-only request should preserve the exact outline and use recolor (or an update with color only); do not switch fonts or recreate the text.
+- When the user asks to change the label/background color, use set-background. This changes the visible imported label background as well as the artboard.
 - When the user says "this", "selected", or otherwise refers to the current object, use SELECTED_LAYER_ID.
 - Coordinates and sizes are document pixels. The artboard origin is top-left.
 - For "center" without another qualifier, horizontally center the selected/referenced layer: x=(document width-layer width)/2.
@@ -215,7 +287,9 @@ OUTPUT SHAPE:
   {"type":"add-shape","layer":{"id":"ai-shape","name":"Shape","type":"shape","visible":true,"locked":false,"x":100,"y":100,"width":500,"height":200,"rotation":0,"opacity":1,"fill":"#ffffff","stroke":"#111111","strokeWidth":0,"radius":20}},
   {"type":"delete","layerId":"existing-id"},
   {"type":"duplicate","layerId":"existing-id"},
-  {"type":"move-layer","layerId":"existing-id","direction":"front|back|forward|backward"}
+  {"type":"move-layer","layerId":"existing-id","direction":"front|back|forward|backward"},
+  {"type":"recolor","layerId":"existing-vector-id","from":"rgb(100%, 100%, 100%)","to":"#D4AF37","target":"fill|stroke|both"},
+  {"type":"set-background","color":"#17324D"}
 ]}`;
 
   const promptText = `PROJECT: ${String(project.name || document.name)} (${String(project.slug || document.projectSlug)})\nDOCUMENT: ${document.width}x${document.height}px\nSELECTED_LAYER_ID: ${selectedLayerId || '(none)'}\nUSER REQUEST: ${prompt}\n\nLAYERS (bottom to top):\n${JSON.stringify(layerSummary)}`;
@@ -264,7 +338,9 @@ OUTPUT SHAPE:
       const raw = await generate(model, index === 0 ? 5000 : 7000);
       const parsed = JSON.parse(raw) as { message?: unknown; operations?: unknown };
       const operations = safeOperations(parsed.operations, document);
-      const message = typeof parsed.message === 'string' && parsed.message.trim() ? parsed.message.trim().slice(0, 700) : operations.length ? 'Applied the requested label edit.' : 'No safe edit was needed.';
+      const message = operations.length
+        ? (typeof parsed.message === 'string' && parsed.message.trim() ? parsed.message.trim().slice(0, 700) : 'Applied the requested label edit.')
+        : 'Gemini described an edit, but it did not return a safe command that Central could apply. Nothing on the label was changed.';
       const response: LabelStudioAssistResponse = { message, operations, provider: 'google-gemini', model };
       return NextResponse.json(response);
     } catch (error) {
