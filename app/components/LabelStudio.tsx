@@ -73,6 +73,88 @@ async function downscaleRasterDataUrl(dataUrl: string, maxDimension = 1200) {
   return canvas.toDataURL('image/png');
 }
 
+function traceSignature(element: Element) {
+  const style = element.getAttribute('style') || '';
+  const fill = element.getAttribute('fill') || style.match(/fill\s*:\s*([^;]+)/i)?.[1] || '';
+  const stroke = element.getAttribute('stroke') || style.match(/stroke\s*:\s*([^;]+)/i)?.[1] || '';
+  return `${fill}|${stroke}`;
+}
+
+function traceSvgToLayers(svg: string, name: string, docWidth: number, docHeight: number): LabelLayer[] {
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(svg, 'image/svg+xml');
+  const root = parsed.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== 'svg') return [];
+  const rawViewBox = (root.getAttribute('viewBox') || '').trim().split(/[ ,]+/).map(Number);
+  const sourceWidth = rawViewBox.length === 4 && Number.isFinite(rawViewBox[2]) ? rawViewBox[2] : Number(root.getAttribute('width')) || 1000;
+  const sourceHeight = rawViewBox.length === 4 && Number.isFinite(rawViewBox[3]) ? rawViewBox[3] : Number(root.getAttribute('height')) || 1000;
+  const sourceX = rawViewBox.length === 4 && Number.isFinite(rawViewBox[0]) ? rawViewBox[0] : 0;
+  const sourceY = rawViewBox.length === 4 && Number.isFinite(rawViewBox[1]) ? rawViewBox[1] : 0;
+  const defs = Array.from(root.children).filter((element) => element.tagName.toLowerCase() === 'defs').map((element) => element.outerHTML).join('');
+  const sourceChildren = Array.from(root.children).filter((element) => !['defs', 'metadata', 'title', 'desc'].includes(element.tagName.toLowerCase()));
+  if (!sourceChildren.length) return [];
+
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:visible;visibility:hidden;pointer-events:none';
+  const mounted = root.cloneNode(true) as SVGSVGElement;
+  mounted.setAttribute('width', String(sourceWidth));
+  mounted.setAttribute('height', String(sourceHeight));
+  host.appendChild(mounted);
+  document.body.appendChild(host);
+  const mountedChildren = Array.from(mounted.children).filter((element) => !['defs', 'metadata', 'title', 'desc'].includes(element.tagName.toLowerCase()));
+
+  type Run = { elements: Element[]; boxes: DOMRect[]; signature: string };
+  const runs: Run[] = [];
+  mountedChildren.forEach((mountedElement, index) => {
+    const sourceElement = sourceChildren[index];
+    if (!sourceElement || !(mountedElement instanceof SVGGraphicsElement)) return;
+    let box: DOMRect;
+    try { box = mountedElement.getBBox() as unknown as DOMRect; } catch { return; }
+    if (!Number.isFinite(box.width) || !Number.isFinite(box.height) || box.width <= 0 || box.height <= 0) return;
+    const signature = traceSignature(sourceElement);
+    const prior = runs[runs.length - 1];
+    if (prior && prior.signature === signature) {
+      prior.elements.push(sourceElement);
+      prior.boxes.push(box);
+    } else {
+      runs.push({ elements: [sourceElement], boxes: [box], signature });
+    }
+  });
+  host.remove();
+  if (!runs.length) return [];
+
+  const targetMaxWidth = docWidth * 0.82;
+  const targetMaxHeight = docHeight * 0.82;
+  const scale = Math.min(targetMaxWidth / sourceWidth, targetMaxHeight / sourceHeight);
+  const fullWidth = sourceWidth * scale;
+  const fullHeight = sourceHeight * scale;
+  const offsetX = (docWidth - fullWidth) / 2;
+  const offsetY = (docHeight - fullHeight) / 2;
+  return runs.slice(0, 80).map((run, index) => {
+    const x1 = Math.min(...run.boxes.map((box) => box.x));
+    const y1 = Math.min(...run.boxes.map((box) => box.y));
+    const x2 = Math.max(...run.boxes.map((box) => box.x + box.width));
+    const y2 = Math.max(...run.boxes.map((box) => box.y + box.height));
+    const width = Math.max(1, x2 - x1);
+    const height = Math.max(1, y2 - y1);
+    const fragment = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x1} ${y1} ${width} ${height}" preserveAspectRatio="none">${defs}${run.elements.map((element) => element.outerHTML).join('')}</svg>`;
+    return {
+      id: `trace-${Date.now()}-${index}`,
+      name: `${name.replace(/\.[^.]+$/, '') || 'Trace'} · Vector ${index + 1}`,
+      type: 'vector' as const,
+      visible: true,
+      locked: false,
+      x: Math.round(offsetX + (x1 - sourceX) * scale),
+      y: Math.round(offsetY + (y1 - sourceY) * scale),
+      width: Math.max(8, Math.round(width * scale)),
+      height: Math.max(8, Math.round(height * scale)),
+      rotation: 0,
+      opacity: 1,
+      svg: normalizeVectorSvg(fragment),
+    };
+  });
+}
+
 function downloadText(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -99,6 +181,10 @@ function documentSvg(doc: LabelDocument) {
       const vector = sizedVectorSvg(layer.svg || '', layer.width, layer.height);
       return `<g transform="${transform}" opacity="${layer.opacity}">${vector}</g>`;
     }
+    if (layer.type === 'text' && layer.renderMode === 'outline' && layer.outlineSvg) {
+      const outline = sizedVectorSvg(layer.outlineSvg, layer.width, layer.height);
+      return `<g transform="${transform}" opacity="${layer.opacity}">${outline}</g>`;
+    }
     const lines = (layer.text || '').split('\n');
     const fontSize = layer.fontSize || 48;
     const anchor = layer.align === 'left' ? 'start' : layer.align === 'right' ? 'end' : 'middle';
@@ -119,18 +205,17 @@ const LockIcon = ({ locked = false }: { locked?: boolean }) => <Icon>{locked ? <
 const SparkleIcon = () => <Icon><path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4z"/><path d="M19 15v5M16.5 17.5h5"/></Icon>;
 
 function starterDocument(label: LabelLibraryItem): LabelDocument {
-  const starter = createStarterLabelDocument(label.slug, label.name);
-  if (!label.preview) return starter;
-  const reference: LabelLayer = {
-    id: 'project-reference', name: 'Original Label Reference', type: 'image', visible: true, locked: true,
-    x: 25, y: 25, width: 950, height: 1350, rotation: 0, opacity: 0.28, src: label.preview, fit: 'contain',
-  };
-  return { ...starter, layers: [starter.layers[0], reference, ...starter.layers.slice(1)] };
+  return createStarterLabelDocument(label.slug, label.name);
+}
+
+function textEditChanges(changes: Partial<LabelLayer>) {
+  return ['text', 'fontSize', 'fontWeight', 'fontFamily', 'letterSpacing', 'align', 'color'].some((key) => key in changes);
 }
 
 export default function LabelStudio({ label, back }: { label: LabelLibraryItem; back: () => void }) {
-  const storageKey = `lwc-label-studio-v2:${label.slug}`;
-  const versionsKey = `lwc-label-studio-versions-v2:${label.slug}`;
+  const [side, setSide] = useState<'front' | 'back'>('front');
+  const storageKey = `lwc-label-studio-v3:${label.slug}:${side}`;
+  const versionsKey = `lwc-label-studio-versions-v3:${label.slug}:${side}`;
   const [doc, setDoc] = useState<LabelDocument>(() => starterDocument(label));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<LabelDocument[]>([]);
@@ -140,7 +225,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   const [hydrated, setHydrated] = useState(false);
   const [assistantText, setAssistantText] = useState('');
   const [assistantBusy, setAssistantBusy] = useState(false);
-  const [assistantMessage, setAssistantMessage] = useState('Select a layer or describe the change you want. Gemini will edit the layered label, not redraw the whole design.');
+  const [assistantMessage, setAssistantMessage] = useState('Select an imported object or describe the change you want. Gemini edits the real label objects and leaves everything else alone.');
   const [assistantMeta, setAssistantMeta] = useState('Gemini ready');
   const [showVersions, setShowVersions] = useState(false);
   const [zoom, setZoom] = useState(58);
@@ -148,24 +233,65 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const traceInputRef = useRef<HTMLInputElement | null>(null);
   const [vectorizing, setVectorizing] = useState(false);
+  const [importingOriginal, setImportingOriginal] = useState(false);
 
   const selected = useMemo(() => doc.layers.find((layer) => layer.id === selectedId) || null, [doc.layers, selectedId]);
-  const referenceSrc = label.preview || label.previewBack || label.files.find((file) => file.kind === 'png' || file.kind === 'jpg' || file.kind === 'svg')?.url || '';
+  const referenceSrc = side === 'back' ? (label.previewBack || label.preview || '') : (label.preview || label.previewBack || '');
+  const editableSource = side === 'back' ? label.editable?.back : label.editable?.front;
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as LabelDocument;
-        if (parsed?.projectSlug === label.slug && Array.isArray(parsed.layers)) setDoc(parsed);
+    let cancelled = false;
+    async function hydrateStudio() {
+      setHydrated(false);
+      setSelectedId(null);
+      setUndoStack([]);
+      setRedoStack([]);
+      setImportingOriginal(Boolean(editableSource));
+      try {
+        const saved = window.localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved) as LabelDocument;
+          if (!cancelled && parsed?.projectSlug === label.slug && Array.isArray(parsed.layers)) setDoc(parsed);
+        } else if (editableSource) {
+          const response = await fetch(editableSource, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Original artwork import returned ${response.status}.`);
+          const parsed = await response.json() as LabelDocument;
+          if (!cancelled && parsed?.projectSlug === label.slug && Array.isArray(parsed.layers)) {
+            setDoc(parsed);
+            setAssistantMessage('Original Illustrator artwork imported as real vector artwork plus editable text objects. The exact original letter outlines stay visible until you change a text value.');
+            setAssistantMeta('Original AI/PDF imported');
+          }
+        } else {
+          const fresh = starterDocument(label);
+          const svgFile = label.files.find((file) => file.kind === 'svg');
+          const raster = referenceSrc;
+          if (svgFile) {
+            const response = await fetch(svgFile.url, { cache: 'no-store' });
+            const svg = response.ok ? await response.text() : '';
+            if (svg) fresh.layers.push({ id: `original-svg-${Date.now()}`, name: 'Original SVG Artwork', type: 'vector', visible: true, locked: false, x: 50, y: 50, width: 900, height: 1317, rotation: 0, opacity: 1, svg: normalizeVectorSvg(svg) });
+          } else if (raster) {
+            fresh.layers.push({ id: 'original-raster', name: 'Original Raster Artwork', type: 'image', visible: true, locked: false, x: 50, y: 50, width: 900, height: 1317, rotation: 0, opacity: 1, src: raster, fit: 'contain' });
+            setAssistantMessage('This uploaded label is a flat image. Trace it to SVG to turn the artwork into vectors, or add/edit text on top.');
+            setAssistantMeta('Raster original');
+          }
+          if (!cancelled) setDoc(fresh);
+        }
+        const savedVersions = window.localStorage.getItem(versionsKey);
+        if (!cancelled) setVersions(savedVersions ? (JSON.parse(savedVersions) as StudioVersion[]).slice(0, 20) : []);
+      } catch (error) {
+        console.warn('Unable to prepare Label Studio document', error);
+        if (!cancelled) {
+          setDoc(starterDocument(label));
+          setAssistantMessage(error instanceof Error ? error.message : 'Unable to import the original artwork.');
+          setAssistantMeta('Import failed');
+        }
+      } finally {
+        if (!cancelled) { setImportingOriginal(false); setHydrated(true); }
       }
-      const savedVersions = window.localStorage.getItem(versionsKey);
-      if (savedVersions) setVersions((JSON.parse(savedVersions) as StudioVersion[]).slice(0, 20));
-    } catch (error) {
-      console.warn('Unable to restore Label Studio document', error);
     }
-    setHydrated(true);
-  }, [label.slug, storageKey, versionsKey]);
+    void hydrateStudio();
+    return () => { cancelled = true; };
+  }, [label, side, storageKey, versionsKey, editableSource, referenceSrc]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -225,7 +351,8 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
 
   function updateSelected(changes: Partial<LabelLayer>) {
     if (!selected) return;
-    commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id ? ({ ...layer, ...changes } as LabelLayer) : layer) }));
+    const effective = selected.type === 'text' && textEditChanges(changes) ? { ...changes, renderMode: 'live' as const } : changes;
+    commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id ? ({ ...layer, ...effective } as LabelLayer) : layer) }));
   }
 
   function addText() {
@@ -260,7 +387,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       id: 'project-reference', name: 'Original Label Reference', type: 'image', visible: true, locked: true,
       x: 40, y: 40, width: 920, height: 1320, rotation: 0, opacity: 0.32, src: referenceSrc, fit: 'contain',
     };
-    commit((current) => ({ ...current, layers: [current.layers[0], layer, ...current.layers.slice(1)] }));
+    commit((current) => ({ ...current, layers: current.layers.length ? [current.layers[0], layer, ...current.layers.slice(1)] : [layer] }));
     setSelectedId(layer.id);
   }
 
@@ -294,15 +421,12 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
         colorsampling: 2, numberofcolors: 24, mincolorratio: 0, colorquantcycles: 3,
         layering: 0, strokewidth: 0, scale: 1, roundcoords: 2, viewbox: true,
       });
-      const id = `vector-${Date.now()}`;
-      const layer: LabelLayer = {
-        id, name: `${name.replace(/\.[^.]+$/, '') || 'Artwork'} · Vector Trace`, type: 'vector', visible: true, locked: false,
-        x: 100, y: 100, width: 800, height: 1200, rotation: 0, opacity: 1, svg: normalizeVectorSvg(svg),
-      };
-      commit((current) => ({ ...current, layers: [...current.layers, layer] }));
-      setSelectedId(id);
-      setAssistantMessage('Vector trace added. It stays resolution-independent when you resize or export the label. Text in a flattened image is traced as vector outlines, not recovered as editable font text.');
-      setAssistantMeta('Vector Trace · beta');
+      const tracedLayers = traceSvgToLayers(svg, name, doc.width, doc.height);
+      if (!tracedLayers.length) throw new Error('The trace finished, but no editable vector objects were found.');
+      commit((current) => ({ ...current, layers: [...current.layers, ...tracedLayers] }));
+      setSelectedId(tracedLayers[tracedLayers.length - 1].id);
+      setAssistantMessage(`Vector trace added as ${tracedLayers.length} editable vector object${tracedLayers.length === 1 ? '' : 's'}. You can move, resize, hide, reorder or delete those pieces independently. Text from a flattened image is still vector outlines until it is rebuilt as live text.`);
+      setAssistantMeta(`Vector Trace · ${tracedLayers.length} objects`);
     } catch (error) {
       setAssistantMessage(error instanceof Error ? error.message : 'Unable to vectorize that image.');
       setAssistantMeta('Vector Trace failed');
@@ -394,12 +518,25 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
     setShowVersions(false);
   }
 
-  function resetDocument() {
-    if (!window.confirm('Reset this Label Studio document to the starter canvas? Your saved Versions will remain available.')) return;
+  async function resetDocument() {
+    if (!window.confirm('Reset this side to the original imported artwork? Your saved Versions will remain available.')) return;
     setUndoStack((stack) => [...stack.slice(-39), cloneDoc(doc)]);
     setRedoStack([]);
-    setDoc(starterDocument(label));
-    setSelectedId(null);
+    window.localStorage.removeItem(storageKey);
+    try {
+      if (editableSource) {
+        const response = await fetch(editableSource, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to reload original artwork.');
+        setDoc(await response.json() as LabelDocument);
+      } else {
+        const fresh = starterDocument(label);
+        if (referenceSrc) fresh.layers.push({ id: 'original-raster', name: 'Original Raster Artwork', type: 'image', visible: true, locked: false, x: 50, y: 50, width: 900, height: 1317, rotation: 0, opacity: 1, src: referenceSrc, fit: 'contain' });
+        setDoc(fresh);
+      }
+      setSelectedId(null);
+    } catch (error) {
+      setAssistantMessage(error instanceof Error ? error.message : 'Unable to reload original artwork.');
+    }
   }
 
   function applyOperations(operations: LabelStudioOperation[]) {
@@ -410,7 +547,8 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
         if (operation.type === 'update') {
           layers = layers.map((layer) => {
             if (layer.id !== operation.layerId || layer.locked) return layer;
-            const safe = sanitizeLabelLayer({ ...layer, ...operation.changes, id: layer.id, type: layer.type });
+            const incoming = layer.type === 'text' && textEditChanges(operation.changes) ? { ...operation.changes, renderMode: 'live' as const } : operation.changes;
+            const safe = sanitizeLabelLayer({ ...layer, ...incoming, id: layer.id, type: layer.type });
             return safe || layer;
           });
           continue;
@@ -473,7 +611,8 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
   return <div className="label-studio min-h-[calc(100vh-4rem)] bg-[#eef1f4] text-[#151515]">
     <div className="no-print sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-2 border-b border-black/10 bg-white px-4 py-2 shadow-sm">
       <button type="button" onClick={back} className="mr-1 rounded-lg border border-black/10 px-3 py-2 text-xs font-black hover:bg-black/[.04]">← Labels</button>
-      <div className="mr-auto min-w-[190px]"><p className="text-[9px] font-black uppercase tracking-[.15em] text-[#3976b7]">Label Studio · Prototype</p><h1 className="truncate text-sm font-black">{label.name}</h1></div>
+      <div className="mr-auto min-w-[190px]"><p className="text-[9px] font-black uppercase tracking-[.15em] text-[#3976b7]">Label Studio</p><h1 className="truncate text-sm font-black">{label.name}</h1></div>
+      {(label.previewBack || label.editable?.back) && <div className="mr-2 flex rounded-lg border border-black/10 bg-[#f6f7f8] p-0.5"><button type="button" onClick={() => setSide('front')} className={`rounded-md px-3 py-1.5 text-[10px] font-black ${side === 'front' ? 'bg-white shadow-sm' : 'text-black/40'}`}>Front</button><button type="button" onClick={() => setSide('back')} className={`rounded-md px-3 py-1.5 text-[10px] font-black ${side === 'back' ? 'bg-white shadow-sm' : 'text-black/40'}`}>Back</button></div>}
       <button type="button" onClick={undo} disabled={!undoStack.length} className="rounded-lg border border-black/10 px-3 py-2 text-xs font-black disabled:opacity-30">Undo</button>
       <button type="button" onClick={redo} disabled={!redoStack.length} className="rounded-lg border border-black/10 px-3 py-2 text-xs font-black disabled:opacity-30">Redo</button>
       <button type="button" onClick={saveVersion} className="rounded-lg border border-black/10 px-3 py-2 text-xs font-black hover:bg-black/[.04]">Save Version</button>
@@ -491,7 +630,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
 
     <div className="grid min-h-[calc(100vh-8rem)] xl:grid-cols-[260px_minmax(540px,1fr)_360px]">
       <aside className="no-print border-r border-black/10 bg-white p-3">
-        <div className="mb-3 flex items-center justify-between px-1"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-black/35">Layers</p><p className="text-xs font-black">{doc.layers.length} objects</p></div><button onClick={resetDocument} className="text-[10px] font-black text-black/35 hover:text-black">Reset</button></div>
+        <div className="mb-3 flex items-center justify-between px-1"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-black/35">Layers</p><p className="text-xs font-black">{doc.layers.length} objects</p></div><button onClick={() => void resetDocument()} className="text-[10px] font-black text-black/35 hover:text-black">Reset</button></div>
         <div className="mb-3 grid grid-cols-2 gap-2">
           <button onClick={addText} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black hover:bg-[#f7f8fa]">+ Text</button>
           <button onClick={addShape} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black hover:bg-[#f7f8fa]">+ Shape</button>
@@ -513,7 +652,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
 
       <section className="relative flex min-h-[760px] flex-col overflow-hidden bg-[#dfe4e9]">
         <div className="no-print flex min-h-11 items-center justify-between gap-3 border-b border-black/10 bg-[#f8f9fa] px-4">
-          <p className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{doc.width} × {doc.height} px · Layered document</p>
+          <p className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{importingOriginal ? 'Importing original artwork…' : `${doc.width} × ${doc.height} px · ${side} · ${doc.layers.length} editable objects`}</p>
           <div className="flex items-center gap-2 text-[10px] font-black text-black/45"><span>Zoom</span><input aria-label="Zoom" type="range" min="35" max="90" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><span className="w-9 text-right">{zoom}%</span></div>
         </div>
         <div className="flex flex-1 items-center justify-center overflow-auto p-8 md:p-12" onPointerDown={() => setSelectedId(null)}>
@@ -553,7 +692,8 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
                 {layer.type === 'shape' && <div className="h-full w-full" style={{ background: layer.fill, border: `${(layer.strokeWidth || 0) * scale}px solid ${layer.stroke || 'transparent'}`, borderRadius: `${(layer.radius || 0) * scale}px` }} />}
                 {layer.type === 'image' && <img src={layer.src || ''} alt="" draggable={false} className="h-full w-full pointer-events-none" style={{ objectFit: layer.fit || 'contain' }} />}
                 {layer.type === 'vector' && <div className="h-full w-full pointer-events-none [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalizeVectorSvg(layer.svg || '') }} />}
-                {layer.type === 'text' && <div className="flex h-full w-full whitespace-pre-line" style={{ alignItems: 'center', justifyContent: layer.align === 'left' ? 'flex-start' : layer.align === 'right' ? 'flex-end' : 'center', textAlign: layer.align || 'center', color: layer.color || '#111', fontSize: `${(layer.fontSize || 48) * scale}px`, fontWeight: layer.fontWeight || 700, fontFamily: layer.fontFamily || 'Arial, Helvetica, sans-serif', letterSpacing: `${(layer.letterSpacing || 0) * scale}px`, lineHeight: .95 }}>{layer.text}</div>}
+                {layer.type === 'text' && layer.renderMode === 'outline' && layer.outlineSvg ? <div className="h-full w-full pointer-events-none [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalizeVectorSvg(layer.outlineSvg) }} /> : null}
+                {layer.type === 'text' && !(layer.renderMode === 'outline' && layer.outlineSvg) && <div className="flex h-full w-full whitespace-pre-line" style={{ alignItems: 'center', justifyContent: layer.align === 'left' ? 'flex-start' : layer.align === 'right' ? 'flex-end' : 'center', textAlign: layer.align || 'center', color: layer.color || '#111', fontSize: `${(layer.fontSize || 48) * scale}px`, fontWeight: layer.fontWeight || 700, fontFamily: layer.fontFamily || 'Arial, Helvetica, sans-serif', letterSpacing: `${(layer.letterSpacing || 0) * scale}px`, lineHeight: .95 }}>{layer.text}</div>}
                 {selectedId === layer.id && !layer.locked && <button
                   type="button"
                   aria-label="Resize selected layer"
@@ -579,6 +719,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
             </div>
             <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Rotation</span><input type="number" value={selected.rotation} onChange={(event) => updateSelected({ rotation: num(event.target.value) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Opacity</span><input type="number" min="0" max="1" step=".05" value={selected.opacity} onChange={(event) => updateSelected({ opacity: clamp(num(event.target.value, 1), 0, 1) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
             {selected.type === 'text' && <>
+              {selected.outlineSvg && <div className="rounded-xl border border-[#3976b7]/15 bg-[#f7fbff] p-3 text-[10px] font-semibold leading-4 text-black/55"><p className="font-black text-black/70">{selected.renderMode === 'outline' ? 'Exact original outline' : 'Live editable text'}</p><p className="mt-1">{selected.renderMode === 'outline' ? `This is the exact vector lettering from Illustrator${selected.sourceFontFamily ? ` (${selected.sourceFontFamily})` : ''}. Changing the wording/font switches this object to live text.` : 'The wording is now live text. Use Reset if you want the exact original outline back.'}</p>{selected.renderMode === 'outline' && <button type="button" onClick={() => updateSelected({ renderMode: 'live' })} className="mt-2 rounded-lg border border-[#3976b7]/20 bg-white px-2.5 py-1.5 text-[9px] font-black text-[#3976b7]">Make text live</button>}</div>}
               <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Text</span><textarea value={selected.text || ''} onChange={(event) => updateSelected({ text: event.target.value })} rows={3} className="w-full resize-none rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
               <div className="grid grid-cols-2 gap-2"><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Font size</span><input type="number" value={selected.fontSize || 48} onChange={(event) => updateSelected({ fontSize: num(event.target.value, 48) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label><label><span className="mb-1 block text-[9px] font-black uppercase tracking-[.08em] text-black/35">Weight</span><input type="number" step="100" min="100" max="1000" value={selected.fontWeight || 700} onChange={(event) => updateSelected({ fontWeight: num(event.target.value, 700) })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label></div>
               <label className="block"><span className="mb-1 block text-[10px] font-black text-black/45">Font family</span><input value={selected.fontFamily || ''} onChange={(event) => updateSelected({ fontFamily: event.target.value })} className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold" /></label>
@@ -598,7 +739,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
           <div className="mt-3 flex flex-wrap gap-1.5">
             {['Make the selected text 15% larger', 'Center the selected layer', 'Move the selected layer down 40px', 'Make this feel bolder without changing the locked layers'].map((suggestion) => <button key={suggestion} onClick={() => setAssistantText(suggestion)} className="rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-[9px] font-black text-black/55 hover:border-[#3976b7]/30 hover:text-[#3976b7]">{suggestion}</button>)}
           </div>
-          <textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void askGemini(); } }} placeholder="Try: Keep everything else the same, but make PIZZA WINE 12% larger and move it up 20px." rows={4} className="mt-3 w-full resize-none rounded-xl border border-black/10 p-3 text-xs font-semibold leading-5 outline-none focus:border-[#3976b7]/45" />
+          <textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void askGemini(); } }} placeholder="Try: Make the selected wine name 12% larger and move it up 20px. Keep everything else unchanged." rows={4} className="mt-3 w-full resize-none rounded-xl border border-black/10 p-3 text-xs font-semibold leading-5 outline-none focus:border-[#3976b7]/45" />
           <button type="button" onClick={() => void askGemini()} disabled={!assistantText.trim() || assistantBusy} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3976b7] px-4 py-3 text-xs font-black text-white shadow-sm disabled:opacity-40"><SparkleIcon /> {assistantBusy ? 'Editing…' : 'Apply with Gemini'}</button>
           <p className="mt-2 text-[9px] font-semibold leading-4 text-black/35">Locked layers are protected from AI edits. Gemini returns structured edit commands; Central applies them to the label objects.</p>
         </div>

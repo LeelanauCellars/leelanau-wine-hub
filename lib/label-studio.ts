@@ -27,6 +27,9 @@ export type LabelLayer = {
   src?: string;
   fit?: 'contain' | 'cover' | 'fill';
   svg?: string;
+  outlineSvg?: string;
+  renderMode?: 'outline' | 'live';
+  sourceFontFamily?: string;
 };
 
 export type LabelDocument = {
@@ -87,61 +90,17 @@ function textLayer(id: string, name: string, text: string, y: number, fontSize: 
 
 export function createStarterLabelDocument(projectSlug: string, projectName: string): LabelDocument {
   const stamp = now();
-  const common: LabelLayer[] = [
-    {
-      id: 'background-panel',
-      name: 'Background',
-      type: 'shape',
-      visible: true,
-      locked: true,
-      x: 0,
-      y: 0,
-      width: 1000,
-      height: 1400,
-      rotation: 0,
-      opacity: 1,
-      fill: '#f7f1e7',
-      stroke: '#f7f1e7',
-      strokeWidth: 0,
-      radius: 0,
-    },
-  ];
-
-  if (projectSlug === 'pizza-wine') {
-    common.push(
-      textLayer('pizza-title', 'Wine Name', 'PIZZA\nWINE', 235, 150, 900),
-      textLayer('pizza-subtitle', 'Tagline', 'WINE MADE FOR PIZZA', 590, 42, 800),
-      textLayer('pizza-duh', 'Secondary Tagline', 'NOT FROM PIZZA (DUH)', 655, 28, 700),
-      textLayer('pizza-type', 'Wine Type', 'RED TABLE WINE', 1110, 26, 800),
-    );
-  } else if (projectSlug === 'the-kicker') {
-    common.push(
-      textLayer('kicker-eyebrow', 'Eyebrow', 'THE', 250, 46, 800),
-      textLayer('kicker-title', 'Wine Name', 'KICKER', 330, 130, 900),
-      textLayer('kicker-type', 'Wine Type', 'CHOCOLATE CHERRY RED WINE', 720, 34, 800),
-      textLayer('kicker-abv', 'ABV', '16% ALC/VOL', 790, 26, 800),
-    );
-  } else if (projectSlug === 'sleeping-bear') {
-    common.push(
-      textLayer('sleeping-bear-title', 'Wine Name', 'SLEEPING BEAR', 215, 88, 900),
-      textLayer('sleeping-bear-varietal', 'Varietal', 'RIESLING', 860, 50, 800),
-      textLayer('sleeping-bear-tagline', 'Tagline', 'Take a moment. Take it in.', 1000, 34, 500),
-    );
-  } else {
-    common.push(textLayer('wine-name', 'Wine Name', projectName.toUpperCase(), 300, 100, 900));
-  }
-
   return {
     id: `label-${projectSlug}`,
     projectSlug,
     name: `${projectName} Label`,
     width: 1000,
-    height: 1400,
+    height: 1417,
     background: '#ffffff',
     units: 'px',
     createdAt: stamp,
     updatedAt: stamp,
-    layers: common,
+    layers: [],
   };
 }
 
@@ -172,6 +131,9 @@ export function sanitizeLabelLayer(value: unknown): LabelLayer | null {
     layer.letterSpacing = clamp(number(raw.letterSpacing, 0), -30, 120);
     layer.align = raw.align === 'left' || raw.align === 'right' ? raw.align : 'center';
     layer.color = typeof raw.color === 'string' ? raw.color.slice(0, 30) : '#111111';
+    layer.outlineSvg = typeof raw.outlineSvg === 'string' ? raw.outlineSvg.slice(0, 8_000_000) : '';
+    layer.renderMode = raw.renderMode === 'outline' && layer.outlineSvg ? 'outline' : 'live';
+    layer.sourceFontFamily = typeof raw.sourceFontFamily === 'string' ? raw.sourceFontFamily.slice(0, 180) : '';
   }
   if (raw.type === 'shape') {
     layer.fill = typeof raw.fill === 'string' ? raw.fill.slice(0, 30) : '#ffffff';

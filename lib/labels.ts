@@ -15,6 +15,7 @@ export type LabelLibraryItem = {
   uploadedAt?: string;
   preview?: string;
   previewBack?: string;
+  editable?: { front?: string; back?: string };
   files: LabelLibraryFile[];
 };
 
@@ -43,6 +44,7 @@ export const SEED_LABELS: LabelLibraryItem[] = [
   source: 'bundled' as const,
   preview: `${base}/${slug}/preview-1.png`,
   previewBack: `${base}/${slug}/preview-2.png`,
+  editable: { front: `/labels/editable/${slug}/front.json`, back: `/labels/editable/${slug}/back.json` },
   files: [
     { name: ai, kind: 'ai' as const, url: `${base}/${slug}/${ai}` },
     { name: pdf, kind: 'pdf' as const, url: `${base}/${slug}/${pdf}` },
