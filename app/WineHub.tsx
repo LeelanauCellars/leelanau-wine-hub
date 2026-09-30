@@ -54,6 +54,7 @@ const X = (p: IconProps) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18"/></Icon>
 type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
+type AdminNavGroup = 'sales' | 'tasting' | 'projects' | null;
 type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
@@ -785,6 +786,7 @@ export default function WineHub() {
   const [distributionEdits, setDistributionEdits] = useState<Record<string, Partial<DistributionWine>>>({});
   const [pendingRoute, setPendingRoute] = useState<CentralRoute | null>(null);
   const [askDrawerOpen, setAskDrawerOpen] = useState(false);
+  const [adminNavGroup, setAdminNavGroup] = useState<AdminNavGroup>(null);
 
   const distributionWines = useMemo(() => buildDistributionCatalog(wines, DISTRIBUTION_WINES, distributionEdits), [wines, distributionEdits]);
   const activeWine = wines.find((wine) => wine.id === activeWineId) ?? wines[0];
@@ -963,6 +965,7 @@ export default function WineHub() {
 
   function enterPortal(role: PortalRole) {
     setPortalRole(role);
+    setAdminNavGroup(null);
     setMobileNav(false);
     setEditingWine(null);
     setQuery('');
@@ -980,6 +983,7 @@ export default function WineHub() {
   }
 
   function switchPortal() {
+    setAdminNavGroup(null);
     setMobileNav(false);
     setAskDrawerOpen(false);
     setEditingWine(null);
@@ -1209,18 +1213,58 @@ export default function WineHub() {
             <button className="lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X className="h-5 w-5" /></button>
           </div>
 
-          <nav className="space-y-2" aria-label="Section navigation">
-            <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
-            {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label={portalRole === 'tasting' ? 'Wines' : 'Wine Library'} onClick={() => navigateSection('library')} />}
-            {canUseProjects && <NavButton active={view === 'projects' || view === 'project'} icon={<Briefcase />} label="Projects" onClick={() => navigateSection('projects')} />}
-            {canUseLabels && <NavButton active={view === 'labels'} icon={<ImageIcon />} label="Labels" onClick={() => navigateSection('labels')} />}
-            {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => navigateSection('distribution')} />}
-            {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />}
-            {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu and Notes" onClick={() => navigateSection('tasting')} />}
-            {canUseTastingRoom && <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />}
-            {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />}
-            {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => navigateSection('tech-library')} />}
-            {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />}
+          <nav aria-label="Section navigation">
+            {isPortalAdmin ? (
+              <div className="overflow-hidden">
+                <div className={`flex w-[200%] items-start transition-transform duration-300 ease-out ${adminNavGroup ? '-translate-x-1/2' : 'translate-x-0'}`}>
+                  <div className="w-1/2 shrink-0 space-y-2">
+                    <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
+                    <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => navigateSection('library')} />
+                    <NavButton active={view === 'distribution' || view === 'distribution-profile' || view === 'tech-library' || view === 'tech'} icon={<Package />} label="Sales" onClick={() => setAdminNavGroup('sales')} />
+                    <NavButton active={view === 'tasting' || view === 'merch' || view === 'case-sales'} icon={<ClipboardList />} label="Tasting Room" onClick={() => setAdminNavGroup('tasting')} />
+                    <NavButton active={view === 'projects' || view === 'project' || view === 'labels'} icon={<Briefcase />} label="Projects" onClick={() => setAdminNavGroup('projects')} />
+                    <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />
+                    <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />
+                  </div>
+
+                  <div className="w-1/2 shrink-0 pl-4">
+                    <button type="button" onClick={() => setAdminNavGroup(null)} className="mb-4 flex items-center gap-1.5 px-1 py-1 text-[11px] font-black uppercase tracking-[.12em] text-black/45 transition hover:text-black" aria-label="Back to Admin menu">
+                      <ChevronLeft className="h-4 w-4" /> Admin
+                    </button>
+                    {adminNavGroup === 'sales' && <div className="space-y-2">
+                      <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[.18em] text-black/35">Sales</p>
+                      <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => navigateSection('distribution')} />
+                      <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => navigateSection('tech-library')} />
+                    </div>}
+                    {adminNavGroup === 'tasting' && <div className="space-y-2">
+                      <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[.18em] text-black/35">Tasting Room</p>
+                      <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu and Notes" onClick={() => navigateSection('tasting')} />
+                      <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />
+                      <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />
+                    </div>}
+                    {adminNavGroup === 'projects' && <div className="space-y-2">
+                      <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[.18em] text-black/35">Projects</p>
+                      <NavButton active={view === 'projects' || view === 'project'} icon={<Briefcase />} label="Current Projects" onClick={() => navigateSection('projects')} />
+                      <NavButton active={view === 'labels'} icon={<ImageIcon />} label="Labels" onClick={() => navigateSection('labels')} />
+                    </div>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
+                {canUseWineLibrary && <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label={portalRole === 'tasting' ? 'Wines' : 'Wine Library'} onClick={() => navigateSection('library')} />}
+                {canUseProjects && <NavButton active={view === 'projects' || view === 'project'} icon={<Briefcase />} label="Projects" onClick={() => navigateSection('projects')} />}
+                {canUseLabels && <NavButton active={view === 'labels'} icon={<ImageIcon />} label="Labels" onClick={() => navigateSection('labels')} />}
+                {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => navigateSection('distribution')} />}
+                {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />}
+                {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu and Notes" onClick={() => navigateSection('tasting')} />}
+                {canUseTastingRoom && <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />}
+                {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />}
+                {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => navigateSection('tech-library')} />}
+                {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />}
+              </div>
+            )}
           </nav>
 
           {isPortalAdmin && <div className="mt-auto space-y-3">
