@@ -740,6 +740,9 @@ function draftFromWine(wine: WineRecord, distributionWines: DistributionWine[] =
   return {
     wineId: wine.id,
     wineName: wine.name,
+    includeTastingNotes: true,
+    includeWineSpecs: true,
+    includeHighlights: true,
     tastingNotes,
     highlights,
     abv: wine.abv || '',
@@ -2340,13 +2343,40 @@ type InlineFormat = 'bold' | 'underline' | 'highlight';
 function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 'paragraph' }: { value: string; onChange: (value: string) => void; minHeight?: number; placeholder?: string; mode?: 'paragraph' | 'highlights' }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const isFocusedRef = React.useRef(false);
+  const selectionRef = React.useRef<Range | null>(null);
+
+  const editorHtml = (input: string) => formattedCopyHtml(input)
+    .replace(/<mark\b[^>]*>/gi, '<span style="background-color:#fff1a8">')
+    .replace(/<\/mark>/gi, '</span>')
+    .replace(/<br \/>/g, '<br>');
 
   useEffect(() => {
     const editor = ref.current;
     if (!editor || isFocusedRef.current) return;
-    const next = formattedCopyHtml(value).replace(/<br \/>/g, '<br>');
+    const next = editorHtml(value);
     if (editor.innerHTML !== next) editor.innerHTML = next;
   }, [value]);
+
+  const captureSelection = () => {
+    const editor = ref.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    selectionRef.current = range.cloneRange();
+  };
+
+  const restoreSelection = () => {
+    const editor = ref.current;
+    const saved = selectionRef.current;
+    if (!editor || !saved) return false;
+    const selection = window.getSelection();
+    if (!selection) return false;
+    editor.focus();
+    selection.removeAllRanges();
+    selection.addRange(saved);
+    return true;
+  };
 
   const readEditor = () => {
     const editor = ref.current;
@@ -2355,11 +2385,20 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
     const walk = (node: Node): string => {
       if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent || '');
       if (!(node instanceof HTMLElement)) return '';
-      const children = Array.from(node.childNodes).map(walk).join('');
+      let children = Array.from(node.childNodes).map(walk).join('');
       const tag = node.tagName.toLowerCase();
       if (tag === 'strong' || tag === 'b') return `<strong>${children}</strong>`;
       if (tag === 'u') return `<u>${children}</u>`;
       if (tag === 'mark') return `<mark>${children}</mark>`;
+      if (tag === 'span') {
+        const style = node.style;
+        const weight = Number(style.fontWeight) || (/bold/i.test(style.fontWeight) ? 700 : 0);
+        if (weight >= 600) children = `<strong>${children}</strong>`;
+        if ((style.textDecorationLine || style.textDecoration || '').includes('underline')) children = `<u>${children}</u>`;
+        const background = style.backgroundColor || '';
+        if (background && background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)') children = `<mark>${children}</mark>`;
+        return children;
+      }
       if (tag === 'br') return '<br>';
       if (tag === 'div' || tag === 'p') return `${children}<br>`;
       return children;
@@ -2368,48 +2407,48 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
     return Array.from(editor.childNodes)
       .map(walk)
       .join('')
-      .replace(/(?:<br>\s*){3,}/g, '<br><br>');
+      .replace(/(?:<br>\s*){3,}/g, '<br><br>')
+      .replace(/(?:<br>\s*)+$/g, '');
   };
 
   const emit = () => onChange(readEditor());
 
-  const applyFormat = (format: InlineFormat) => {
+  const runCommand = (command: string, valueArg?: string) => {
     const editor = ref.current;
-    const selection = window.getSelection();
-    if (!editor || !selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (range.collapsed || !editor.contains(range.commonAncestorContainer)) return;
-
-    const wrapper = document.createElement(format === 'bold' ? 'strong' : format === 'underline' ? 'u' : 'mark');
+    if (!editor || !restoreSelection()) return;
     try {
-      range.surroundContents(wrapper);
+      document.execCommand(command, false, valueArg);
     } catch {
-      const fragment = range.extractContents();
-      wrapper.appendChild(fragment);
-      range.insertNode(wrapper);
+      return;
     }
-    selection.removeAllRanges();
-    const nextRange = document.createRange();
-    nextRange.selectNodeContents(wrapper);
-    selection.addRange(nextRange);
+    captureSelection();
+    emit();
+  };
+
+  const applyFormat = (format: InlineFormat) => {
+    if (format === 'bold') return runCommand('bold');
+    if (format === 'underline') return runCommand('underline');
+    // hiliteColor is supported by modern Chromium; backColor is a fallback for older engines.
+    const editor = ref.current;
+    if (!editor || !restoreSelection()) return;
+    let applied = false;
+    try { applied = document.execCommand('hiliteColor', false, '#fff1a8'); } catch { applied = false; }
+    if (!applied) {
+      try { document.execCommand('backColor', false, '#fff1a8'); } catch { /* no-op */ }
+    }
+    captureSelection();
     emit();
   };
 
   const clearFormatting = () => {
     const editor = ref.current;
-    const selection = window.getSelection();
-    if (!editor || !selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (range.collapsed || !editor.contains(range.commonAncestorContainer)) return;
-
-    // Remove only the formatting from the selected text, including partial selections
-    // inside a bold/underline/highlight span. Text and line breaks stay in place.
-    const fragment = range.extractContents();
-    const formattedNodes = Array.from(fragment.querySelectorAll('strong, b, u, mark')).reverse();
-    formattedNodes.forEach((node) => node.replaceWith(...Array.from(node.childNodes)));
-    range.insertNode(fragment);
-    selection.removeAllRanges();
-    editor.focus();
+    if (!editor || !restoreSelection()) return;
+    try { document.execCommand('removeFormat', false); } catch { /* no-op */ }
+    // Clear any highlight/background command that removeFormat leaves behind.
+    try { document.execCommand('hiliteColor', false, 'transparent'); } catch {
+      try { document.execCommand('backColor', false, 'transparent'); } catch { /* no-op */ }
+    }
+    captureSelection();
     emit();
   };
 
@@ -2430,8 +2469,10 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        onInput={emit}
-        onFocus={() => { isFocusedRef.current = true; }}
+        onInput={() => { captureSelection(); emit(); }}
+        onMouseUp={captureSelection}
+        onKeyUp={captureSelection}
+        onFocus={() => { isFocusedRef.current = true; captureSelection(); }}
         onBlur={() => { isFocusedRef.current = false; emit(); }}
         className="field-input overflow-y-auto whitespace-pre-wrap leading-6"
         style={{ minHeight }}
@@ -3210,12 +3251,83 @@ function TechSheetBuilder({ wines, distributionWines, activeWine, activeWineId, 
   back: () => void;
 }) {
   const [colorStatus, setColorStatus] = useState('');
+  const [techAiPrompt, setTechAiPrompt] = useState('');
+  const [techAiStatus, setTechAiStatus] = useState('');
+  const [techAiLoading, setTechAiLoading] = useState(false);
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
   const availablePosDisplays = posDisplaysForWine(activeWine);
   const availableLifestyleImages = activeWine ? lifestyleAssetsForWine(activeWine) : [];
   const commerce7TastingNotes = shortCommerce7TastingNotes(activeWine);
   const commerce7Highlights = commerce7SalesHighlights(activeWine);
+
+  const applyTechSheetAi = async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? techAiPrompt).trim();
+    if (!prompt || techAiLoading) return;
+    setTechAiLoading(true);
+    setTechAiStatus('Gemini is updating this tech sheet…');
+    try {
+      const response = await fetch('/api/tech-sheets/assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          draft: {
+            wineName: draft.wineName,
+            includeTastingNotes: draft.includeTastingNotes,
+            includeWineSpecs: draft.includeWineSpecs,
+            includeHighlights: draft.includeHighlights,
+            tastingNotes: draft.tastingNotes,
+            highlights: draft.highlights,
+            abv: draft.abv,
+            casePack: draft.casePack,
+            upc: draft.upc,
+            gtin: draft.gtin,
+            retailerCost: draft.retailerCost,
+            distributorCost: draft.distributorCost,
+            srp: draft.srp,
+            includeCasePackaging: draft.includeCasePackaging,
+            lifestyleTitle: draft.lifestyleTitle,
+            lifestyleBullets: draft.lifestyleBullets,
+            bottleScale: draft.bottleScale,
+            bottleOffsetY: draft.bottleOffsetY,
+            headerColor: draft.headerColor,
+            autoHeaderColor: draft.autoHeaderColor,
+            footer: draft.footer,
+          },
+          wine: activeWine ? {
+            name: activeWine.name,
+            vintage: activeWine.vintage,
+            brand: activeWine.brand,
+            category: activeWine.category,
+            varietal: activeWine.varietal,
+            appellation: activeWine.appellation,
+            price: activeWine.price,
+            abv: activeWine.abv,
+            upc: activeWine.upc,
+            casePack: activeWine.casePack,
+            tastingNotes: activeWine.tastingNotes,
+            shortDescription: activeWine.shortDescription,
+            staffPitch: activeWine.staffPitch,
+            pairings: activeWine.pairings,
+            highlights: activeWine.highlights,
+            awards: activeWine.awards,
+          } : null,
+          approvedLifestyleImages: availableLifestyleImages.map((asset) => ({ title: asset.title, src: asset.src })),
+        }),
+      });
+      const payload = await response.json() as { error?: string; message?: string; patch?: Partial<TechSheetDraft>; degraded?: boolean };
+      if (!response.ok) throw new Error(payload.error || 'Gemini could not update this tech sheet.');
+      const patch = payload.patch && typeof payload.patch === 'object' ? payload.patch : {};
+      if (Object.keys(patch).length) setDraft((current) => ({ ...current, ...patch }));
+      setTechAiStatus(payload.message || (Object.keys(patch).length ? 'Tech sheet updated.' : 'No changes were applied.'));
+      if (!promptOverride && Object.keys(patch).length) setTechAiPrompt('');
+    } catch (error) {
+      setTechAiStatus(error instanceof Error ? error.message : 'Gemini could not update this tech sheet.');
+    } finally {
+      setTechAiLoading(false);
+    }
+  };
 
   const setWine = (id: string) => {
     setActiveWineId(id);
@@ -3286,6 +3398,32 @@ function TechSheetBuilder({ wines, distributionWines, activeWine, activeWineId, 
       <aside className="min-h-full border-r border-black/10 bg-white p-5 xl:h-full xl:min-h-0 xl:overflow-y-auto">
         <div className="mb-5 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]"><strong>Product facts, tasting notes and highlights are already filled in.</strong> Sales can edit anything for a specific customer without changing Commerce7.</div>
         <div className="space-y-5">
+          <div className="rounded-xl border border-[#b8d4f0] bg-[#f3f8fe] p-3">
+            <div className="flex items-start gap-2.5"><span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#3976b7] shadow-sm"><Sparkles className="h-4 w-4" /></span><div><p className="text-xs font-black">Gemini Tech Sheet Assistant</p><p className="mt-1 text-[10px] leading-4 text-black/50">Ask Gemini to edit this draft only. It can rewrite copy, format text, show or hide sections, adjust specs you provide, and change layout settings without touching Commerce7 or the Wine Library.</p></div></div>
+            <textarea value={techAiPrompt} onChange={(event) => setTechAiPrompt(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void applyTechSheetAi(); }} rows={4} placeholder="Try: Remove Wine Specs and shorten the tasting notes to two sentences. Keep the first sentence bold." className="field-input mt-3 resize-y leading-5 placeholder:text-black/25" />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[
+                'Remove Wine Specs',
+                'Hide Highlights',
+                'Shorten the tasting notes',
+                'Make the first tasting-note sentence bold',
+              ].map((prompt) => <button key={prompt} type="button" disabled={techAiLoading} onClick={() => { setTechAiPrompt(prompt); void applyTechSheetAi(prompt); }} className="rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-[9px] font-black text-black/60 hover:border-black/20 disabled:opacity-40">{prompt}</button>)}
+            </div>
+            <button type="button" onClick={() => void applyTechSheetAi()} disabled={!techAiPrompt.trim() || techAiLoading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#3976b7] px-3 py-2.5 text-[11px] font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{techAiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {techAiLoading ? 'Applying changes…' : 'Apply with Gemini'}</button>
+            {techAiStatus && <p className="mt-2 rounded-lg bg-white px-2.5 py-2 text-[10px] font-semibold leading-4 text-black/55">{techAiStatus}</p>}
+          </div>
+
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
+            <p className="text-xs font-black">Sections on this sheet</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Turn a section off without deleting its copy. You can turn it back on later and the content will still be here.</p>
+            <div className="mt-3 grid gap-2">
+              {[
+                ['Tasting Notes', 'includeTastingNotes'],
+                ['Wine Specs', 'includeWineSpecs'],
+                ['Highlights', 'includeHighlights'],
+              ].map(([label, key]) => <label key={key} className="flex cursor-pointer items-center justify-between rounded-lg border border-black/[.06] bg-white px-3 py-2.5"><span className="text-[11px] font-black">{label}</span><input type="checkbox" checked={Boolean(draft[key as 'includeTastingNotes' | 'includeWineSpecs' | 'includeHighlights'])} onChange={(event) => update(key as 'includeTastingNotes' | 'includeWineSpecs' | 'includeHighlights', event.target.checked)} className="h-4 w-4 accent-black" /></label>)}
+            </div>
+          </div>
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Header color</p>
             <p className="mt-1 text-[10px] leading-4 text-black/45">By default Wine Hub tries to match the most prominent color on the bottle label. You can turn that off and choose any color instead.</p>
@@ -3491,9 +3629,9 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
     <div className="flex h-[48px] shrink-0 items-center justify-center" style={{ backgroundColor: mixWithWhite(draft.headerColor, .62) }}><h1 className="text-center text-[30px] font-black uppercase tracking-[-.035em]">{draft.wineName}</h1></div>
     <div className="relative flex-1 overflow-hidden bg-white">
       <div className={`relative z-10 w-[58%] px-[48px] pr-[12px] ${compact ? 'py-[30px]' : 'py-[42px]'}`}>
-        <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]"><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>
-        <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="GTIN" value={draft.gtin} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>
-        <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>
+        {draft.includeTastingNotes && <SheetSection title="Tasting Notes" compact={compact}><p className="text-[17px] leading-[1.45]"><FormattedCopy text={draft.tastingNotes} /></p></SheetSection>}
+        {draft.includeWineSpecs && <SheetSection title="Wine Specs" compact={compact}><div className="space-y-[2px] text-[16px] leading-[1.35]"><Spec label="ABV" value={draft.abv} /><Spec label="Case Size" value={draft.casePack} /><Spec label="UPC" value={draft.upc} /><Spec label="GTIN" value={draft.gtin} /><Spec label="Cost (Distributor)" value={draft.distributorCost} /><Spec label="Cost (Retailer)" value={draft.retailerCost} /><Spec label="SRP" value={draft.srp} /></div></SheetSection>}
+        {draft.includeHighlights && <SheetSection title="Highlights" compact={compact}>{draft.highlights.length ? <ul className="list-disc space-y-[4px] pl-7 text-[16px] leading-[1.35]">{draft.highlights.map((item, index) => <li key={`${item}-${index}`}><HighlightCopy item={item} /></li>)}</ul> : <div className={compact ? 'min-h-[34px]' : 'min-h-[52px]'} />}</SheetSection>}
         {hasLifestyleFeature && <section className="mb-[19px] overflow-hidden rounded-xl border border-black/10 bg-[#f7f8fa]"><div className={`grid ${draft.lifestyleImage ? 'grid-cols-[132px_1fr]' : 'grid-cols-1'}`}>{draft.lifestyleImage && <div className="h-[118px] overflow-hidden bg-[#eceff2]"><img src={draft.lifestyleImage} alt="Lifestyle" className="h-full w-full object-cover" /></div>}<div className="px-4 py-3">{draft.lifestyleTitle && <p className="text-[16px] font-black leading-[1.15]">{draft.lifestyleTitle}</p>}{draft.lifestyleBullets.length > 0 && <ul className={`${draft.lifestyleTitle ? 'mt-2' : ''} list-disc space-y-[2px] pl-4 text-[12.5px] leading-[1.25] text-black/75`}>{draft.lifestyleBullets.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>}</div></div></section>}
         {(draft.includeCasePackaging || draft.displayImage) && <div className={`grid items-start ${draft.includeCasePackaging && draft.displayImage ? 'grid-cols-2 gap-5' : 'grid-cols-1'}`}>
           {draft.includeCasePackaging && <SheetSection title="Case Packaging" compact>{draft.casePackagingImage ? <img src={draft.casePackagingImage} alt="Case packaging" className={`${draft.displayImage ? 'max-h-[155px] max-w-[190px]' : 'max-h-[185px] max-w-[350px]'} w-full object-contain object-left`} /> : <div className="no-print flex h-[112px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-black/20 text-[11px] font-bold text-black/30">Add a packaging image in the builder</div>}</SheetSection>}

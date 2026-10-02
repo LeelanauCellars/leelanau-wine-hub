@@ -59,6 +59,9 @@ export type WineRecord = {
 export type TechSheetDraft = {
   wineId: string;
   wineName: string;
+  includeTastingNotes: boolean;
+  includeWineSpecs: boolean;
+  includeHighlights: boolean;
   tastingNotes: string;
   highlights: string[];
   commerce7CopyLines?: string[];
