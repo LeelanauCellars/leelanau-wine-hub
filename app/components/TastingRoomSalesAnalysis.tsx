@@ -65,6 +65,12 @@ const sections: MetricSection[] = [
     ],
   },
   {
+    title: 'Food / Other',
+    rows: [
+      { label: 'Net Sales', value: (s) => s.foodOther.netSales, format: 'currency' },
+    ],
+  },
+  {
     title: 'Overall',
     rows: [
       { label: 'Transactions', value: (s) => s.overall.transactions, format: 'number' },
@@ -117,10 +123,14 @@ function SummaryTable({ analysis }: { analysis: Analysis }) {
       <thead>
         <tr className="bg-[#f7f9fb] text-left">
           <th className="sticky left-0 z-10 min-w-[300px] bg-[#f7f9fb] px-5 py-4 text-xs font-black uppercase tracking-[.12em] text-black/50">Tasting Room Sales Summary</th>
-          {columns.map((column) => <th key={column.id} className="min-w-[180px] px-5 py-4 text-right align-bottom">
-            <span className="block text-sm font-black text-black">{column.label}</span>
-            <span className="mt-1 block text-[11px] font-bold text-black/40">{column.id === 'combined' ? `${column.calendarDays} calendar days` : dateLabel(column)}</span>
-          </th>)}
+          {columns.map((column) => {
+            const autoShortLabel = column.id === 'combined' ? '' : dateLabel(column).replace(/, \d{4}/g, '');
+            const hasCustomLabel = column.id !== 'combined' && column.label !== autoShortLabel;
+            return <th key={column.id} className="min-w-[180px] px-5 py-4 text-right align-bottom">
+              <span className="block text-sm font-black text-black">{column.id === 'combined' ? column.label : (hasCustomLabel ? column.label : dateLabel(column))}</span>
+              {(column.id === 'combined' || hasCustomLabel) && <span className="mt-1 block text-[11px] font-bold text-black/40">{column.id === 'combined' ? `${column.calendarDays} calendar days` : dateLabel(column)}</span>}
+            </th>;
+          })}
         </tr>
       </thead>
       <tbody>

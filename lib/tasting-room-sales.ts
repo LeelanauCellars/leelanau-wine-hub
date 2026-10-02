@@ -141,6 +141,7 @@ type WorkingOrder = {
   wineByGlassNetSales: number;
   hasWineByGlass: boolean;
   tastingPaidQuantity: number;
+  tastingFreeQuantity: number;
   tastingKnotQuantity: number;
   tastingNetSales: number;
   hasTasting: boolean;
@@ -173,10 +174,11 @@ const KNOWN_WINE_BY_GLASS_TASTING_SKUS = new Set([
   'FLIGHTDRYWHT',
   'FLIGHTSWEETWHT',
   'FLIGHTVARIETY',
-  'FREETASTING',
 ]);
 const PAID_TASTING_SKU = 'TASTINGWITHGLASS';
+const FREE_TASTING_SKU = 'FREETASTING';
 const KNOT_FREE_TASTING_SKU = 'KNOTBARFREETASTING';
+const FREE_TASTING_CLASSIFICATION_START = '2026-09-01';
 const EXPECTED_TYPES = new Set(['Wine', 'Tasting', 'Bundle', 'General Merchandise']);
 
 function finite(value: unknown, fallback = 0) {
@@ -221,10 +223,18 @@ function itemNetSales(item: Commerce7OrderItem, order: Commerce7Order) {
 }
 
 function wineBottleQuantity(item: Commerce7OrderItem, order: Commerce7Order) {
-  const quantity = signedQuantity(item, order);
-  const volume = finite(item.volumeInML);
-  if (volume > 0) return quantity * (volume / 750);
-  return quantity;
+  // Commerce7's Order Detail export defines Bottle Quantity as the number of
+  // Wine units/containers sold, not a 750 mL volume equivalent. A 375 mL can
+  // or dessert bottle therefore counts as 1 bottle when Quantity = 1.
+  // The live Order API does not expose the export-only Bottle Quantity field,
+  // so signed item Quantity is the matching live representation.
+  return signedQuantity(item, order);
+}
+
+function freeTastingIsTasting(orderDate: string) {
+  // August 2026 reports intentionally grouped FREETASTING with Wine by the
+  // Glass. Beginning September 2026, it is reported as Free Tastings.
+  return orderDate >= FREE_TASTING_CLASSIFICATION_START;
 }
 
 function daysInclusive(startDate: string, endDate: string) {
@@ -259,7 +269,6 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
   const review = new Set<string>();
   const conflictingTitles = new Map<string, Set<string>>();
   const posProfileIds = new Set<string>();
-  let missingWineVolume = 0;
   let negativeQuantityRows = 0;
   let refundExchangeOrders = 0;
   const newTypes = new Set<string>();
@@ -286,6 +295,7 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
       wineByGlassNetSales: 0,
       hasWineByGlass: false,
       tastingPaidQuantity: 0,
+      tastingFreeQuantity: 0,
       tastingKnotQuantity: 0,
       tastingNetSales: 0,
       hasTasting: false,
@@ -307,7 +317,6 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
 
       if (type === 'Wine') {
         working.hasWine = true;
-        if (!(finite(item.volumeInML) > 0)) missingWineVolume += 1;
         const bottles = wineBottleQuantity(item, order);
         working.wineBottles += bottles;
         working.wineNetSales += netSales;
@@ -343,14 +352,25 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
           working.tastingNetSales += netSales;
           continue;
         }
-        if (KNOWN_WINE_BY_GLASS_TASTING_SKUS.has(sku)) {
-          working.hasWineByGlass = true;
-          working.wineByGlassQuantity += quantity;
-          working.wineByGlassNetSales += netSales;
-          if (sku === 'FREETASTING') review.add('SKU FREETASTING was included in Wine by the Glass under the current August 2026 reporting convention. Confirm that treatment if this convention changes.');
+        if (sku === FREE_TASTING_SKU && freeTastingIsTasting(working.date)) {
+          working.hasTasting = true;
+          working.tastingFreeQuantity += quantity;
+          working.tastingNetSales += netSales;
           continue;
         }
-        newTastingSkus.add(sku || '(blank SKU)');
+
+        // Reporting rule: every other Tasting item belongs to Wine by the
+        // Glass. Known SKUs are expected; a new SKU is included by Type but
+        // still flagged for review rather than silently ignored.
+        working.hasWineByGlass = true;
+        working.wineByGlassQuantity += quantity;
+        working.wineByGlassNetSales += netSales;
+        if (sku === FREE_TASTING_SKU) {
+          review.add('SKU FREETASTING was included in Wine by the Glass for an August 2026 transaction. September 2026 and later transactions are reported under Free Tastings.');
+        } else if (!KNOWN_WINE_BY_GLASS_TASTING_SKUS.has(sku)) {
+          newTastingSkus.add(sku || '(blank SKU)');
+        }
+        continue;
       }
 
       if (type === 'General Merchandise') {
@@ -437,11 +457,10 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
   const difference = round(categoryNetSales - overallNetSales);
 
   if (newTypes.size) review.add(`New/unexpected Type value${newTypes.size === 1 ? '' : 's'} found: ${Array.from(newTypes).sort().join(', ')}.`);
-  if (newTastingSkus.size) review.add(`New Tasting SKU${newTastingSkus.size === 1 ? '' : 's'} need classification: ${Array.from(newTastingSkus).sort().join(', ')}. They were placed in Food/Other instead of being guessed.`);
+  if (newTastingSkus.size) review.add(`New Tasting SKU${newTastingSkus.size === 1 ? '' : 's'} found: ${Array.from(newTastingSkus).sort().join(', ')}. Because Type = Tasting, they were included in Wine by the Glass under the current reporting rule; confirm whether any need a dedicated classification.`);
   if (negativeQuantityRows) review.add(`${negativeQuantityRows} line item${negativeQuantityRows === 1 ? '' : 's'} contained negative/refund quantity.`);
   if (refundExchangeOrders) review.add(`${refundExchangeOrders} refund/exchange transaction${refundExchangeOrders === 1 ? '' : 's'} were included in the selected period.`);
   if (refundReview.length) review.add(`${refundReview.length} linked case-order refund/exchange row${refundReview.length === 1 ? '' : 's'} require Case Refund Review.`);
-  if (missingWineVolume) review.add(`${missingWineVolume} Wine line item${missingWineVolume === 1 ? '' : 's'} had no usable volume; Quantity was used as Bottle Quantity.`);
   if (foodItems.length) review.add(`${foodItems.length} product/SKU combination${foodItems.length === 1 ? '' : 's'} landed in Food/Other.`);
   if (posProfileIds.size > 1) review.add(`${posProfileIds.size} different POS profiles were included in this period. Confirm they all belong in the Tasting Room report.`);
   for (const [key, titles] of conflictingTitles) {
@@ -485,7 +504,7 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
     },
     tastings: {
       paidQuantity: round(tastingOrders.reduce((sum, order) => sum + order.tastingPaidQuantity, 0), 3),
-      freeTastings: 0,
+      freeTastings: round(tastingOrders.reduce((sum, order) => sum + order.tastingFreeQuantity, 0), 3),
       knotFreeTastings: round(tastingOrders.reduce((sum, order) => sum + order.tastingKnotQuantity, 0), 3),
       transactions: tastingOrders.length,
       netSales: round(tastingOrders.reduce((sum, order) => sum + order.tastingNetSales, 0)),
@@ -583,7 +602,7 @@ function combineSummaries(periods: TastingRoomSalesPeriodSummary[]): TastingRoom
     },
     tastings: {
       paidQuantity: round(periods.reduce((sum, period) => sum + period.tastings.paidQuantity, 0), 3),
-      freeTastings: 0,
+      freeTastings: round(periods.reduce((sum, period) => sum + period.tastings.freeTastings, 0), 3),
       knotFreeTastings: round(periods.reduce((sum, period) => sum + period.tastings.knotFreeTastings, 0), 3),
       transactions: periods.reduce((sum, period) => sum + period.tastings.transactions, 0),
       netSales: round(periods.reduce((sum, period) => sum + period.tastings.netSales, 0)),
