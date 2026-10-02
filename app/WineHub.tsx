@@ -16,6 +16,7 @@ import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wi
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
 import MerchApparel from '@/app/components/MerchApparel';
 import Labels from '@/app/components/Labels';
+import TastingRoomSalesAnalysis from '@/app/components/TastingRoomSalesAnalysis';
 import { WINE_COLLECTIONS, canonicalWineCollection, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 import type { CaseSalesGoalMetrics, CaseSalesSummary } from '@/lib/case-sales';
 import { CENTRAL_PROJECTS, projectBySlug, type CentralProject, type CentralProjectFile } from '@/lib/projects';
@@ -55,18 +56,18 @@ type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
 type AdminNavGroup = 'sales' | 'tasting' | 'projects' | null;
-type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
+type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
 type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
 
 type CentralRoute =
-  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
+  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
   | { kind: 'wine'; slug: string; tab: ProfileTab }
   | { kind: 'project'; slug: string }
   | { kind: 'tech'; slug: string }
   | { kind: 'distribution'; slug: string };
 
 const CENTRAL_PATH_PREFIX = (process.env.NEXT_PUBLIC_CENTRAL_PATH_PREFIX || '').replace(/\/+$/, '');
-const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'labels', 'tasting-menu', 'tasting-notes', 'case-sales', 'merch-apparel', 'quick-facts', 'awards', 'ask']);
+const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'labels', 'tasting-menu', 'tasting-notes', 'case-sales', 'sales-analysis', 'merch-apparel', 'quick-facts', 'awards', 'ask']);
 
 function routeSlug(value = '') {
   return value
@@ -142,7 +143,7 @@ function projectPath(project: CentralProject) {
   return centralPath(`/projects/${project.slug}`);
 }
 
-type SectionView = 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
+type SectionView = 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
 
 function sectionPath(view: SectionView) {
   const map: Record<string, string> = {
@@ -153,6 +154,7 @@ function sectionPath(view: SectionView) {
     tasting: '/tasting-menu',
     'tasting-notes': '/tasting-notes',
     'case-sales': '/case-sales',
+    'sales-analysis': '/sales-analysis',
     merch: '/merch-apparel',
     quickfacts: '/quick-facts',
     'tech-library': '/tech-sheets',
@@ -180,6 +182,7 @@ function parseCentralRoute(pathname: string): CentralRoute | null {
   if (section === 'tasting-menu') return { kind: 'section', view: 'tasting' };
   if (section === 'tasting-notes') return { kind: 'section', view: 'tasting-notes' };
   if (section === 'case-sales') return { kind: 'section', view: 'case-sales' };
+  if (section === 'sales-analysis') return { kind: 'section', view: 'sales-analysis' };
   if (section === 'merch-apparel') return { kind: 'section', view: 'merch' };
   if (section === 'quick-facts') return { kind: 'section', view: 'quickfacts' };
   if (section === 'awards') return { kind: 'section', view: 'awards' };
@@ -202,7 +205,7 @@ function preferredPortalForRoute(route: CentralRoute, accessRole: AccessRole | n
   if (accessRole === 'admin') return 'admin';
   if (route.kind === 'tech' || route.kind === 'project' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels'))) return 'sales';
   if (route.kind === 'distribution' || (route.kind === 'section' && route.view === 'distribution')) return 'distribution';
-  if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'merch')) return 'tasting';
+  if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'sales-analysis' || route.view === 'merch')) return 'tasting';
   if (route.kind === 'section' && route.view === 'quickfacts') return accessRole === 'sales' ? 'sales' : 'tasting';
   return accessRole === 'tasting' ? 'tasting' : 'sales';
 }
@@ -955,7 +958,7 @@ export default function WineHub() {
       route.view === 'library' ? role === 'admin' || role === 'tasting' || role === 'sales' :
       route.view === 'distribution' ? role === 'admin' || role === 'sales' || role === 'distribution' :
       route.view === 'tasting' || route.view === 'case-sales' || route.view === 'merch' ? role === 'admin' || role === 'tasting' :
-      route.view === 'tasting-notes' ? role === 'admin' :
+      route.view === 'tasting-notes' || route.view === 'sales-analysis' ? role === 'admin' :
       route.view === 'quickfacts' ? role === 'admin' || role === 'tasting' || role === 'sales' :
       route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels' ? role === 'admin' || role === 'sales' :
       route.view === 'ask' ? true : false;
@@ -1230,7 +1233,7 @@ export default function WineHub() {
                     <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
                     <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => navigateSection('library')} />
                     <NavButton active={view === 'distribution' || view === 'distribution-profile' || view === 'tech-library' || view === 'tech'} icon={<Package />} label="Sales" onClick={() => setAdminNavGroup('sales')} />
-                    <NavButton active={view === 'tasting' || view === 'tasting-notes' || view === 'merch' || view === 'case-sales'} icon={<ClipboardList />} label="Tasting Room" onClick={() => setAdminNavGroup('tasting')} />
+                    <NavButton active={view === 'tasting' || view === 'tasting-notes' || view === 'merch' || view === 'case-sales' || view === 'sales-analysis'} icon={<ClipboardList />} label="Tasting Room" onClick={() => setAdminNavGroup('tasting')} />
                     <NavButton active={view === 'projects' || view === 'project' || view === 'labels'} icon={<Briefcase />} label="Projects" onClick={() => setAdminNavGroup('projects')} />
                     <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />
                     <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />
@@ -1251,6 +1254,7 @@ export default function WineHub() {
                       <NavButton active={view === 'tasting-notes'} icon={<BookOpen />} label="Tasting Notes" onClick={() => navigateSection('tasting-notes')} />
                       <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />
                       <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />
+                      <NavButton active={view === 'sales-analysis'} icon={<BarChart3 />} label="Sales Analysis" onClick={() => navigateSection('sales-analysis')} />
                     </div>}
                     {adminNavGroup === 'projects' && <div className="space-y-2">
                       <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[.18em] text-black/35">Projects</p>
@@ -1332,6 +1336,7 @@ export default function WineHub() {
           <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} role="admin" mode="notes" />
         )}
         {view === 'case-sales' && canUseTastingRoom && <CaseSalesTracker role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />}
+        {view === 'sales-analysis' && isPortalAdmin && <TastingRoomSalesAnalysis />}
         {view === 'quickfacts' && canUseQuickFacts && <QuickFactsView />}
         {view === 'tech-library' && canUseTechSheets && (
           <TechSheetLibrary wines={wines} distributionWines={distributionWines} openTech={openTech} />

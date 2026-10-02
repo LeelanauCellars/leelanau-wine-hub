@@ -96,6 +96,7 @@ export async function fetchCommerce7VendorTitles(vendorIds: string[]) {
 
 export type Commerce7OrderItem = {
   id?: string | null;
+  purchaseType?: string | null;
   productTitle?: string | null;
   type?: string | null;
   productId?: string | null;
@@ -120,6 +121,7 @@ export type Commerce7Order = {
   paymentStatus?: string | null;
   channel?: string | null;
   posProfileId?: string | null;
+  subTotal?: number | null;
   items?: Commerce7OrderItem[] | null;
 };
 
