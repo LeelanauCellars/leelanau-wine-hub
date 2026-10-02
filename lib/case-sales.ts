@@ -30,6 +30,10 @@ export type CaseSalesSummary = {
   version: 2;
   importedAt: string;
   sourceFilename: string;
+  sourceKind?: 'csv' | 'commerce7-pos';
+  sourceDetail?: string | null;
+  posOrdersReviewed?: number;
+  posProfileIds?: string[];
   asOfDate: string;
   periodStartDate: string;
   goalCases: number | null;
@@ -280,6 +284,7 @@ export function parseCaseSalesCsv(text: string, sourceFilename: string, previous
     version: 2,
     importedAt: new Date().toISOString(),
     sourceFilename: sourceFilename || 'Commerce7 orders.csv',
+    sourceKind: 'csv',
     asOfDate,
     periodStartDate,
     goalCases: previous?.goalCases ?? null,
@@ -297,6 +302,194 @@ export function parseCaseSalesCsv(text: string, sourceFilename: string, previous
       .map(([date, value]) => ({ date, ...value })),
     validationRows,
   };
+}
+
+export type Commerce7CaseSalesItem = {
+  type?: string | null;
+  quantity?: number | null;
+  volumeInML?: number | null;
+  price?: number | null;
+  productTitle?: string | null;
+  sku?: string | null;
+};
+
+export type Commerce7CaseSalesOrder = {
+  id?: string | null;
+  orderNumber?: string | number | null;
+  previousOrderNumber?: string | number | null;
+  orderSubmittedDate?: string | null;
+  channel?: string | null;
+  posProfileId?: string | null;
+  purchaseType?: string | null;
+  paymentStatus?: string | null;
+  items?: Commerce7CaseSalesItem[] | null;
+};
+
+function commerce7WineBottleQuantity(item: Commerce7CaseSalesItem) {
+  const quantity = Number(item.quantity ?? 0);
+  if (!Number.isFinite(quantity)) return 0;
+  const volumeInML = Number(item.volumeInML ?? 0);
+  if (Number.isFinite(volumeInML) && volumeInML > 0) return quantity * (volumeInML / 750);
+  return quantity;
+}
+
+function transactionSummary(
+  transactions: Map<string, WineTransaction>,
+  options: {
+    sourceFilename: string;
+    previous?: CaseSalesSummary | null;
+    importedAt?: string;
+    periodStartDate: string;
+    asOfDate: string;
+    wineRowsReviewed: number;
+    bottleQuantityReviewed: number;
+    sourceKind?: 'csv' | 'commerce7-pos';
+    sourceDetail?: string | null;
+    posOrdersReviewed?: number;
+    posProfileIds?: string[];
+  },
+): CaseSalesSummary {
+  const qualifyingOriginals = Array.from(transactions.values())
+    .filter((transaction) => !transaction.refundFromOrderNumber && transaction.wineBottles >= 12)
+    .map((transaction) => ({ ...transaction, grossWholeCases: Math.floor(transaction.wineBottles / 12) }));
+
+  const originalsByOrderNumber = new Map(
+    qualifyingOriginals.filter((transaction) => transaction.orderNumber).map((transaction) => [transaction.orderNumber, transaction]),
+  );
+  const refundsByOriginalOrder = new Map<string, WineTransaction[]>();
+
+  for (const transaction of transactions.values()) {
+    const originalOrderNumber = transaction.refundFromOrderNumber;
+    if (!originalOrderNumber || !originalsByOrderNumber.has(originalOrderNumber)) continue;
+    const linked = refundsByOriginalOrder.get(originalOrderNumber) || [];
+    linked.push(transaction);
+    refundsByOriginalOrder.set(originalOrderNumber, linked);
+  }
+
+  const validationRows: CaseSalesValidationRow[] = qualifyingOriginals.map((original) => {
+    const linkedTransactions = refundsByOriginalOrder.get(original.orderNumber) || [];
+    const linkedRefunds = linkedTransactions.map((refund) => ({
+      orderNumber: refund.orderNumber,
+      id: refund.id,
+      date: refund.date,
+      wineBottles: roundQuantity(refund.wineBottles),
+      wineProductSubtotal: money(refund.wineProductSubtotal),
+    }));
+    const refundedWineBottles = linkedRefunds.reduce((sum, refund) => sum + refund.wineBottles, 0);
+    const refundedWineProductSubtotal = linkedRefunds.reduce((sum, refund) => sum + refund.wineProductSubtotal, 0);
+    const remainingWineBottles = roundQuantity(original.wineBottles + refundedWineBottles);
+    const casesRemainingAfterRefunds = Math.max(0, Math.floor(remainingWineBottles / 12));
+
+    return {
+      orderNumber: original.orderNumber,
+      id: original.id,
+      date: original.date,
+      originalWineBottles: roundQuantity(original.wineBottles),
+      grossWholeCases: original.grossWholeCases,
+      linkedRefunds,
+      refundedWineBottles: roundQuantity(refundedWineBottles),
+      refundedWineProductSubtotal: money(refundedWineProductSubtotal),
+      remainingWineBottles,
+      casesRemainingAfterRefunds,
+    };
+  }).sort((a, b) => a.date.localeCompare(b.date) || a.orderNumber.localeCompare(b.orderNumber));
+
+  const daily = new Map<string, { grossCases: number; cases: number; caseOrders: number }>();
+  for (const item of validationRows) {
+    if (!item.date) continue;
+    const current = daily.get(item.date) || { grossCases: 0, cases: 0, caseOrders: 0 };
+    current.grossCases += item.grossWholeCases;
+    current.cases += item.casesRemainingAfterRefunds;
+    current.caseOrders += 1;
+    daily.set(item.date, current);
+  }
+
+  const grossCasesSold = validationRows.reduce((sum, item) => sum + item.grossWholeCases, 0);
+  const casesRemainingAfterLinkedRefunds = validationRows.reduce((sum, item) => sum + item.casesRemainingAfterRefunds, 0);
+  const linkedRefundTransactions = validationRows.reduce((sum, item) => sum + item.linkedRefunds.length, 0);
+  const defaultGoalEnd = options.asOfDate ? endOfMonth(options.asOfDate) : null;
+
+  return {
+    version: 2,
+    importedAt: options.importedAt || new Date().toISOString(),
+    sourceFilename: options.sourceFilename,
+    sourceKind: options.sourceKind,
+    sourceDetail: options.sourceDetail ?? null,
+    posOrdersReviewed: options.posOrdersReviewed,
+    posProfileIds: options.posProfileIds,
+    asOfDate: options.asOfDate,
+    periodStartDate: options.periodStartDate,
+    goalCases: options.previous?.goalCases ?? null,
+    goalEndDate: options.previous?.goalEndDate ?? defaultGoalEnd,
+    casesSold: casesRemainingAfterLinkedRefunds,
+    grossCasesSold,
+    casesRemainingAfterLinkedRefunds,
+    caseOrders: validationRows.length,
+    wineTransactionsReviewed: transactions.size,
+    wineRowsReviewed: options.wineRowsReviewed,
+    bottleQuantityReviewed: roundQuantity(options.bottleQuantityReviewed),
+    linkedRefundTransactions,
+    dailyCases: Array.from(daily.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({ date, ...value })),
+    validationRows,
+  };
+}
+
+export function buildCaseSalesSummaryFromCommerce7Orders(
+  orders: Commerce7CaseSalesOrder[],
+  options: { monthStartDate: string; asOfDate: string; previous?: CaseSalesSummary | null; sourceDetail?: string | null; posOrdersReviewed?: number },
+) {
+  const transactions = new Map<string, WineTransaction>();
+  let wineRowsReviewed = 0;
+  let bottleQuantityReviewed = 0;
+  const posProfileIds = new Set<string>();
+
+  for (const order of orders) {
+    const id = String(order.id || '').trim();
+    if (!id) continue;
+    if ((order.channel || '').toUpperCase() === 'POS' && order.posProfileId) posProfileIds.add(order.posProfileId);
+
+    let wineBottles = 0;
+    let wineProductSubtotal = 0;
+    for (const item of order.items || []) {
+      if ((item.type || '').trim().toLowerCase() !== 'wine') continue;
+      wineRowsReviewed += 1;
+      const bottles = commerce7WineBottleQuantity(item);
+      wineBottles += bottles;
+      bottleQuantityReviewed += bottles;
+      const quantity = Number(item.quantity ?? 0);
+      const priceCents = Number(item.price ?? 0);
+      if (Number.isFinite(quantity) && Number.isFinite(priceCents)) wineProductSubtotal += (quantity * priceCents) / 100;
+    }
+    if (Math.abs(wineBottles) < 0.000001) {
+      // Keep POS orders without Wine out of transaction counts; the raw POS order count is stored separately.
+      continue;
+    }
+
+    const date = dateOnly(order.orderSubmittedDate || '');
+    transactions.set(id, {
+      id,
+      orderNumber: String(order.orderNumber ?? '').trim(),
+      refundFromOrderNumber: String(order.previousOrderNumber ?? '').trim(),
+      date,
+      wineBottles,
+      wineProductSubtotal,
+    });
+  }
+
+  return transactionSummary(transactions, {
+    sourceFilename: 'Commerce7 live POS sync',
+    sourceKind: 'commerce7-pos',
+    sourceDetail: options.sourceDetail || null,
+    previous: options.previous,
+    periodStartDate: options.monthStartDate,
+    asOfDate: options.asOfDate,
+    wineRowsReviewed,
+    bottleQuantityReviewed,
+    posOrdersReviewed: options.posOrdersReviewed ?? orders.filter((order) => (order.channel || '').toUpperCase() === 'POS').length,
+    posProfileIds: Array.from(posProfileIds).sort(),
+  });
 }
 
 export function endOfMonth(date: string) {

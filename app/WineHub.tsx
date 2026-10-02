@@ -2645,6 +2645,7 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
   const [data, setData] = useState<CaseSalesApiPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [syncingPos, setSyncingPos] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
   const [notice, setNotice] = useState('');
   const [goalCases, setGoalCases] = useState('');
@@ -2699,6 +2700,26 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
     }
   }
 
+  async function syncCommerce7Pos() {
+    if (syncingPos) return;
+    setSyncingPos(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/tasting-room/case-sales/sync', { method: 'POST' });
+      const payload = await readJson(response);
+      if (!response.ok) throw new Error(payload.error || 'Unable to sync Commerce7 POS sales.');
+      setData(payload);
+      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
+      setGoalEndDate(payload.summary?.goalEndDate || '');
+      const posOrders = payload.liveSync?.posOrdersReviewed;
+      setNotice(`Commerce7 POS synced through ${caseSalesDisplayDate(payload.summary?.asOfDate)}${Number.isFinite(posOrders) ? ` · ${Number(posOrders).toLocaleString()} POS orders reviewed.` : '.'}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to sync Commerce7 POS sales.');
+    } finally {
+      setSyncingPos(false);
+    }
+  }
+
   async function saveGoal() {
     if (savingGoal) return;
     setSavingGoal(true);
@@ -2736,10 +2757,15 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
     <PageHeader
       title="Case Sales Tracker"
-      right={<label className={`flex items-center gap-2 rounded-xl px-5 py-3.5 text-base font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer bg-black text-white hover:bg-black/85'}`}>
-        <Upload className="h-4 w-4" /> {uploading ? 'Updating…' : 'Upload sales CSV'}
-        <input type="file" accept=".csv,text/csv" className="hidden" disabled={uploading || data?.storageConfigured === false} onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} />
-      </label>}
+      right={<div className="flex flex-wrap items-center justify-end gap-2">
+        <button type="button" onClick={() => void syncCommerce7Pos()} disabled={syncingPos || uploading || data?.storageConfigured === false} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-5 py-3.5 text-base font-black text-white shadow-sm hover:bg-[#285f97] disabled:cursor-not-allowed disabled:opacity-45">
+          {syncingPos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} {syncingPos ? 'Syncing POS…' : 'Sync Commerce7 POS'}
+        </button>
+        <label className={`flex items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer border border-black/10 bg-white text-black/65 hover:bg-black/[.03]'}`}>
+          <Upload className="h-4 w-4" /> {uploading ? 'Updating…' : 'CSV fallback'}
+          <input type="file" accept=".csv,text/csv" className="hidden" disabled={uploading || syncingPos || data?.storageConfigured === false} onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} />
+        </label>
+      </div>}
     />
 
     {notice && <div className="mb-5 rounded-xl border border-black/8 bg-[#f7f8f9] px-5 py-4 text-base font-bold text-black/70">{notice}</div>}
@@ -2748,8 +2774,8 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
       !data?.storageConfigured ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><p className="text-lg font-black text-amber-950">Vercel Blob is not connected.</p><p className="mt-2 text-base leading-7 text-amber-900/80">Connect the same Blob store used by the tasting-room menu, then redeploy Central.</p></div> :
       !summary ? <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-20 text-center">
         <BarChart3 className="mx-auto h-9 w-9 text-black/20" />
-        <h2 className="mt-4 text-2xl font-black">Upload the first case-sales report</h2>
-        <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Central uses only rows where Type = Wine, groups those rows by transaction Id, totals Bottle Quantity across the entire transaction, and uses Quantity only when Bottle Quantity is blank. Whole cases are calculated only after the transaction is combined. Linked refunds and exchanges are then applied back to the original case transaction.</p>
+        <h2 className="mt-4 text-2xl font-black">Sync the current month from Commerce7</h2>
+        <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Use <strong>Sync Commerce7 POS</strong> to pull this month's tasting-room POS orders directly into the tracker. The CSV upload remains available as a fallback while we compare the live totals with the report workflow.</p>
       </div> :
       <>
         {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Upload the Commerce7 CSV again to apply the updated transaction, Wine-only, and linked-refund calculation.</div>}
@@ -2818,11 +2844,12 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
             <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-black/[.07] pt-5 text-base md:grid-cols-2">
               <CaseSalesDetail label="Sales period" value={`${caseSalesDisplayDate(summary.periodStartDate, { month: 'short', day: 'numeric' })} – ${caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}`} />
               <CaseSalesDetail label="Wine rows reviewed" value={(summary.wineRowsReviewed ?? 0).toLocaleString()} />
-              <CaseSalesDetail label="Source file" value={summary.sourceFilename} />
+              <CaseSalesDetail label="Source" value={summary.sourceFilename} />
               <CaseSalesDetail label="Last updated" value={new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(summary.importedAt))} />
             </dl>
-            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</div>
-            <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, the raw Commerce7 CSV and customer details are not retained. Central stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
+            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> {summary.sourceKind === 'commerce7-pos' ? <>Live sync keeps POS orders, counts only Wine items, converts each Wine item to 750 mL bottle equivalents from its Commerce7 volume (falling back to item quantity if volume is unavailable), totals the transaction, and applies FLOOR(total bottles ÷ 12). Linked refunds/exchanges are applied back to the original qualifying POS order.</> : <>Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</>}</div>
+            {summary.sourceDetail && <p className="mt-4 text-sm font-black leading-6 text-[#326eac]">{summary.sourceDetail}</p>}
+            <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, Central does not store customer names, addresses, or payment details. It stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
           </section>
 
           <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
@@ -2983,37 +3010,28 @@ function TastingRoom({ wines, selected, setSelected, openWine, role, mode }: { w
   const menuDownloadUrl = menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1';
 
   if (mode === 'menu') {
-    return <div className="mx-auto max-w-[1180px] p-5 md:p-8 xl:p-10">
+    return <div className="mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
       <PageHeader title="Tasting Menu" />
-      <section className="rounded-3xl border border-black/10 bg-white p-5 shadow-sm md:p-7">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#326eac]">Current tasting room menu</p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-.025em]">{menuInfo?.filename || 'Leelanau Cellars Tasting Menu'}</h2>
-            <p className="mt-2 text-sm font-semibold text-black/48">{menuLoading ? 'Loading menu…' : `Updated ${menuDate}`}</p>
-            {role === 'admin' && <p className="mt-4 max-w-[650px] text-sm leading-6 text-black/58">Upload the new tasting menu here when it changes. Central will extract the PDF, match the wines, and automatically rebuild the separate <strong className="text-black/75">Tasting Notes</strong> list.</p>}
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <a href={menuViewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black shadow-sm hover:bg-black/[.025]"><ExternalLink className="h-4 w-4" /> View PDF</a>
-            <a href={menuDownloadUrl} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Download className="h-4 w-4" /> Download PDF</a>
-            {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-[#326eac] text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
-          </div>
-        </div>
-        {role === 'admin' && <div className="mt-6 grid gap-3 border-t border-black/[.08] pt-5 sm:grid-cols-3">
-          <MenuStatusStat label="Notes matched" value={menuLoading ? '—' : `${pdfMatchCount} wines`} />
-          <MenuStatusStat label="Notes source" value={menuInfo?.selectionSource === 'admin-override' ? 'Admin corrected' : 'Auto from PDF'} />
-          <MenuStatusStat label="PDF text" value={menuInfo?.textSource === 'blob-text' || menuInfo?.textSource === 'pdf-extracted' ? 'Extracted' : menuInfo?.textSource === 'bundled' ? 'Bundled' : menuInfo?.textSource || 'Bundled'} />
-        </div>}
-        {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>The current menu is bundled and downloadable.</strong> Connect Vercel Blob to replace it from Central.</p>}
-        {menuUploadNotice && <p className="mt-5 rounded-xl bg-[#f6f7f8] px-4 py-3 text-xs font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
-        {role === 'admin' && menuInfo?.textError && <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>Tasting Notes auto-match needs attention.</strong> {menuInfo.textError}</p>}
-      </section>
 
-      <section className="mt-5 rounded-3xl border border-black/10 bg-[#f7f8fa] p-5 md:p-7">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm"><FileText className="h-5 w-5 text-[#326eac]" /></div>
-          <div><h3 className="text-base font-black">One menu, one source of truth</h3><p className="mt-1 max-w-[760px] text-sm leading-6 text-black/55">Tasting Room staff can view or download this current menu. Tasting Notes remain an Admin-only workspace while the notes format is being refined.</p></div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-black/48">{menuLoading ? 'Loading menu…' : `Updated ${menuDate}`}</p>
+        <div className="flex flex-wrap gap-2">
+          <a href={menuViewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black shadow-sm hover:bg-black/[.025]"><ExternalLink className="h-4 w-4" /> View PDF</a>
+          <a href={menuDownloadUrl} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Download className="h-4 w-4" /> Download PDF</a>
+          {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-[#326eac] text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
         </div>
+      </div>
+
+      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>The current menu is bundled and downloadable.</strong> Connect Vercel Blob to replace it from Central.</p>}
+      {menuUploadNotice && <p className="mb-4 rounded-xl bg-[#f6f7f8] px-4 py-3 text-xs font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+      {role === 'admin' && menuInfo?.textError && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>Tasting Notes auto-match needs attention.</strong> {menuInfo.textError}</p>}
+
+      <section className="overflow-hidden rounded-3xl border border-black/10 bg-[#f2f3f5] shadow-sm">
+        <iframe
+          src={menuViewUrl}
+          title="Leelanau Cellars tasting menu"
+          className="h-[760px] w-full bg-white md:h-[900px] xl:h-[1040px]"
+        />
       </section>
     </div>;
   }
@@ -3044,9 +3062,6 @@ function TastingRoom({ wines, selected, setSelected, openWine, role, mode }: { w
   </div>;
 }
 
-function MenuStatusStat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl bg-[#f7f8fa] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-black/35">{label}</p><p className="mt-1 text-sm font-black text-black/72">{value}</p></div>;
-}
 
 function staffGuideAccent(category: string) {
   const accents: Record<string, string> = {
