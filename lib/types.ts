@@ -74,6 +74,9 @@ export type TechSheetDraft = {
   includeCasePackaging: boolean;
   casePackagingImage?: string;
   displayImage?: string;
+  lifestyleImage?: string;
+  lifestyleTitle: string;
+  lifestyleBullets: string[];
   bottleScale: number;
   bottleOffsetY: number;
   headerColor: string;

@@ -58,18 +58,18 @@ const RULES: LifestyleRule[] = [
   { src: "/lifestyle/winter-white-bubbly-can-cheers-captured-by-grace-8.jpg", title: "Winter White Bubbly Can - Cheers - Captured by Grace (8)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly Can", "Winter White Bubbly Cans", "Winter White Bubbly 12oz Can", "Winter White Bubbly 12oz Cans"] },
   { src: "/lifestyle/winter-white-bubbly-can-ice-skating-captured-by-grace-14.jpg", title: "Winter White Bubbly Can - Ice Skating - Captured by Grace (14)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly Can", "Winter White Bubbly Cans", "Winter White Bubbly 12oz Can", "Winter White Bubbly 12oz Cans"] },
   { src: "/lifestyle/winter-white-bubbly-snow-and-winter-captured-by-grace-2-1.jpg", title: "Winter White Bubbly snow and winter - Captured by Grace (2) (1)", brand: "Leelanau Cellars", aliases: ["Winter White Bubbly"] },
-  { src: "/lifestyle/witches-brew-fall-vibes-madi-taylor-3-3.jpg", title: "Witches Brew - Fall Vibes - Madi Taylor (3) (3)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
-  { src: "/lifestyle/witches-brew-witches-madi-taylor-4-2.jpg", title: "Witches Brew - Witches - Madi Taylor (4) (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
-  { src: "/lifestyle/witches-brew-og-on-the-dark-ground-outside-rachel-straughen.jpg", title: "Witches Brew OG on the dark ground outside - Rachel Straughen", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
-  { src: "/lifestyle/witches-brew-pumpkin-spice-crockpot-madi-taylor-2-1.jpg", title: "Witches Brew Pumpkin Spice - Crockpot - Madi Taylor (2) (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
-  { src: "/lifestyle/witches-brew-pumpkin-spice-donuts-madi-taylor-10.jpg", title: "Witches Brew Pumpkin Spice - Donuts - Madi Taylor (10)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
-  { src: "/lifestyle/witches-brew-pumpkin-spice-picnic-grace-hudson-2.jpg", title: "Witches Brew Pumpkin Spice - picnic - Grace Hudson (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
-  { src: "/lifestyle/witches-brew-pumpkin-spice-pumpkin-madi-taylor-1.jpg", title: "Witches Brew Pumpkin Spice - Pumpkin - Madi Taylor (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice"] },
-  { src: "/lifestyle/witches-brew-red-dark-photo-rachel-straughen-9.jpg", title: "Witches Brew red - dark photo - Rachel Straughen (9)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
-  { src: "/lifestyle/witches-brew-red-by-candle-grace-hudson-6.jpg", title: "Witches Brew red by candle - Grace Hudson (6)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red"] },
-  { src: "/lifestyle/witches-brew-spiced-apple-apples-captured-by-grace-7.jpg", title: "Witches Brew Spiced Apple - Apples - Captured by Grace (7)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
-  { src: "/lifestyle/witches-brew-spiced-apple-picnic-grace-hudson-1.jpg", title: "Witches Brew Spiced Apple - Picnic - Grace Hudson (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
-  { src: "/lifestyle/witches-brew-spiced-apple-witches-madi-taylor-19.jpg", title: "Witches Brew Spiced Apple - Witches - Madi Taylor (19)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple"] },
+  { src: "/lifestyle/witches-brew-fall-vibes-madi-taylor-3-3.jpg", title: "Witches Brew - Fall Vibes - Madi Taylor (3) (3)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red", "Witches Brew Wine", "Witches Brew Red Wine"] },
+  { src: "/lifestyle/witches-brew-witches-madi-taylor-4-2.jpg", title: "Witches Brew - Witches - Madi Taylor (4) (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red", "Witches Brew Wine", "Witches Brew Red Wine"] },
+  { src: "/lifestyle/witches-brew-og-on-the-dark-ground-outside-rachel-straughen.jpg", title: "Witches Brew OG on the dark ground outside - Rachel Straughen", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red", "Witches Brew Wine", "Witches Brew Red Wine"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-crockpot-madi-taylor-2-1.jpg", title: "Witches Brew Pumpkin Spice - Crockpot - Madi Taylor (2) (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice", "Witches Brew Pumpkin Spice Wine"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-donuts-madi-taylor-10.jpg", title: "Witches Brew Pumpkin Spice - Donuts - Madi Taylor (10)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice", "Witches Brew Pumpkin Spice Wine"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-picnic-grace-hudson-2.jpg", title: "Witches Brew Pumpkin Spice - picnic - Grace Hudson (2)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice", "Witches Brew Pumpkin Spice Wine"] },
+  { src: "/lifestyle/witches-brew-pumpkin-spice-pumpkin-madi-taylor-1.jpg", title: "Witches Brew Pumpkin Spice - Pumpkin - Madi Taylor (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Pumpkin Spice", "Witches Brew Pumpkin Spice Wine"] },
+  { src: "/lifestyle/witches-brew-red-dark-photo-rachel-straughen-9.jpg", title: "Witches Brew red - dark photo - Rachel Straughen (9)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red", "Witches Brew Wine", "Witches Brew Red Wine"] },
+  { src: "/lifestyle/witches-brew-red-by-candle-grace-hudson-6.jpg", title: "Witches Brew red by candle - Grace Hudson (6)", brand: "Leelanau Cellars", aliases: ["Witches Brew", "Witches Brew Red", "Witches Brew Wine", "Witches Brew Red Wine"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-apples-captured-by-grace-7.jpg", title: "Witches Brew Spiced Apple - Apples - Captured by Grace (7)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple", "Witches Brew Spiced Apple Wine"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-picnic-grace-hudson-1.jpg", title: "Witches Brew Spiced Apple - Picnic - Grace Hudson (1)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple", "Witches Brew Spiced Apple Wine"] },
+  { src: "/lifestyle/witches-brew-spiced-apple-witches-madi-taylor-19.jpg", title: "Witches Brew Spiced Apple - Witches - Madi Taylor (19)", brand: "Leelanau Cellars", aliases: ["Witches Brew Spiced Apple", "Witches Brew Spiced Apple Wine"] },
   { src: "/lifestyle/zilly-cabernet-sauvignon-girls-tv-night-captured-by-grace-24.jpg", title: "Zilly Cabernet Sauvignon - Girls TV Night - Captured by Grace (24)", brand: "Zilly", aliases: ["Cabernet Sauvignon", "Zilly Cabernet Sauvignon"] },
   { src: "/lifestyle/zilly-cabernet-sauvignon-holiday-photoshoot-captured-by-grace-7.jpg", title: "Zilly Cabernet Sauvignon - Holiday photoshoot - Captured by Grace (7)", brand: "Zilly", aliases: ["Cabernet Sauvignon", "Zilly Cabernet Sauvignon"] },
   { src: "/lifestyle/zilly-chardonnay-3-women-in-winter-clothes-captured-by-grace-2.jpg", title: "Zilly Chardonnay - 3 women in winter clothes - Captured by Grace (2)", brand: "Zilly", aliases: ["Chardonnay", "Zilly Chardonnay"] },
@@ -178,7 +178,11 @@ export function lifestyleAssetsForWine(wine: WineRecord): WineLifestyleAsset[] {
   const wineName = normalize(stripVintage(wine.name));
   const keys = wineNameKeys(wine);
   return RULES.filter((rule) => {
-    if (rule.brand && normalize(rule.brand) !== brand && !wineName.startsWith(normalize(rule.brand))) return false;
+    if (rule.brand) {
+      const ruleBrand = normalize(rule.brand);
+      const witchesCompatibility = wineName.includes('witchesbrew') && (ruleBrand === 'leelanaucellars' || ruleBrand === 'witchesbrew') && (brand === 'leelanaucellars' || brand === 'witchesbrew' || !brand);
+      if (ruleBrand !== brand && !wineName.startsWith(ruleBrand) && !witchesCompatibility) return false;
+    }
     if (rule.collection) {
       const target = normalize(rule.collection);
       if (!collection.includes(target) && !wineName.includes(target)) return false;
