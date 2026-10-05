@@ -2749,7 +2749,7 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
   const summary = data?.summary;
   const metrics = data?.metrics;
   const progress = metrics?.progressPercent ?? 0;
-  const legacySummary = summary && summary.version !== 2;
+  const legacySummary = summary && summary.version !== 3;
   const grossCases = summary ? (summary.grossCasesSold ?? summary.casesSold) : 0;
   const netCases = summary ? (summary.casesRemainingAfterLinkedRefunds ?? summary.casesSold) : 0;
   const validationRows = summary?.validationRows ?? [];
@@ -2783,7 +2783,7 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
         <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Use <strong>Sync Commerce7 POS</strong> to pull this month's tasting-room POS orders directly into the tracker. The CSV upload remains available as a fallback while we compare the live totals with the report workflow.</p>
       </div> :
       <>
-        {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Upload the Commerce7 CSV again to apply the updated transaction, Wine-only, and linked-refund calculation.</div>}
+        {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Sync Commerce7 POS again (or upload the Commerce7 CSV) to apply the current bottle-counting and linked-refund calculation.</div>}
 
         <section className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
           <div className="grid gap-7 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
@@ -2852,7 +2852,7 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
               <CaseSalesDetail label="Source" value={summary.sourceFilename} />
               <CaseSalesDetail label="Last updated" value={new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(summary.importedAt))} />
             </dl>
-            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> {summary.sourceKind === 'commerce7-pos' ? <>Live sync keeps POS orders, counts only Wine items, converts each Wine item to 750 mL bottle equivalents from its Commerce7 volume (falling back to item quantity if volume is unavailable), totals the transaction, and applies FLOOR(total bottles ÷ 12). Linked refunds/exchanges are applied back to the original qualifying POS order.</> : <>Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</>}</div>
+            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> {summary.sourceKind === 'commerce7-pos' ? <>Live sync keeps POS orders, counts only Wine items, counts each Wine unit as one bottle regardless of bottle size (matching Commerce7 Bottle Quantity), totals the transaction, and applies FLOOR(total bottles ÷ 12). Linked refunds/exchanges are applied back to the original qualifying POS order.</> : <>Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</>}</div>
             {summary.sourceDetail && <p className="mt-4 text-sm font-black leading-6 text-[#326eac]">{summary.sourceDetail}</p>}
             <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, Central does not store customer names, addresses, or payment details. It stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
           </section>

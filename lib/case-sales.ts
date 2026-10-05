@@ -27,7 +27,7 @@ export type CaseSalesDaily = {
 };
 
 export type CaseSalesSummary = {
-  version: 2;
+  version: 3;
   importedAt: string;
   sourceFilename: string;
   sourceKind?: 'csv' | 'commerce7-pos';
@@ -281,7 +281,7 @@ export function parseCaseSalesCsv(text: string, sourceFilename: string, previous
   const defaultGoalEnd = asOfDate ? endOfMonth(asOfDate) : null;
 
   return {
-    version: 2,
+    version: 3,
     importedAt: new Date().toISOString(),
     sourceFilename: sourceFilename || 'Commerce7 orders.csv',
     sourceKind: 'csv',
@@ -306,6 +306,7 @@ export function parseCaseSalesCsv(text: string, sourceFilename: string, previous
 
 export type Commerce7CaseSalesItem = {
   type?: string | null;
+  purchaseType?: string | null;
   quantity?: number | null;
   volumeInML?: number | null;
   price?: number | null;
@@ -325,11 +326,18 @@ export type Commerce7CaseSalesOrder = {
   items?: Commerce7CaseSalesItem[] | null;
 };
 
-function commerce7WineBottleQuantity(item: Commerce7CaseSalesItem) {
+function commerce7WineBottleQuantity(item: Commerce7CaseSalesItem, order: Commerce7CaseSalesOrder) {
+  // Match Commerce7's Order Detail export: for Type = Wine, Bottle Quantity
+  // represents units/containers sold, regardless of package volume. A 375 mL
+  // dessert bottle therefore counts as 1 bottle, not 0.5 of a 750 mL equivalent.
+  // The live Order API does not expose the export-only Bottle Quantity field,
+  // so item Quantity is the matching live representation. Refund quantities are
+  // normalized negative when Commerce7 reports them as positive quantities.
   const quantity = Number(item.quantity ?? 0);
   if (!Number.isFinite(quantity)) return 0;
-  const volumeInML = Number(item.volumeInML ?? 0);
-  if (Number.isFinite(volumeInML) && volumeInML > 0) return quantity * (volumeInML / 750);
+  if (quantity < 0) return quantity;
+  const purchaseType = String(item.purchaseType || order.purchaseType || '').trim().toUpperCase();
+  if (purchaseType === 'REFUND') return -Math.abs(quantity);
   return quantity;
 }
 
@@ -410,7 +418,7 @@ function transactionSummary(
   const defaultGoalEnd = options.asOfDate ? endOfMonth(options.asOfDate) : null;
 
   return {
-    version: 2,
+    version: 3,
     importedAt: options.importedAt || new Date().toISOString(),
     sourceFilename: options.sourceFilename,
     sourceKind: options.sourceKind,
@@ -455,12 +463,11 @@ export function buildCaseSalesSummaryFromCommerce7Orders(
     for (const item of order.items || []) {
       if ((item.type || '').trim().toLowerCase() !== 'wine') continue;
       wineRowsReviewed += 1;
-      const bottles = commerce7WineBottleQuantity(item);
+      const bottles = commerce7WineBottleQuantity(item, order);
       wineBottles += bottles;
       bottleQuantityReviewed += bottles;
-      const quantity = Number(item.quantity ?? 0);
       const priceCents = Number(item.price ?? 0);
-      if (Number.isFinite(quantity) && Number.isFinite(priceCents)) wineProductSubtotal += (quantity * priceCents) / 100;
+      if (Number.isFinite(priceCents)) wineProductSubtotal += (bottles * priceCents) / 100;
     }
     if (Math.abs(wineBottles) < 0.000001) {
       // Keep POS orders without Wine out of transaction counts; the raw POS order count is stored separately.
