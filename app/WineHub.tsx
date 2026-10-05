@@ -2801,11 +2801,15 @@ function CaseSalesTracker({ role }: { role: AccessRole }) {
               </div>}
             </div>
 
-            {summary.goalCases ? <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+            {summary.goalCases ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-4">
               <CaseSalesKpi label="Cases to go" value={metrics?.remainingCases !== null && metrics?.remainingCases !== undefined ? metrics.remainingCases.toLocaleString() : '—'} detail={metrics?.goalReached ? `Goal reached${overGoal ? ` · ${overGoal} over` : ''}` : 'Remaining'} />
-              <CaseSalesKpi label="Days remaining" value={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? metrics.remainingDays.toLocaleString() : '—'} detail={summary.goalEndDate ? `Through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : 'Set in Admin'} />
-              <CaseSalesKpi label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Cases/day'} />
-            </div> : <div className="rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">Set a goal in Admin to calculate cases remaining, days left, and the daily pace needed.</div>}
+              <CaseSalesKpi label="Days remaining" value={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? metrics.remainingDays.toLocaleString() : '—'} detail={metrics?.currentDayCountsAsUsed ? 'Today counted after 5 PM' : 'Today still available until 5 PM'} />
+              <CaseSalesKpi label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Cases/day over available days'} />
+              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
+            </div> : <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">Set a goal in Admin to calculate cases remaining, days left, and the daily pace needed.</div>
+              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
+            </div>}
           </div>
         </section>
 

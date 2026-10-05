@@ -157,6 +157,7 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[], 
       const goal = displayValue(data.goalCases);
       const remaining = displayValue(metrics.remainingCases);
       const perDay = displayValue(metrics.casesPerDayNeeded);
+      const averagePerDay = displayValue(metrics.averageCasesPerDay);
       const asOf = displayValue(data.asOfDate);
       const days = displayValue(metrics.remainingDays);
       const pieces = [
@@ -166,6 +167,7 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[], 
         remaining ? `**Cases to go:** ${remaining}` : '',
         days ? `**Days remaining:** ${days}` : '',
         perDay ? `**Needed per day:** ${perDay}` : '',
+        averagePerDay ? `**Average cases per completed selling day:** ${averagePerDay}` : '',
         asOf ? `**As of:** ${asOf}` : '',
       ].filter(Boolean);
       return `${pieces.join('\n')} [${caseSource.id}]`;

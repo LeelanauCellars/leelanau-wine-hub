@@ -55,6 +55,10 @@ export type CaseSalesGoalMetrics = {
   remainingCases: number | null;
   remainingDays: number | null;
   casesPerDayNeeded: number | null;
+  averageCasesPerDay: number | null;
+  completedSellingDays: number;
+  completedCases: number;
+  currentDayCountsAsUsed: boolean;
   progressPercent: number | null;
   goalReached: boolean;
 };
@@ -513,24 +517,87 @@ function utcDate(date: string) {
   return Date.UTC(parts[0], parts[1] - 1, parts[2]);
 }
 
-export function caseSalesGoalMetrics(summary: CaseSalesSummary): CaseSalesGoalMetrics {
+const CASE_SALES_TIME_ZONE = 'America/Detroit';
+const CASE_SALES_DAY_COUNT_CUTOFF_HOUR = 17; // 5 PM; tasting room closes at 6 PM.
+
+function localCaseSalesClock(now: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CASE_SALES_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
+  return {
+    date: `${value('year')}-${value('month')}-${value('day')}`,
+    hour: Number(value('hour') || 0),
+  };
+}
+
+function addUtcDays(date: string, days: number) {
+  const value = utcDate(date);
+  if (value === null) return date;
+  return new Date(value + days * 86400000).toISOString().slice(0, 10);
+}
+
+function inclusiveCalendarDays(startDate: string, endDate: string) {
+  const start = utcDate(startDate);
+  const end = utcDate(endDate);
+  if (start === null || end === null || end < start) return 0;
+  return Math.floor((end - start) / 86400000) + 1;
+}
+
+export function caseSalesGoalMetrics(summary: CaseSalesSummary, now = new Date()): CaseSalesGoalMetrics {
+  const clock = localCaseSalesClock(now);
+  const currentDayCountsAsUsed = clock.hour >= CASE_SALES_DAY_COUNT_CUTOFF_HOUR;
+
+  // Average pace uses completed selling days only. Before 5 PM, today's partial day is excluded.
+  const completedCandidate = currentDayCountsAsUsed ? clock.date : addUtcDays(clock.date, -1);
+  const completedThrough = completedCandidate < summary.asOfDate ? completedCandidate : summary.asOfDate;
+  const completedSellingDays = completedThrough >= summary.periodStartDate
+    ? inclusiveCalendarDays(summary.periodStartDate, completedThrough)
+    : 0;
+  const completedCases = summary.dailyCases
+    .filter((day) => day.date >= summary.periodStartDate && day.date <= completedThrough)
+    .reduce((total, day) => total + day.cases, 0);
+  const averageCasesPerDay = completedSellingDays > 0 ? completedCases / completedSellingDays : null;
+
   const goal = summary.goalCases;
   if (!goal || goal <= 0) {
-    return { remainingCases: null, remainingDays: null, casesPerDayNeeded: null, progressPercent: null, goalReached: false };
+    return {
+      remainingCases: null,
+      remainingDays: null,
+      casesPerDayNeeded: null,
+      averageCasesPerDay,
+      completedSellingDays,
+      completedCases,
+      currentDayCountsAsUsed,
+      progressPercent: null,
+      goalReached: false,
+    };
   }
 
   const casesCountingTowardGoal = summary.casesRemainingAfterLinkedRefunds ?? summary.casesSold;
   const remainingCases = Math.max(0, goal - casesCountingTowardGoal);
   const progressPercent = Math.max(0, Math.min(100, (casesCountingTowardGoal / goal) * 100));
-  const start = utcDate(summary.asOfDate);
-  const end = summary.goalEndDate ? utcDate(summary.goalEndDate) : null;
-  const remainingDays = start !== null && end !== null ? Math.max(0, Math.floor((end - start) / 86400000)) : null;
+
+  let remainingDays: number | null = null;
+  if (summary.goalEndDate) {
+    const firstAvailableDate = currentDayCountsAsUsed ? addUtcDays(clock.date, 1) : clock.date;
+    remainingDays = inclusiveCalendarDays(firstAvailableDate, summary.goalEndDate);
+  }
   const casesPerDayNeeded = remainingCases === 0 ? 0 : remainingDays && remainingDays > 0 ? remainingCases / remainingDays : null;
 
   return {
     remainingCases,
     remainingDays,
     casesPerDayNeeded,
+    averageCasesPerDay,
+    completedSellingDays,
+    completedCases,
+    currentDayCountsAsUsed,
     progressPercent,
     goalReached: remainingCases === 0,
   };
