@@ -228,6 +228,42 @@ function findVisibleBounds(data: Uint8ClampedArray, width: number, height: numbe
   return { minX, minY, maxX, maxY, visible };
 }
 
+
+async function normalizePrecut2048(source: Buffer) {
+  const image = await loadImage(source);
+  const width = image.width;
+  const height = image.height;
+  if (!width || !height) throw new Error('Central could not read the processed PNG.');
+
+  const sourceCanvas = createCanvas(width, height);
+  const sourceContext = sourceCanvas.getContext('2d');
+  sourceContext.clearRect(0, 0, width, height);
+  sourceContext.drawImage(image, 0, 0, width, height);
+  const imageData = sourceContext.getImageData(0, 0, width, height);
+  const bounds = findVisibleBounds(imageData.data, width, height);
+  if (bounds.maxX < bounds.minX || bounds.maxY < bounds.minY || bounds.visible < 32) {
+    throw new Error('The processed image did not contain a visible product.');
+  }
+
+  if (width === OUTPUT_SIZE && height === OUTPUT_SIZE) return source;
+
+  const bboxWidth = bounds.maxX - bounds.minX + 1;
+  const bboxHeight = bounds.maxY - bounds.minY + 1;
+  const targetMax = Math.round(OUTPUT_SIZE * TARGET_FILL);
+  const scale = Math.min(targetMax / bboxWidth, targetMax / bboxHeight);
+  const drawWidth = Math.max(1, Math.round(bboxWidth * scale));
+  const drawHeight = Math.max(1, Math.round(bboxHeight * scale));
+  const dx = Math.round((OUTPUT_SIZE - drawWidth) / 2);
+  const dy = Math.round((OUTPUT_SIZE - drawHeight) / 2);
+
+  const output = createCanvas(OUTPUT_SIZE, OUTPUT_SIZE);
+  const out = output.getContext('2d');
+  out.clearRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+  out.imageSmoothingEnabled = true;
+  out.drawImage(sourceCanvas, bounds.minX, bounds.minY, bboxWidth, bboxHeight, dx, dy, drawWidth, drawHeight);
+  return output.encode('png');
+}
+
 async function createTransparent2048(source: Buffer) {
   const image = await loadImage(source);
   const width = image.width;
@@ -285,13 +321,15 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const file = form.get('image');
+  const precut = form.get('precut') === '1';
   if (!(file instanceof File) || !file.size) return NextResponse.json({ error: 'Choose a product image.' }, { status: 400 });
   if (!/^image\/(?:png|jpeg|webp)$/i.test(file.type)) return NextResponse.json({ error: 'Use a JPG, PNG, or WebP image.' }, { status: 415 });
-  if (file.size > MAX_INPUT_BYTES) return NextResponse.json({ error: 'The prepared image is too large. Try the upload again from Central so it can resize the photo first.' }, { status: 413 });
+  const maxBytes = precut ? 12 * 1024 * 1024 : MAX_INPUT_BYTES;
+  if (file.size > maxBytes) return NextResponse.json({ error: 'The prepared image is too large. Try the upload again from Central so it can resize the photo first.' }, { status: 413 });
 
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
-    const transparent = await createTransparent2048(bytes);
+    const transparent = precut ? await normalizePrecut2048(bytes) : await createTransparent2048(bytes);
     const safeBase = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'product';
     const pathname = `commerce7-product-images/drafts/${Date.now()}-${safeBase}.png`;
     const blob = await put(pathname, transparent, {
@@ -309,7 +347,7 @@ export async function POST(request: NextRequest) {
       height: OUTPUT_SIZE,
       format: 'PNG',
       transparent: true,
-      engine: 'Central Standard Cleanup',
+      engine: precut ? 'Central U²-Net Product Cutout' : 'Central Standard Cleanup',
     });
   } catch (error) {
     console.error('Product image processing failed', error);

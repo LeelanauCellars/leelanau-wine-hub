@@ -270,3 +270,15 @@ That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir`. If
 ## Image Upload to Commerce7
 
 Admin and Tasting Room access include an image-prep workflow that matches a product by SKU/UPC, removes a plain photo background inside Central, crops/centers the product on a 2048×2048 transparent PNG, and stores the processed draft in Vercel Blob for review. No paid image-generation API is required. For the cleanest automatic cutout, photograph the entire item with empty space around it against a plain background that contrasts with the product. Publishing the approved image back to Commerce7 requires the installed Central app to have **Product → Full** access.
+
+## v87 product image cutout
+
+`Image Upload to Commerce7` now uses a local browser-side U²-Net-p segmentation model for product cutouts instead of the earlier edge-color background remover. The model runs in the staff member's browser and does not use Gemini or another paid image API. The first run downloads a small ONNX model and ONNX Runtime Web assets, which the browser can cache.
+
+For best product-only results, photograph merchandise by itself rather than holding it in a hand. The tool is designed to remove scene backgrounds; a hand touching the product is also a foreground object and may remain in the cutout.
+
+Optional environment variable:
+
+`NEXT_PUBLIC_PRODUCT_CUTOUT_MODEL_URL`
+
+Use this only if you want to self-host the U²-Net-p ONNX model instead of the pinned default URL.
