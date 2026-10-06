@@ -265,3 +265,8 @@ NEXT_PUBLIC_CENTRAL_PATH_PREFIX=/central
 ```
 
 That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir`. If Central is instead deployed at a dedicated subdomain such as `central.lwc.wine`, leave `NEXT_PUBLIC_CENTRAL_PATH_PREFIX` blank.
+
+
+## Image Upload to Commerce7
+
+Admin and Tasting Room access include an image-prep workflow that matches a product by SKU/UPC, uses Gemini image editing to clean a phone photo, creates a 2048×2048 transparent PNG, and stores the processed draft in Vercel Blob for review. Publishing the approved image back to Commerce7 requires the installed Central app to have **Product → Full** access. The Gemini image workflow reuses `GEMINI_API_KEY`; `PRODUCT_IMAGE_GEMINI_MODEL` can override the default `gemini-3.1-flash-image`.

@@ -19,7 +19,7 @@ export function commerce7Config() {
 }
 
 export async function fetchCommerce7Products<T extends Commerce7ProductBase = Commerce7ProductBase>(options?: {
-  adminStatus?: string;
+  adminStatus?: string | null;
   limit?: number;
   maxPages?: number;
 }) {
@@ -28,7 +28,7 @@ export async function fetchCommerce7Products<T extends Commerce7ProductBase = Co
 
   const limit = options?.limit ?? 50;
   const maxPages = options?.maxPages ?? 100;
-  const adminStatus = options?.adminStatus ?? 'Available';
+  const adminStatus = options?.adminStatus === undefined ? 'Available' : options.adminStatus;
   const auth = Buffer.from(`${appId}:${secret}`).toString('base64');
   const products: T[] = [];
   let page = 1;
@@ -38,8 +38,8 @@ export async function fetchCommerce7Products<T extends Commerce7ProductBase = Co
     const query = new URLSearchParams({
       page: String(page),
       limit: String(limit),
-      adminStatus,
     });
+    if (adminStatus) query.set('adminStatus', adminStatus);
     const response = await fetch(`https://api.commerce7.com/v1/product?${query.toString()}`, {
       headers: {
         Authorization: `Basic ${auth}`,
