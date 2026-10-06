@@ -273,7 +273,7 @@ Admin and Tasting Room access include an image-prep workflow that matches a prod
 
 ## v87 product image cutout
 
-`Image Upload to Commerce7` now uses a local browser-side U²-Net-p segmentation model for product cutouts instead of the earlier edge-color background remover. The model runs in the staff member's browser and does not use Gemini or another paid image API. The first run downloads a small ONNX model and ONNX Runtime Web assets, which the browser can cache.
+`Image Upload to Commerce7` now uses a local browser-side U²-Net-p segmentation model for product cutouts instead of the earlier edge-color background remover. The model runs in the staff member's browser and does not use Gemini or another paid image API. The first run loads ONNX Runtime Web from a pinned CDN URL and downloads the small ONNX cutout model, which the browser can cache. ONNX Runtime is loaded at runtime rather than bundled into the Next.js build.
 
 For best product-only results, photograph merchandise by itself rather than holding it in a hand. The tool is designed to remove scene backgrounds; a hand touching the product is also a foreground object and may remain in the cutout.
 
@@ -282,3 +282,8 @@ Optional environment variable:
 `NEXT_PUBLIC_PRODUCT_CUTOUT_MODEL_URL`
 
 Use this only if you want to self-host the U²-Net-p ONNX model instead of the pinned default URL.
+
+
+## v88 build fix
+
+Removed the bundled `onnxruntime-web` dependency that could cause the Vercel/Next.js production build to fail. The product cutout engine is now loaded in the browser from a pinned CDN script, so it is excluded from the server/build bundle while preserving the same local U²-Net workflow.

@@ -70,15 +70,59 @@ async function prepareForUpload(file: File) {
 
 const CUTOUT_MODEL_URL = process.env.NEXT_PUBLIC_PRODUCT_CUTOUT_MODEL_URL
   || 'https://huggingface.co/edgetools/u2netp/resolve/25dee37ab19c5b6ad64ba6578eba63f1ae07720c/u2netp.onnx';
+const ORT_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js';
 const ORT_WASM_PATH = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
 const CUTOUT_SIZE = 320;
 const OUTPUT_SIZE = 2048;
 const TARGET_FILL = 0.84;
 
+type OrtRuntime = {
+  env: { wasm: { wasmPaths: string; numThreads: number } };
+  InferenceSession: { create: (modelUrl: string, options?: Record<string, unknown>) => Promise<any> };
+  Tensor: new (type: string, data: Float32Array, dims: number[]) => any;
+};
+
+declare global {
+  interface Window {
+    ort?: OrtRuntime;
+  }
+}
+
+let ortRuntimePromise: Promise<OrtRuntime> | null = null;
 let cutoutSessionPromise: Promise<any> | null = null;
 
+function loadOrtRuntime() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Product cutout is only available in the browser.'));
+  if (window.ort) return Promise.resolve(window.ort);
+  if (ortRuntimePromise) return ortRuntimePromise;
+
+  ortRuntimePromise = new Promise<OrtRuntime>((resolve, reject) => {
+    const finish = () => {
+      if (window.ort) resolve(window.ort);
+      else reject(new Error('Central could not start the local product cutout engine.'));
+    };
+
+    const existing = document.querySelector<HTMLScriptElement>('script[data-central-ort="1"]');
+    if (existing) {
+      existing.addEventListener('load', finish, { once: true });
+      existing.addEventListener('error', () => reject(new Error('Central could not load the local product cutout engine.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = ORT_SCRIPT_URL;
+    script.async = true;
+    script.dataset.centralOrt = '1';
+    script.onload = finish;
+    script.onerror = () => reject(new Error('Central could not load the local product cutout engine. Check the internet connection and try again.'));
+    document.head.appendChild(script);
+  });
+
+  return ortRuntimePromise;
+}
+
 async function getCutoutSession() {
-  const ort = await import('onnxruntime-web');
+  const ort = await loadOrtRuntime();
   ort.env.wasm.wasmPaths = ORT_WASM_PATH;
   ort.env.wasm.numThreads = 1;
   if (!cutoutSessionPromise) {
