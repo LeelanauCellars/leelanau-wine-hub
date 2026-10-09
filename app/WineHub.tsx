@@ -1373,10 +1373,10 @@ export default function WineHub() {
         )}
         {view === 'merch' && canUseMerch && <MerchApparel isAdmin={isPortalAdmin} />}
         {view === 'tasting' && canUseTastingRoom && (
-          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} mode="menu" />
+          <TastingMenu role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
         )}
         {view === 'tasting-notes' && isPortalAdmin && (
-          <TastingRoom wines={wines} selected={tastingIds} setSelected={setTastingIds} openWine={openWine} role="admin" mode="notes" />
+          <TastingNotesView wines={wines} openWine={openWine} />
         )}
         {view === 'case-sales' && canUseTastingRoom && <CaseSalesTracker role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />}
         {view === 'sales-analysis' && isPortalAdmin && <TastingRoomSalesAnalysis />}
@@ -2570,6 +2570,471 @@ function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (p
 
 function QuickFactsView() {
   const downloadButton = 'flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black shadow-sm hover:bg-black/[.03]';
+  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
+    <PageHeader
+      title="Leelanau Cellars Quick Facts"
+      right={<div className="flex flex-wrap gap-2">
+        <a href="/tasting-room/quick-facts.pdf" download="Leelanau Cellars Quick Facts for Tasting Room Staff.pdf" className={downloadButton}><Download className="h-4 w-4" /> Download PDF</a>
+        <a href="/tasting-room/quick-facts.docx" download="Leelanau Cellars Quick Facts for Tasting Room Staff.docx" className={downloadButton}><Download className="h-4 w-4" /> Download Word</a>
+      </div>}
+    />
+
+    <div className="grid gap-5 xl:grid-cols-[1.08fr_.92fr]">
+      <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+        <h2 className="text-2xl font-black">{QUICK_FACTS.story.title}</h2>
+        <ul className="mt-5 space-y-3.5 text-[15px] leading-7 text-black/75">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-[15px] font-black">{brand}</p><p className="mt-1.5 text-[13px] leading-5 text-black/68">{detail}</p></div>)}</div>
+      </section>
+
+      <div className="grid gap-5">
+        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">{section.title}</h2><ul className="mt-4 space-y-3 text-[15px] leading-7 text-black/72">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
+      </div>
+    </div>
+
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+      <h2 className="text-2xl font-black">Our Vineyard Sites</h2>
+      <div className="mt-3 rounded-xl bg-[#f2f7fc] px-4 py-3 text-[15px] leading-6 text-black/75"><strong className="text-[#326eac]">Leelanau Cellars has 68.5 total vineyard acres.</strong> A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</div>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-[15px]"><thead><tr className="border-b border-black/10 text-[11px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3.5 pr-4 font-black">{item.site}</td><td className="py-3.5 pr-4 text-black/70">{item.features}</td><td className="py-3.5 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
+    </section>
+
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+      <h2 className="text-2xl font-black">Grape Varieties Grown</h2>
+      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-[13px]"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3.5 pr-4 text-[14px] font-black">{item.variety}</td><td className="py-3.5 pr-4 text-black/68">{item.type}</td><td className="py-3.5 pr-4 font-bold">{item.acreage}</td><td className="py-3.5 pr-4 text-black/68">{item.locations}</td><td className="py-3.5 text-black/68">{item.notes}</td></tr>)}</tbody></table></div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-3"><FactMini title="Hilltop white hybrid trial" text={QUICK_FACTS.trials.white} /><FactMini title="Hilltop red hybrid trial" text={QUICK_FACTS.trials.red} /><FactMini title="Coming Soon" text={QUICK_FACTS.trials.comingSoon} /></div>
+    </section>
+
+    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-xl font-black">{vintage.year}</p><ul className="mt-2.5 space-y-2 text-[13px] leading-5 text-black/68">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
+  </div>;
+}
+
+function FactMini({ title, text }: { title: string; text: string }) {
+  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-sm font-black">{title}</p><p className="mt-1.5 text-[13px] leading-5 text-black/65">{text}</p></div>;
+}
+
+
+function menuCandidates(wine: WineRecord) {
+  const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
+  const withoutVintage = withoutBrand.replace(/^(?:19|20)\d{2}\s+|\s+(?:19|20)\d{2}$/g, '').trim();
+  return Array.from(new Set([wine.name, withoutBrand, withoutVintage]))
+    .map((value) => normalize(value))
+    .filter((value) => value.length >= 5);
+}
+
+function menuMatchScore(wine: WineRecord, lines: string[], whole: string) {
+  const candidates = menuCandidates(wine);
+  const hasVintage = /^(?:19|20)\d{2}$/.test(wine.vintage || '');
+  let score = 0;
+  for (const candidate of candidates) {
+    if (hasVintage) {
+      const vintageCandidate = normalize(`${wine.vintage} ${candidate}`);
+      if (lines.some((line) => line === vintageCandidate)) score = Math.max(score, 120);
+      else if (lines.some((line) => line.startsWith(vintageCandidate) || line.endsWith(vintageCandidate))) score = Math.max(score, 110);
+    }
+    if (lines.some((line) => line === candidate)) score = Math.max(score, 90);
+    if (candidate.length >= 10 && whole.includes(candidate)) score = Math.max(score, 35);
+  }
+  return score;
+}
+
+function matchMenuText(text: string, wines: WineRecord[]) {
+  const lines = text.split(/\r?\n/).map((line) => normalize(line)).filter(Boolean);
+  const whole = normalize(text);
+  const bestByWine = new Map<string, { wine: WineRecord; score: number }>();
+
+  for (const wine of wines) {
+    const score = menuMatchScore(wine, lines, whole);
+    if (!score) continue;
+    const key = winePermalinkSlug(wine);
+    const current = bestByWine.get(key);
+    if (!current || score > current.score) {
+      bestByWine.set(key, { wine, score });
+      continue;
+    }
+    if (score === current.score) {
+      const preferred = preferredWineForRoute([current.wine, wine], key);
+      bestByWine.set(key, { wine: preferred, score });
+    }
+  }
+
+  return Array.from(bestByWine.values()).map(({ wine }) => wine);
+}
+
+
+type CaseSalesApiPayload = {
+  summary: CaseSalesSummary | null;
+  metrics: CaseSalesGoalMetrics | null;
+  storageConfigured: boolean;
+};
+
+function caseSalesDisplayDate(value?: string | null, options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' }) {
+  if (!value) return '—';
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-US', options).format(date);
+}
+
+function caseSalesMonthDays(summary: CaseSalesSummary) {
+  if (!summary.asOfDate) return [];
+  const [year, month] = summary.asOfDate.split('-').map(Number);
+  if (!year || !month) return [];
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const byDate = new Map((summary.dailyCases || []).map((day) => [day.date, day]));
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`;
+    const day = byDate.get(date);
+    return {
+      date,
+      future: date > summary.asOfDate,
+      cases: day?.cases ?? 0,
+      grossCases: day?.grossCases ?? day?.cases ?? 0,
+      caseOrders: day?.caseOrders ?? 0,
+    };
+  });
+}
+
+function formatCaseQuantity(value: number) {
+  return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function formatSignedMoney(value: number) {
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+function CaseSalesTracker({ role }: { role: AccessRole }) {
+  const [data, setData] = useState<CaseSalesApiPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [syncingPos, setSyncingPos] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [goalCases, setGoalCases] = useState('');
+  const [goalEndDate, setGoalEndDate] = useState('');
+
+  async function readJson(response: Response) {
+    const raw = await response.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(`Case Sales Tracker received an unexpected server response (${response.status}).`);
+    }
+  }
+
+  async function loadTracker() {
+    setLoading(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/tasting-room/case-sales', { cache: 'no-store' });
+      const payload = await readJson(response);
+      if (!response.ok) throw new Error(payload.error || 'Unable to load the Case Sales Tracker.');
+      setData(payload);
+      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
+      setGoalEndDate(payload.summary?.goalEndDate || '');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to load the Case Sales Tracker.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void loadTracker(); }, []);
+
+  async function uploadReport(file?: File) {
+    if (!file || uploading) return;
+    setUploading(true);
+    setNotice('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const response = await fetch('/api/tasting-room/case-sales', { method: 'POST', body: form });
+      const payload = await readJson(response);
+      if (!response.ok) throw new Error(payload.error || 'Unable to process the sales report.');
+      setData(payload);
+      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
+      setGoalEndDate(payload.summary?.goalEndDate || '');
+      setNotice(`Updated through ${caseSalesDisplayDate(payload.summary?.asOfDate)}.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to process the sales report.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function syncCommerce7Pos() {
+    if (syncingPos) return;
+    setSyncingPos(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/tasting-room/case-sales/sync', { method: 'POST' });
+      const payload = await readJson(response);
+      if (!response.ok) throw new Error(payload.error || 'Unable to sync Commerce7 POS sales.');
+      setData(payload);
+      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
+      setGoalEndDate(payload.summary?.goalEndDate || '');
+      const posOrders = payload.liveSync?.posOrdersReviewed;
+      setNotice(`Commerce7 POS synced through ${caseSalesDisplayDate(payload.summary?.asOfDate)}${Number.isFinite(posOrders) ? ` · ${Number(posOrders).toLocaleString()} POS orders reviewed.` : '.'}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to sync Commerce7 POS sales.');
+    } finally {
+      setSyncingPos(false);
+    }
+  }
+
+  async function saveGoal() {
+    if (savingGoal) return;
+    setSavingGoal(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/tasting-room/case-sales', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalCases: Number(goalCases), goalEndDate }),
+      });
+      const payload = await readJson(response);
+      if (!response.ok) throw new Error(payload.error || 'Unable to save the case-sales goal.');
+      setData(payload);
+      setNotice('Case-sales goal updated.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to save the case-sales goal.');
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+
+  const summary = data?.summary;
+  const metrics = data?.metrics;
+  const progress = metrics?.progressPercent ?? 0;
+  const legacySummary = summary && summary.version !== 3;
+  const grossCases = summary ? (summary.grossCasesSold ?? summary.casesSold) : 0;
+  const netCases = summary ? (summary.casesRemainingAfterLinkedRefunds ?? summary.casesSold) : 0;
+  const validationRows = summary?.validationRows ?? [];
+  const refundRows = validationRows.filter((item) => item.linkedRefunds?.length);
+  const monthDays = summary ? caseSalesMonthDays(summary) : [];
+  const overGoal = summary?.goalCases ? Math.max(0, netCases - summary.goalCases) : 0;
+  const legacyPosOrders = summary ? (summary as CaseSalesSummary & { posOrdersReviewed?: number }).posOrdersReviewed : undefined;
+  const wineTransactionsReviewed = summary?.wineTransactionsReviewed ?? legacyPosOrders ?? 0;
+
+  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
+    <PageHeader
+      title="Case Sales Tracker"
+      right={<div className="flex flex-wrap items-center justify-end gap-2">
+        <button type="button" onClick={() => void syncCommerce7Pos()} disabled={syncingPos || uploading || data?.storageConfigured === false} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-5 py-3.5 text-base font-black text-white shadow-sm hover:bg-[#285f97] disabled:cursor-not-allowed disabled:opacity-45">
+          {syncingPos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} {syncingPos ? 'Syncing POS…' : 'Sync Commerce7 POS'}
+        </button>
+        <label className={`flex items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer border border-black/10 bg-white text-black/65 hover:bg-black/[.03]'}`}>
+          <Upload className="h-4 w-4" /> {uploading ? 'Updating…' : 'CSV fallback'}
+          <input type="file" accept=".csv,text/csv" className="hidden" disabled={uploading || syncingPos || data?.storageConfigured === false} onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} />
+        </label>
+      </div>}
+    />
+
+    {notice && <div className="mb-5 rounded-xl border border-black/8 bg-[#f7f8f9] px-5 py-4 text-base font-bold text-black/70">{notice}</div>}
+
+    {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-black/10 bg-white"><Loader2 className="h-6 w-6 animate-spin text-black/35" /></div> :
+      !data?.storageConfigured ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><p className="text-lg font-black text-amber-950">Vercel Blob is not connected.</p><p className="mt-2 text-base leading-7 text-amber-900/80">Connect the same Blob store used by the tasting-room menu, then redeploy Central.</p></div> :
+      !summary ? <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-20 text-center">
+        <BarChart3 className="mx-auto h-9 w-9 text-black/20" />
+        <h2 className="mt-4 text-2xl font-black">Sync the current month from Commerce7</h2>
+        <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Use <strong>Sync Commerce7 POS</strong> to pull this month's tasting-room POS orders directly into the tracker. The CSV upload remains available as a fallback while we compare the live totals with the report workflow.</p>
+      </div> :
+      <>
+        {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Sync Commerce7 POS again (or upload the Commerce7 CSV) to apply the current bottle-counting and linked-refund calculation.</div>}
+
+        <section className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+          <div className="grid gap-7 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.14em] text-[#326eac]">Current progress</p>
+              <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+                <span className="text-6xl font-black leading-none tracking-[-.05em]">{netCases.toLocaleString()}</span>
+                <span className="pb-1 text-xl font-black text-black/50">{summary.goalCases ? `of ${summary.goalCases.toLocaleString()} cases` : 'cases counting toward goal'}</span>
+              </div>
+              <p className="mt-4 text-base font-bold text-black/60">As of {caseSalesDisplayDate(summary.asOfDate)}{summary.goalEndDate && summary.goalCases ? ` · Goal through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : ''}</p>
+
+              {summary.goalCases && <div className="mt-6">
+                <div className="h-5 overflow-hidden rounded-full bg-black/[.07]"><div className="h-full rounded-full bg-[#326eac] transition-all" style={{ width: `${Math.max(1, progress)}%` }} /></div>
+                <div className="mt-3 flex items-center justify-between text-sm font-black text-black/55"><span>{progress.toFixed(1)}% of goal</span><span>{summary.goalCases.toLocaleString()} cases</span></div>
+              </div>}
+            </div>
+
+            {summary.goalCases ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-4">
+              <CaseSalesKpi label="Cases to go" value={metrics?.remainingCases !== null && metrics?.remainingCases !== undefined ? metrics.remainingCases.toLocaleString() : '—'} detail={metrics?.goalReached ? `Goal reached${overGoal ? ` · ${overGoal} over` : ''}` : 'Remaining'} />
+              <CaseSalesKpi label="Days remaining" value={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? metrics.remainingDays.toLocaleString() : '—'} detail={metrics?.currentDayCountsAsUsed ? 'Today counted after 5 PM' : 'Today still available until 5 PM'} />
+              <CaseSalesKpi label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Cases/day over available days'} />
+              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
+            </div> : <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">Set a goal in Admin to calculate cases remaining, days left, and the daily pace needed.</div>
+              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
+            </div>}
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="text-2xl font-black">Daily Case Sales</h2><p className="mt-1 text-base font-semibold text-black/55">Every day in {caseSalesDisplayDate(summary.asOfDate, { month: 'long', year: 'numeric' })}. Totals count whole cases remaining after any linked refunds.</p></div>
+            <div className="text-base font-black text-[#326eac]">{netCases.toLocaleString()} cases through {caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}</div>
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            {monthDays.map((day) => {
+              const adjusted = !day.future && day.grossCases !== day.cases;
+              return <div key={day.date} className={`rounded-2xl border p-4 ${day.future ? 'border-black/[.06] bg-black/[.025] text-black/30' : day.date === summary.asOfDate ? 'border-[#326eac]/45 bg-[#eef5fd]' : 'border-black/[.08] bg-white'}`}>
+                <p className="text-sm font-black">{caseSalesDisplayDate(day.date, { month: 'short', day: 'numeric' })}</p>
+                <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black leading-none">{day.future ? '—' : day.cases}</span>{!day.future && <span className="pb-0.5 text-sm font-bold text-black/50">{day.cases === 1 ? 'case' : 'cases'}</span>}</div>
+                {day.future ? <p className="mt-2 text-sm font-semibold">Not reported</p> : adjusted ? <p className="mt-2 text-sm font-bold text-amber-700">{day.grossCases} gross · refund adjusted</p> : <p className="mt-2 text-sm font-semibold text-black/45">{day.caseOrders} case {day.caseOrders === 1 ? 'transaction' : 'transactions'}</p>}
+              </div>;
+            })}
+          </div>
+        </section>
+
+        {role === 'admin' && <>
+          <section className="mt-5 rounded-3xl border border-black/10 bg-[#f8f9fb] p-6 md:p-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div><h2 className="text-xl font-black">Goal settings</h2><p className="mt-1 text-base font-semibold text-black/55">Set the case goal and the final day the team has to reach it.</p></div>
+              <div className="grid gap-3 sm:grid-cols-[170px_200px_auto]">
+                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Case goal</span><input type="number" min="1" step="1" value={goalCases} onChange={(event) => setGoalCases(event.target.value)} className="field-input h-12 text-base" placeholder="300" /></label>
+                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Goal end date</span><input type="date" value={goalEndDate} onChange={(event) => setGoalEndDate(event.target.value)} className="field-input h-12 text-base" /></label>
+                <button onClick={() => void saveGoal()} disabled={savingGoal || !goalCases || !goalEndDate} className="flex h-12 items-center justify-center gap-2 self-end rounded-xl bg-[#326eac] px-5 text-base font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save goal</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+            <h2 className="text-2xl font-black">Admin Report Details</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <CaseSalesAdminStat label="Gross Number of Cases Sold" value={grossCases.toLocaleString()} />
+              <CaseSalesAdminStat label="Cases Remaining After Linked Refunds" value={netCases.toLocaleString()} />
+              <CaseSalesAdminStat label="Transactions Featuring a Case or More" value={summary.caseOrders.toLocaleString()} />
+              <CaseSalesAdminStat label="Wine Transactions Reviewed" value={wineTransactionsReviewed.toLocaleString()} />
+            </div>
+            <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-black/[.07] pt-5 text-base md:grid-cols-2">
+              <CaseSalesDetail label="Sales period" value={`${caseSalesDisplayDate(summary.periodStartDate, { month: 'short', day: 'numeric' })} – ${caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}`} />
+              <CaseSalesDetail label="Wine rows reviewed" value={(summary.wineRowsReviewed ?? 0).toLocaleString()} />
+              <CaseSalesDetail label="Source" value={summary.sourceFilename} />
+              <CaseSalesDetail label="Last updated" value={new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(summary.importedAt))} />
+            </dl>
+            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> {summary.sourceKind === 'commerce7-pos' ? <>Live sync keeps POS orders, counts only Wine items, counts each Wine unit as one bottle regardless of bottle size (matching Commerce7 Bottle Quantity), totals the transaction, and applies FLOOR(total bottles ÷ 12). Linked refunds/exchanges are applied back to the original qualifying POS order.</> : <>Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</>}</div>
+            {summary.sourceDetail && <p className="mt-4 text-sm font-black leading-6 text-[#326eac]">{summary.sourceDetail}</p>}
+            <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, Central does not store customer names, addresses, or payment details. It stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
+          </section>
+
+          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
+            <h2 className="text-2xl font-black">Case Refund Review</h2>
+            {refundRows.length ? <>
+              <p className="mt-2 text-base font-semibold leading-7 text-black/55">Linked Wine refunds/exchanges affecting an original case transaction are shown here. Gross case sales remain visible separately from the adjusted total.</p>
+              <div className="mt-5 overflow-x-auto rounded-2xl border border-black/[.08]">
+                <table className="min-w-[900px] w-full border-collapse text-left text-sm">
+                  <thead className="bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Original Order</th><th className="p-4 font-black">Refund / Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Wine Product SubTotal</th><th className="p-4 font-black">Gross Cases</th><th className="p-4 font-black">Cases Remaining</th></tr></thead>
+                  <tbody>{refundRows.flatMap((item) => item.linkedRefunds.map((refund, refundIndex) => <tr key={`${item.id}-${refund.id}`} className="border-t border-black/[.07]"><td className="p-4 font-black">{item.orderNumber}</td><td className="p-4 font-black">{refund.orderNumber || '—'}</td><td className="p-4 font-black">{formatCaseQuantity(refund.wineBottles)}</td><td className="p-4 font-black">{formatSignedMoney(refund.wineProductSubtotal)}</td><td className="p-4 font-black">{refundIndex === 0 ? item.grossWholeCases : '—'}</td><td className="p-4 font-black">{refundIndex === 0 ? item.casesRemainingAfterRefunds : '—'}</td></tr>))}</tbody>
+                </table>
+              </div>
+            </> : <p className="mt-3 rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">No case-sale refunds or exchanges were found. Gross Number of Cases Sold and Cases Remaining After Linked Refunds are the same.</p>}
+          </section>
+
+          <details className="mt-5 rounded-3xl border border-black/10 bg-white shadow-sm">
+            <summary className="cursor-pointer list-none px-6 py-5 text-xl font-black md:px-7">Validation Table · {validationRows.length.toLocaleString()} qualifying case transactions</summary>
+            <div className="border-t border-black/[.07] px-4 pb-6 pt-4 md:px-6">
+              <p className="mb-4 text-base font-semibold leading-7 text-black/55">Every original positive Wine transaction containing at least 12 bottles is listed here before the final totals are reported.</p>
+              <div className="max-h-[680px] overflow-auto rounded-2xl border border-black/[.08]">
+                <table className="min-w-[1320px] w-full border-collapse text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Order Number</th><th className="p-4 font-black">Id</th><th className="p-4 font-black">Original Wine Bottles</th><th className="p-4 font-black">Gross Whole Cases</th><th className="p-4 font-black">Linked Refund/Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Remaining Wine Bottles</th><th className="p-4 font-black">Cases Remaining After Refunds</th></tr></thead>
+                  <tbody>{validationRows.map((item) => <tr key={item.id} className="border-t border-black/[.07] align-top"><td className="p-4 font-black">{item.orderNumber}</td><td className="max-w-[270px] break-all p-4 font-mono text-xs font-bold text-black/65">{item.id}</td><td className="p-4 font-black">{formatCaseQuantity(item.originalWineBottles)}</td><td className="p-4 font-black">{item.grossWholeCases}</td><td className="p-4 font-black">{item.linkedRefunds.length ? item.linkedRefunds.map((refund) => refund.orderNumber).filter(Boolean).join(', ') : ''}</td><td className="p-4 font-black">{item.linkedRefunds.length ? formatCaseQuantity(item.refundedWineBottles) : ''}</td><td className="p-4 font-black">{formatCaseQuantity(item.remainingWineBottles)}</td><td className="p-4 font-black">{item.casesRemainingAfterRefunds}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </>}
+      </>}
+  </div>;
+}
+
+function CaseSalesKpi({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="rounded-2xl border border-black/[.08] bg-[#f7f9fb] p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p><p className="mt-2 text-sm font-bold text-black/50">{detail}</p></div>;
+}
+
+function CaseSalesAdminStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl border border-black/[.08] bg-[#f8f9fb] p-5"><p className="text-sm font-black leading-5 text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p></div>;
+}
+
+function CaseSalesDetail({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-start justify-between gap-4 border-b border-black/[.06] pb-3 last:border-0 last:pb-0"><dt className="font-bold text-black/55">{label}</dt><dd className="max-w-[62%] text-right font-black text-black/80">{value}</dd></div>;
+}
+
+
+function TastingMenu({ role }: { role: AccessRole }) {
+  const [menuInfo, setMenuInfo] = useState<{ filename: string; updatedAt: string; source: string; storageConfigured: boolean; canReplace: boolean; downloadUrl: string; viewUrl: string; menuText: string; textSource: string; textError?: string } | null>(null);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuUploading, setMenuUploading] = useState(false);
+  const [menuUploadNotice, setMenuUploadNotice] = useState('');
+
+  async function readJson(response: Response) {
+    const raw = await response.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(`The tasting-room menu service returned an unexpected response (${response.status}).`);
+    }
+  }
+
+  async function loadMenuInfo() {
+    setMenuLoading(true);
+    try {
+      const response = await fetch('/api/tasting-room/menu', { cache: 'no-store' });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || 'Unable to load menu information.');
+      setMenuInfo(data);
+    } catch (error) {
+      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to load current menu.');
+    } finally {
+      setMenuLoading(false);
+    }
+  }
+
+  async function replaceOfficialMenu(file?: File) {
+    if (!file || menuUploading) return;
+    setMenuUploading(true);
+    setMenuUploadNotice('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
+      await loadMenuInfo();
+      setMenuUploadNotice('Menu updated.');
+    } catch (error) {
+      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to replace the current menu.');
+    } finally {
+      setMenuUploading(false);
+    }
+  }
+
+  useEffect(() => { void loadMenuInfo(); }, []);
+
+  const rawMenuDate = menuInfo?.updatedAt || `${CURRENT_TASTING_MENU_VERSION}T12:00:00`;
+  const menuDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(rawMenuDate));
+  const menuViewUrl = menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1';
+  const menuDownloadUrl = menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1';
+
+  return <div className="mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
+    <PageHeader title="Tasting Menu" />
+
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-semibold text-black/48">{menuLoading ? 'Loading menu…' : `Updated ${menuDate}`}</p>
+      <div className="flex flex-wrap gap-2">
+        <a href={menuViewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black shadow-sm hover:bg-black/[.025]"><ExternalLink className="h-4 w-4" /> View PDF</a>
+        <a href={menuDownloadUrl} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Download className="h-4 w-4" /> Download PDF</a>
+        {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-[#326eac] text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+      </div>
+    </div>
+
+    {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>The current menu is bundled and downloadable.</strong> Connect Vercel Blob to replace it from Central.</p>}
+    {menuUploadNotice && <p className="mb-4 rounded-xl bg-[#f6f7f8] px-4 py-3 text-xs font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
+    {role === 'admin' && menuInfo?.textError && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>Menu text extraction needs attention.</strong> {menuInfo.textError}</p>}
+
+    <section className="overflow-hidden rounded-3xl border border-black/10 bg-[#f2f3f5] shadow-sm">
+      <iframe src={menuViewUrl} title="Leelanau Cellars tasting menu" className="h-[760px] w-full bg-white md:h-[900px] xl:h-[1040px]" />
+    </section>
+  </div>;
+}
+
+function TastingNotesView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
     <PageHeader title="Tasting Notes" />
     <StaffNotesWeb wines={wines} openWine={openWine} />
