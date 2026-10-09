@@ -1345,7 +1345,7 @@ export default function WineHub() {
 
       <main className={`min-h-screen lg:pl-[292px] ${view !== 'ask' ? 'lg:pr-[88px]' : ''}`}>
         {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="ask-central-launcher no-print fixed bottom-6 right-4 z-30 hidden lg:flex" aria-label="Open Ask Central">
-          <span className="ask-central-launcher-tooltip" aria-hidden="true"><strong>Ask Central</strong><small>Search the winery in seconds</small></span>
+          <span className="ask-central-launcher-tooltip" aria-hidden="true"><strong>Ask Central</strong></span>
           <span className="ask-central-launcher-orbit" aria-hidden="true" />
           <span className="ask-central-launcher-core"><AskCentralMark className="h-6 w-6" /><span className="ask-central-launcher-ai">AI</span></span>
           <span className="ask-central-launcher-dot" aria-hidden="true" />
@@ -1412,23 +1412,18 @@ type AskMessage = {
 };
 
 function AskCentralMark({ className = 'h-5 w-5' }: { className?: string }) {
-  return <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
-    <path d="M11.6 2.3c.25-.73 1.28-.73 1.53 0l1.03 3.02c.08.24.27.43.51.51l3.02 1.03c.73.25.73 1.28 0 1.53l-3.02 1.03a.81.81 0 0 0-.51.51l-1.03 3.02c-.25.73-1.28.73-1.53 0l-1.03-3.02a.81.81 0 0 0-.51-.51L7.04 8.38c-.73-.25-.73-1.28 0-1.53l3.02-1.03a.81.81 0 0 0 .51-.51L11.6 2.3Z" />
-    <path d="M18.15 12.95c.18-.52.91-.52 1.09 0l.55 1.61c.06.17.19.3.36.36l1.61.55c.52.18.52.91 0 1.09l-1.61.55a.57.57 0 0 0-.36.36l-.55 1.61c-.18.52-.91.52-1.09 0l-.55-1.61a.57.57 0 0 0-.36-.36l-1.61-.55c-.52-.18-.52-.91 0-1.09l1.61-.55a.57.57 0 0 0 .36-.36l.55-1.61ZM4.25 13.35c.16-.46.82-.46.98 0l.45 1.31c.05.15.17.27.32.32l1.31.45c.46.16.46.82 0 .98L6 16.86a.52.52 0 0 0-.32.32l-.45 1.31c-.16.46-.82.46-.98 0l-.45-1.31a.52.52 0 0 0-.32-.32l-1.31-.45c-.46-.16-.46-.82 0-.98l1.31-.45a.52.52 0 0 0 .32-.32l.45-1.31Z" />
-  </svg>;
+  return <img src="/ask-central/peninsula-star.png" alt="" aria-hidden="true" className={`${className} object-contain`} />;
 }
 
 function AskCentralHelp({ suggestions, ask, loading, align = 'right', dark = false }: { suggestions: string[]; ask: (text?: string) => Promise<void>; loading: boolean; align?: 'left' | 'right'; dark?: boolean }) {
   return <details className="relative group">
     <summary className={dark ? 'ask-central-help-dark cursor-pointer list-none px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em]' : 'cursor-pointer list-none rounded-full border border-black/10 bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-black/60 shadow-sm transition hover:border-[#3976b7]/30 hover:text-[#3976b7]'}>Help</summary>
     <div className={`absolute z-[90] mt-2 w-[300px] rounded-[22px] border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-2xl shadow-black/15 sm:w-[340px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
-      <div className="mb-3 flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><AskCentralMark className="h-4 w-4" /></span><div><p className="text-xs font-black text-black">Ask Central</p><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Central intelligence</p></div></div>
-      <p className="font-bold leading-6 text-black/70">Ask questions about wines, specs, awards, tasting-room information, case sales and other information stored in Central.</p>
-      <p className="mt-4 text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
+      <div className="mb-3 flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#173c65]"><AskCentralMark className="h-7 w-7" /></span><p className="text-xs font-black text-black">Ask Central</p></div>
+      <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
       <ul className="mt-2 space-y-2">
         {suggestions.map((item) => <li key={item}><button type="button" onClick={(event) => { const details = event.currentTarget.closest('details'); if (details) details.removeAttribute('open'); void ask(item); }} disabled={loading} className="w-full rounded-xl bg-[#f5f8fc] px-3 py-2.5 text-left text-sm font-semibold text-black/65 transition hover:bg-[#edf4fc] hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
       </ul>
-      <p className="mt-4 border-t border-black/10 pt-3 text-[10px] font-bold uppercase tracking-[.12em] text-black/35">Answers stay grounded in Central sources</p>
     </div>
   </details>;
 }
@@ -1588,21 +1583,20 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
     {loading && <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
   </div> : loading ? <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div> : null;
 
+  const introCopy = 'Search wines, quick facts, tasting room information, and more with Ask Central, an AI powered with information only found in Leelanau Cellars Central.';
+
   const emptyState = <div className="ask-central-empty-state">
-    <div className="ask-central-empty-orb"><span className="ask-central-empty-orbit" /><span className="ask-central-empty-core"><AskCentralMark className="h-7 w-7" /></span></div>
-    <p className="ask-central-eyebrow">Leelanau Cellars · Central Intelligence</p>
-    <h3>One question.<br /><span>Central knows where to look.</span></h3>
-    <p className="ask-central-empty-copy">Search wines, tech specs, awards, tasting-room information, case sales and internal references without hunting through pages.</p>
+    <p className="ask-central-empty-copy">Search wines, quick facts, tasting room information, and more with Ask Central, an AI powered with information only found in Leelanau Cellars Central.</p>
     <div className="ask-central-suggestion-grid">
-      {suggestions.map((item, index) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading} className="ask-central-suggestion-card"><span>{String(index + 1).padStart(2, '0')}</span><strong>{item}</strong><b aria-hidden="true">→</b></button>)}
+      {suggestions.map((item) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading} className="ask-central-suggestion-card"><strong>{item}</strong></button>)}
     </div>
   </div>;
 
   const composer = <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className={`${messages.length ? 'sticky bottom-3' : ''} ask-central-composer`}>
     <div className="flex items-end gap-2 sm:gap-3">
       <span className="ask-central-composer-mark"><AskCentralMark className="h-5 w-5" /></span>
-      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={1} placeholder="Ask anything about Central…" className="min-h-[48px] max-h-[120px] flex-1 resize-none bg-transparent px-1 py-3 text-base font-semibold leading-6 text-black outline-none placeholder:text-black/35" />
-      <button type="submit" disabled={!question.trim() || loading} className="ask-central-submit shrink-0 px-5 py-3.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45 sm:px-6"><span>Ask</span><span aria-hidden="true">↗</span></button>
+      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={1} placeholder="Ask Central anything..." className="min-h-[48px] max-h-[120px] flex-1 resize-none bg-transparent px-1 py-3 text-base font-semibold leading-6 text-black outline-none placeholder:text-black/35" />
+      <button type="submit" disabled={!question.trim() || loading} className="ask-central-submit shrink-0 px-5 py-3.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45 sm:px-6"><span>Ask</span></button>
     </div>
   </form>;
 
@@ -1613,8 +1607,8 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
     return <div className="ask-central-embedded flex h-full min-h-0 flex-col bg-white">
       <div className="ask-central-panel-header flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="ask-central-header-orb"><AskCentralMark className="h-5 w-5" /></span>
-          <div className="min-w-0"><p className="ask-central-panel-kicker">Central Intelligence</p><h2 className="text-xl font-black tracking-[-.035em] text-white">Ask Central</h2><div className="mt-1 flex items-center gap-1.5"><span className="ask-central-live-dot" /><p className="text-[9px] font-black uppercase tracking-[.14em] text-white/55">Grounded in Central sources</p></div></div>
+          <span className="ask-central-header-orb"><AskCentralMark className="h-9 w-9" /></span>
+          <h2 className="text-2xl font-black tracking-[-.035em] text-white">Ask Central</h2>
         </div>
         <div className="flex items-center gap-2">{darkHelp}<button type="button" onClick={() => onClose?.()} className="ask-central-close" aria-label="Close Ask Central"><X className="h-4 w-4" /></button></div>
       </div>
@@ -1629,10 +1623,10 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
   return <div className="ask-central-page p-5 md:p-8 lg:p-10">
     <div className="ask-central-page-hero mx-auto mb-6 max-w-[1080px]">
       <div className="ask-central-page-hero-content">
-        <div className="ask-central-page-hero-mark"><AskCentralMark className="h-8 w-8" /></div>
-        <div><p className="ask-central-panel-kicker">Leelanau Cellars · Central Intelligence</p><h1>Ask Central</h1><p>One question can search the winery’s internal knowledge in seconds.</p></div>
+        <div className="ask-central-page-hero-mark"><AskCentralMark className="h-14 w-14" /></div>
+        <div><h1>Ask Central</h1><p>{introCopy}</p></div>
       </div>
-      <div className="ask-central-page-hero-actions"><span className="ask-central-status"><i /> Central sources only</span>{darkHelp}</div>
+      <div className="ask-central-page-hero-actions">{darkHelp}</div>
     </div>
     <div className="mx-auto max-w-[980px]">
       {messages.length || loading ? <div className="ask-central-conversation-surface mb-4 min-h-[220px] p-4 md:p-6">{conversation}</div> : <div className="mb-5">{emptyState}</div>}
@@ -1881,15 +1875,11 @@ function CollectionTiles({ counts, onSelect, noun, showBrandLogos = false }: {
       const count = counts[collection] || 0;
       if (showBrandLogos) {
         return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group overflow-hidden rounded-2xl border border-black/10 bg-white text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#8fbce7] enabled:hover:shadow-lg disabled:cursor-default disabled:opacity-40">
-          <div className="flex h-[94px] items-center justify-center bg-[#326eac] px-6 transition group-hover:bg-[#2b639c]">
+          <div className="flex h-[108px] items-center justify-center bg-[#326eac] px-6 transition group-hover:bg-[#2b639c]">
             <CollectionBrandLogo collection={collection} />
           </div>
-          <div className="flex min-h-[78px] items-center justify-between gap-4 px-5 py-4">
-            <div className="min-w-0">
-              <h2 className="text-[18px] font-black uppercase leading-[1.05] tracking-[-.02em] text-black">{collection}</h2>
-              <p className="mt-2 text-xs font-bold text-black/42">{count} {noun}{count === 1 ? '' : 's'}</p>
-            </div>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#edf5fd] text-lg font-black text-[#326eac] transition group-hover:translate-x-0.5">{count ? '→' : '—'}</span>
+          <div className="flex min-h-[88px] items-center justify-center px-5 py-4 text-center">
+            <h2 className="text-[24px] font-black uppercase leading-[1.02] tracking-[-.025em] text-black">{collection}</h2>
           </div>
         </button>;
       }
@@ -3683,7 +3673,7 @@ function CollectionBrandLogo({ collection }: { collection: WineCollectionName })
     return <img src={logo.src} alt={logo.alt} className="h-[68px] w-[64px] border border-black/20 bg-white object-cover shadow-sm" />;
   }
   const style = logo.mode === 'screen-white' ? { filter: 'brightness(0) invert(1)' } : undefined;
-  return <img src={logo.src} alt={logo.alt} className={`max-h-[64px] object-contain ${collection === 'Zilly' ? 'max-w-[230px]' : 'max-w-[205px]'}`} style={style} />;
+  return <img src={logo.src} alt={logo.alt} className={`object-contain ${collection === 'Zilly' ? 'max-h-[82px] max-w-[300px] scale-[1.28]' : 'max-h-[72px] max-w-[230px]'}`} style={style} />;
 }
 
 function awardGraphicFor(award: Award) {

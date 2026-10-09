@@ -1,3 +1,10 @@
+## v93 Ask Central simplification + Wine Library polish
+
+- Simplifies branded Wine Library collection cards: removes wine counts and arrows, centers larger collection names, and enlarges the Zilly brand mark.
+- Replaces the generic Ask Central sparkle mark with the supplied Leelanau peninsula + star icon.
+- Removes “Central Intelligence,” “Grounded in Central Sources,” numbered/arrowed prompt cards, and the extra arrow on the Ask button.
+- Uses the streamlined Ask Central intro copy and changes the composer placeholder to “Ask Central anything...”.
+
 ## v22 build-phase access update
 
 - PIN access is intentionally **disabled by default** while Wine Hub is still being built, so the site opens directly with full Admin access.
