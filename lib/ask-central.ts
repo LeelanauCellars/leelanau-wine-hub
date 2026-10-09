@@ -65,7 +65,7 @@ export type AskCentralSource = {
 };
 
 const STOP_WORDS = new Set([
-  'a','an','and','are','as','at','be','by','can','could','do','does','for','from','give','have','how','i','in','is','it','me','of','on','or','our','show','tell','that','the','their','there','these','this','to','us','what','when','where','which','who','with','would','you',
+  'a','an','and','are','as','at','be','by','can','central','could','do','does','for','from','give','have','how','i','in','info','information','is','it','me','of','on','or','our','product','products','show','tell','that','the','their','there','these','this','to','us','what','when','where','which','who','wine','wines','with','would','you',
 ]);
 
 export function askSlug(value = '') {

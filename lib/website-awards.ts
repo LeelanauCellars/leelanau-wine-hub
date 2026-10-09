@@ -41,40 +41,92 @@ const awardGraphicUrl = (year: number, result: string) => {
 };
 
 
-const FALLBACK_2026: Array<[string, string]> = [
-  ['Cherries Galore', 'Double Gold'],
-  ['2023 Late Harvest Riesling', 'Double Gold'],
-  ['2023 Late Harvest Pinot Grigio', 'Double Gold'],
-  ['Chocolate Cherry Dessert', 'Double Gold'],
-  ['Cold Duck', 'Gold'],
-  ['2024 Blanc de Noir', 'Silver'],
-  ['2024 Brüt Sur Lie', 'Silver'],
-  ['Spring Splendor', 'Silver'],
-  ['Summer Sunset', 'Silver'],
-  ['Winter White Bubbly', 'Silver'],
-  ['Witches Brew', 'Silver'],
-  ['Witches Brew Spiced Apple', 'Silver'],
-  ['Festivus', 'Bronze'],
-  ['2023 Pinot Grigio', 'Bronze'],
-  ['Winter White', 'Bronze'],
-  ['Witches Brew Pumpkin Spice', 'Bronze'],
-  ['Cranberry Moscato', 'Best of Class'],
-  ['Raspberry Bubbly Moscato', 'Double Gold'],
-  ['Cranberry Fruit Wine', 'Silver'],
-  ['2023 Zilly Pinot Grigio', 'Gold'],
-  ['2023 Zilly Chardonnay', 'Gold'],
-  ['2023 Zilly Sauvignon Blanc', 'Bronze'],
-  ['2023 Zilly Cabernet Sauvignon', 'Bronze'],
-];
+const FALLBACK_BY_YEAR: Record<number, Array<[string, string]>> = {
+  2023: [
+    ['Lakeshore Collection Moscato', 'Gold'],
+    ['Lakeshore Collection Riesling', 'Gold'],
+    ['2021 Late Harvest Riesling', 'Gold'],
+    ['Lakeshore Collection Pinot Grigio', 'Silver'],
+    ['2021 Dry Riesling', 'Silver'],
+    ['Sweet Peach Chill', 'Silver'],
+    ['Pinot Noir Rosé', 'Bronze'],
+    ['Lakeshore Collection Red Blend', 'Bronze'],
+    ['Blackberry Chill', 'Bronze'],
+    ['Mango Chill', 'Bronze'],
+    ['2021 Riesling', 'Bronze'],
+    ['Raspberry Sparkling Moscato', 'Best of Class'],
+    ['Blackberry Sparkling Moscato', 'Gold'],
+    ['Raspberry Moscato', 'Gold'],
+    ['Mango Sparkling Moscato', 'Silver'],
+    ['Peach Moscato', 'Silver'],
+    ['Blackberry Moscato', 'Silver'],
+    ['Peach Sparkling Moscato', 'Bronze'],
+    ['Mango Moscato', 'Best of Class'],
+    ['Mango Bubbly Moscato', 'Silver'],
+    ['Mango Fruit Wine', 'Bronze'],
+  ],
+  2024: [
+    ['2022 Gewürztraminer', 'Double Gold'],
+    ['Blueberry Dessert Wine', 'Gold'],
+    ['Cherry Dessert Wine', 'Gold'],
+    ['Raspberry Dessert Wine', 'Gold'],
+    ['2022 Semi-Dry Riesling', 'Silver'],
+    ['2022 Vignoles', 'Silver'],
+    ['2022 Pinot Noir Rosé', 'Bronze'],
+    ['2022 Sauvignon Blanc', 'Bronze'],
+    ['Peach Sparkling Moscato', 'Best of Class'],
+    ['Blackberry Fruit Wine', 'Bronze'],
+    ['Cherry Fruit Wine', 'Bronze'],
+    ['Peach Fruit Wine', 'Bronze'],
+  ],
+  2025: [
+    ['2023 Merlot', 'Silver'],
+    ['2022 Pinot Grigio', 'Silver'],
+    ['2023 Pleasant Hill Pinot Grigio', 'Silver'],
+    ['Cherry Cordial', 'Bronze'],
+    ['2023 Zilly Cabernet Sauvignon', 'Silver'],
+    ['2023 Zilly Pinot Grigio', 'Silver'],
+    ['2023 Zilly Chardonnay', 'Bronze'],
+    ['2023 Zilly Sauvignon Blanc', 'Bronze'],
+  ],
+  2026: [
+    ['Cherries Galore', 'Double Gold'],
+    ['2023 Late Harvest Riesling', 'Double Gold'],
+    ['2023 Late Harvest Pinot Grigio', 'Double Gold'],
+    ['Chocolate Cherry Dessert', 'Double Gold'],
+    ['Cold Duck', 'Gold'],
+    ['2024 Blanc de Noir', 'Silver'],
+    ['2024 Brüt Sur Lie', 'Silver'],
+    ['Spring Splendor', 'Silver'],
+    ['Summer Sunset', 'Silver'],
+    ['Winter White Bubbly', 'Silver'],
+    ['Witches Brew', 'Silver'],
+    ['Witches Brew Spiced Apple', 'Silver'],
+    ['Festivus', 'Bronze'],
+    ['2023 Pinot Grigio', 'Bronze'],
+    ['Winter White', 'Bronze'],
+    ['Witches Brew Pumpkin Spice', 'Bronze'],
+    ['Cranberry Moscato', 'Best of Class'],
+    ['Raspberry Bubbly Moscato', 'Double Gold'],
+    ['Cranberry Fruit Wine', 'Silver'],
+    ['2023 Zilly Pinot Grigio', 'Gold'],
+    ['2023 Zilly Chardonnay', 'Gold'],
+    ['2023 Zilly Sauvignon Blanc', 'Bronze'],
+    ['2023 Zilly Cabernet Sauvignon', 'Bronze'],
+  ],
+};
 
-const fallbackAwards = (year: number): WebsiteAward[] => year === 2026 ? FALLBACK_2026.map(([wineName, result]) => ({
-  id: `website-2026-${normalize(wineName)}-${normalize(result)}`,
-  wineName,
-  year: 2026,
-  competition: 'San Francisco Chronicle Wine Competition',
-  result,
-  graphicUrl: awardGraphicUrl(2026, result),
-})) : [];
+const fallbackAwards = (year?: number): WebsiteAward[] => {
+  const years = year ? [year] : Object.keys(FALLBACK_BY_YEAR).map(Number).sort((a, b) => b - a);
+  return years.flatMap((awardYear) => (FALLBACK_BY_YEAR[awardYear] || []).map(([wineName, result]) => ({
+    id: `website-${awardYear}-${normalize(wineName)}-${normalize(result)}`,
+    wineName,
+    year: awardYear,
+    competition: 'San Francisco Chronicle Wine Competition',
+    result,
+    graphicUrl: awardGraphicUrl(awardYear, result),
+  })));
+};
 
 const AWARD_ENTITIES: Record<string, string> = {
   nbsp: ' ', amp: '&', apos: "'", quot: '"', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
@@ -113,14 +165,14 @@ export async function loadCurrentWebsiteAwards(): Promise<WebsiteAward[]> {
   const year = new Date().getFullYear();
   try {
     const response = await fetch(AWARDS_URL, { next: { revalidate: 21600 } });
-    if (!response.ok) return fallbackAwards(year);
+    if (!response.ok) return fallbackAwards();
     const html = await response.text();
 
     // The awards page groups the current competition around image assets named with the current year.
     // Isolating that window prevents a wine from accidentally inheriting an older award farther down the page.
     const marker = new RegExp(`${year}[^"'<>]{0,100}Award-Badges`, 'i');
     const markerMatch = marker.exec(html);
-    if (!markerMatch) return fallbackAwards(year);
+    if (!markerMatch) return fallbackAwards();
     const start = Math.max(0, markerMatch.index - 18000);
     let end = html.length;
     for (let previousYear = year - 1; previousYear >= year - 4; previousYear -= 1) {
@@ -151,10 +203,13 @@ export async function loadCurrentWebsiteAwards(): Promise<WebsiteAward[]> {
         graphicUrl: awardGraphicUrl(year, result),
       });
     }
-    return awards.length ? awards : fallbackAwards(year);
+    const currentAwards = awards.length ? awards : fallbackAwards(year);
+    const historicalAwards = fallbackAwards().filter((award) => award.year !== year);
+    const combined = [...currentAwards, ...historicalAwards];
+    return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result && normalize(candidate.wineName) === normalize(award.wineName)) === index);
   } catch (error) {
     console.warn('Unable to refresh awards from lwc.wine', error);
-    return fallbackAwards(year);
+    return fallbackAwards();
   }
 }
 

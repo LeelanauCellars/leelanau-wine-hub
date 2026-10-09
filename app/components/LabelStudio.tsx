@@ -450,7 +450,6 @@ function replaceOutlineTextExact(doc: LabelDocument, layer: LabelLayer, nextText
   if (parsed.querySelector('parsererror')) return { svg: null, reason: 'The original outline could not be read.' };
   const uses = Array.from(parsed.querySelectorAll('use'));
   if (uses.length !== oldChars.length) return { svg: null, reason: 'The original glyph layout is more complex than this precision editor currently supports.' };
-
   const atlas = outlineGlyphAtlas(doc, family);
   const missing = Array.from(new Set(nextChars.filter((char) => !atlas.has(char))));
   if (missing.length) return { svg: null, reason: `The original ${family} artwork does not contain glyph${missing.length === 1 ? '' : 's'} for ${missing.map((char) => JSON.stringify(char)).join(', ')} yet.` };
@@ -484,7 +483,7 @@ function TextValueControl({ value, outline, sourceFontFamily, onCommit }: { valu
   return <div>
     <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); commit(); } if (event.key === 'Escape') setDraft(value); }} rows={3} className="w-full resize-none rounded-lg border border-black/10 px-2.5 py-2 text-xs font-semibold outline-none focus:border-[#3976b7]/50" />
     <div className="mt-1.5 flex items-center justify-between gap-2">
-      <span className="text-[9px] font-semibold leading-4 text-black/35">{outline ? `Preserves original ${sourceFontFamily || 'Illustrator'} outlines when the replacement can use the existing glyphs.` : 'Live text'}</span>
+      <span className="text-[9px] font-semibold leading-4 text-black/35">{outline ? `Preserves original ${sourceFontFamily || 'Illustrator'} outlines when possible; otherwise switches to editable live text.` : 'Live text'}</span>
       <button type="button" onClick={commit} disabled={draft === value} className="shrink-0 rounded-lg border border-[#3976b7]/20 bg-white px-2.5 py-1.5 text-[9px] font-black text-[#3976b7] disabled:opacity-30">Apply text</button>
     </div>
   </div>;
@@ -677,8 +676,10 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
     if (selected.renderMode === 'outline' && selected.outlineSvg) {
       const exact = replaceOutlineTextExact(doc, selected, nextText);
       if (!exact.svg) {
-        setAssistantMessage(`I kept the original lettering intact. ${exact.reason || 'That wording cannot be rebuilt exactly from the current outline glyphs.'} If you deliberately want an approximate browser font instead, choose “Make text live.”`);
-        setAssistantMeta('Exact font preserved · edit not applied');
+        const fallbackFont = selected.fontFamily || (selected.sourceFontFamily ? `${selected.sourceFontFamily}, Arial, Helvetica, sans-serif` : 'Arial, Helvetica, sans-serif');
+        commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id && layer.type === 'text' ? { ...layer, text: nextText, renderMode: 'live' as const, fontFamily: fallbackFont } : layer) }));
+        setAssistantMessage(`Updated ${selected.name}. The exact Illustrator outline could not rebuild that wording, so Label Studio automatically switched this layer to editable live text using the closest mapped font. ${exact.reason || ''}`.trim());
+        setAssistantMeta('Live editable text');
         return;
       }
       commit((current) => ({ ...current, layers: current.layers.map((layer) => layer.id === selected.id && layer.type === 'text' ? { ...layer, text: nextText, outlineSvg: exact.svg!, renderMode: 'outline' as const } : layer) }));
@@ -918,15 +919,9 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       if (!layer || layer.type !== 'text' || layer.renderMode !== 'outline' || !layer.outlineSvg || operation.changes.text === layer.text) return operation;
       const exact = replaceOutlineTextExact(doc, layer, operation.changes.text);
       if (exact.svg) return { ...operation, changes: { ...operation.changes, outlineSvg: exact.svg, renderMode: 'outline' as const } };
-      blockedTextEdits.push(`${layer.name}: ${exact.reason || 'exact outline replacement was unavailable'}`);
-      const changes = { ...operation.changes };
-      delete changes.text;
-      delete changes.fontFamily;
-      delete changes.fontSize;
-      delete changes.fontWeight;
-      delete changes.letterSpacing;
-      delete changes.align;
-      return { ...operation, changes };
+      blockedTextEdits.push(`${layer.name}: switched to live editable text because ${exact.reason || 'exact outline replacement was unavailable'}`);
+      const fallbackFont = layer.fontFamily || (layer.sourceFontFamily ? `${layer.sourceFontFamily}, Arial, Helvetica, sans-serif` : 'Arial, Helvetica, sans-serif');
+      return { ...operation, changes: { ...operation.changes, renderMode: 'live' as const, fontFamily: operation.changes.fontFamily || fallbackFont } };
     });
     commit((current) => {
       let layers = [...current.layers];
@@ -1000,7 +995,7 @@ export default function LabelStudio({ label, back }: { label: LabelLibraryItem; 
       const data = await response.json() as LabelStudioAssistResponse & { error?: string; hint?: string };
       if (!response.ok) throw new Error(data.error || data.hint || 'Label Assistant could not complete that edit.');
       const blocked = applyOperations(Array.isArray(data.operations) ? data.operations : []);
-      setAssistantMessage(blocked.length ? `I kept the original Illustrator lettering rather than substituting the wrong font. ${blocked.join(' ')}` : (data.message || 'Applied the requested edit.'));
+      setAssistantMessage(blocked.length ? `Applied the requested edit. ${blocked.join(' ')}` : (data.message || 'Applied the requested edit.'));
       setAssistantMeta(data.provider === 'google-gemini' ? `Gemini · ${data.model || 'model'}` : data.degraded ? 'Local edit fallback' : 'Label Assistant');
       setAssistantText('');
     } catch (error) {

@@ -79,6 +79,17 @@ function sourceBlock(sources: AskCentralSource[]) {
   return sources.map((source) => `${source.id} | ${source.type.toUpperCase()} | ${source.title}\n${source.summary}`).join('\n\n');
 }
 
+function sourcesUsedByAnswer(answer: string, sources: AskCentralSource[]) {
+  const cited = new Set(Array.from(answer.matchAll(/\[(S\d+)\]/gi), (match) => match[1].toUpperCase()));
+  if (cited.size) return sources.filter((source) => cited.has(source.id.toUpperCase()));
+  const noMatch = /(?:could(?:n't| not)|can(?:'t| not)) find|not enough information|does not contain enough information|no matching central source/i.test(answer);
+  return noMatch ? [] : sources;
+}
+
+function publicSources(answer: string, sources: AskCentralSource[]) {
+  return sourcesUsedByAnswer(answer, sources).map(({ id, type, title, path }) => ({ id, type, title, path }));
+}
+
 function parsedSummary(source: AskCentralSource) {
   try {
     const parsed = JSON.parse(source.summary) as unknown;
@@ -431,9 +442,10 @@ export async function POST(request: NextRequest) {
   // Operational questions are deterministic and do not need a model round trip.
   // This makes first-turn answers both faster and more reliable.
   if (intent === 'merch' || intent === 'case-sales' || (intent === 'tasting-menu' && broadMenuQuestion(question))) {
+    const answer = retrievalFallbackAnswer(question, selectedSources, intent, portalRole);
     return NextResponse.json({
-      answer: retrievalFallbackAnswer(question, selectedSources, intent, portalRole),
-      sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+      answer,
+      sources: publicSources(answer, selectedSources),
       model: 'central-direct',
       provider: 'central-retrieval',
       fallbackUsed: false,
@@ -568,7 +580,7 @@ export async function POST(request: NextRequest) {
         const answer = await generate(model, modelIndex === 0 ? 4500 : 6500);
         return NextResponse.json({
           answer,
-          sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+          sources: publicSources(answer, selectedSources),
           model,
           provider: 'google-gemini',
           fallbackUsed: modelIndex > 0,
@@ -603,9 +615,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (status === 429 || status >= 500) {
+      const answer = retrievalFallbackAnswer(question, selectedSources, intent, portalRole);
       return NextResponse.json({
-        answer: retrievalFallbackAnswer(question, selectedSources, intent, portalRole),
-        sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+        answer,
+        sources: publicSources(answer, selectedSources),
         model: 'central-direct',
         provider: 'central-retrieval',
         fallbackUsed: true,
@@ -613,9 +626,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const answer = retrievalFallbackAnswer(question, selectedSources, intent, portalRole);
     return NextResponse.json({
-      answer: retrievalFallbackAnswer(question, selectedSources, intent, portalRole),
-      sources: selectedSources.map(({ id, type, title, path }) => ({ id, type, title, path })),
+      answer,
+      sources: publicSources(answer, selectedSources),
       model: 'central-direct',
       provider: 'central-retrieval',
       fallbackUsed: true,

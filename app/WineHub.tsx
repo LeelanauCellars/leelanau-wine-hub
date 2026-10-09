@@ -17,7 +17,7 @@ import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY
 import MerchApparel from '@/app/components/MerchApparel';
 import Labels from '@/app/components/Labels';
 import TastingRoomSalesAnalysis from '@/app/components/TastingRoomSalesAnalysis';
-import Commerce7ImageUpload from '@/app/components/Commerce7ImageUpload';
+import ProductImagePrep from '@/app/components/ProductImagePrep';
 import { WINE_COLLECTIONS, canonicalWineCollection, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 import type { CaseSalesGoalMetrics, CaseSalesSummary } from '@/lib/case-sales';
 import { CENTRAL_PROJECTS, projectBySlug, type CentralProject, type CentralProjectFile } from '@/lib/projects';
@@ -206,7 +206,7 @@ function routeForView(view: SectionView): CentralRoute {
 
 function preferredPortalForRoute(route: CentralRoute, accessRole: AccessRole | null): PortalRole {
   if (accessRole === 'admin') return 'admin';
-  if (route.kind === 'tech' || route.kind === 'project' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels'))) return 'sales';
+  if (route.kind === 'tech' || route.kind === 'project' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects'))) return 'sales';
   if (route.kind === 'distribution' || (route.kind === 'section' && route.view === 'distribution')) return 'distribution';
   if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'sales-analysis' || route.view === 'image-upload' || route.view === 'merch')) return 'tasting';
   if (route.kind === 'section' && route.view === 'quickfacts') return accessRole === 'sales' ? 'sales' : 'tasting';
@@ -738,11 +738,44 @@ function shouldAutoIncludeCasePackaging(wine: WineRecord, tastingNotes: string, 
   return projectedContentHeight <= 790;
 }
 
+
+function normalizedAwardResult(result: string) {
+  return result
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function techSheetAwardRank(award: Award) {
+  const result = normalizedAwardResult(award.result);
+  if (result.includes('sweepstake')) return 6;
+  if (result === 'best of class' || result === 'best in class') return 5;
+  if (result === 'double gold') return 4;
+  if (result === 'gold') return 3;
+  if (result === 'silver') return 2;
+  if (result.includes('bronze')) return 0;
+  return 1;
+}
+
+function automaticTechSheetAward(wine?: WineRecord): Award | undefined {
+  if (!wine?.awards?.length) return undefined;
+  return [...wine.awards]
+    .filter((award) => techSheetAwardRank(award) > 0)
+    .sort((a, b) =>
+      techSheetAwardRank(b) - techSheetAwardRank(a)
+      || b.year - a.year
+      || a.result.localeCompare(b.result)
+    )[0];
+}
+
 function draftFromWine(wine: WineRecord, distributionWines: DistributionWine[] = DISTRIBUTION_WINES): TechSheetDraft {
   const casePackaging = casePackagingForWine(wine);
   const tastingNotes = shortCommerce7TastingNotes(wine) || wine.tastingNotes || wine.shortDescription || '';
   const highlights = commerce7SalesHighlights(wine);
   const distributionItem = distributionItemForWine(wine, distributionWines);
+  const automaticAward = automaticTechSheetAward(wine);
   return {
     wineId: wine.id,
     wineName: wine.name,
@@ -759,7 +792,7 @@ function draftFromWine(wine: WineRecord, distributionWines: DistributionWine[] =
     distributorCost: '',
     srp: wine.price === undefined ? '' : `$${wine.price.toFixed(2)}`,
     bottleImage: wine.bottleImage,
-    awardGraphic: wine.awards[0]?.graphicUrl,
+    awardGraphic: automaticAward?.graphicUrl || (automaticAward ? awardGraphicFor(automaticAward) : undefined),
     includeCasePackaging: Boolean(casePackaging) && shouldAutoIncludeCasePackaging(wine, tastingNotes, highlights),
     casePackagingImage: casePackaging?.src,
     displayImage: undefined,
@@ -815,7 +848,7 @@ export default function WineHub() {
   const canUseQuickFacts = portalRole === 'admin' || portalRole === 'tasting' || portalRole === 'sales';
   const canUseAwards = portalRole === 'admin' || portalRole === 'sales';
   const canUseProjects = portalRole === 'admin' || portalRole === 'sales';
-  const canUseLabels = portalRole === 'admin' || portalRole === 'sales';
+  const canUseLabels = portalRole === 'admin';
 
   useEffect(() => {
     try {
@@ -963,7 +996,8 @@ export default function WineHub() {
       route.view === 'tasting' || route.view === 'case-sales' || route.view === 'image-upload' || route.view === 'merch' ? role === 'admin' || role === 'tasting' :
       route.view === 'tasting-notes' || route.view === 'sales-analysis' ? role === 'admin' :
       route.view === 'quickfacts' ? role === 'admin' || role === 'tasting' || role === 'sales' :
-      route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' || route.view === 'labels' ? role === 'admin' || role === 'sales' :
+      route.view === 'labels' ? role === 'admin' :
+      route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects' ? role === 'admin' || role === 'sales' :
       route.view === 'ask' ? true : false;
     if (!allowed) return;
     setView(route.view);
@@ -1258,7 +1292,7 @@ export default function WineHub() {
                       <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />
                       <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />
                       <NavButton active={view === 'sales-analysis'} icon={<BarChart3 />} label="Sales Analysis" onClick={() => navigateSection('sales-analysis')} />
-                      <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Image Upload to Commerce7" onClick={() => navigateSection('image-upload')} />
+                      <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Product Image Prep" onClick={() => navigateSection('image-upload')} />
                     </div>}
                     {adminNavGroup === 'projects' && <div className="space-y-2">
                       <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[.18em] text-black/35">Projects</p>
@@ -1278,7 +1312,7 @@ export default function WineHub() {
                 {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu" onClick={() => navigateSection('tasting')} />}
                 {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />}
                 {canUseTastingRoom && <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />}
-                {canUseTastingRoom && <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Image Upload to Commerce7" onClick={() => navigateSection('image-upload')} />}
+                {canUseTastingRoom && <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Product Image Prep" onClick={() => navigateSection('image-upload')} />}
                 {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />}
                 {canUseTechSheets && <NavButton active={view === 'tech-library' || view === 'tech'} icon={<FileText />} label="Tech Sheets" onClick={() => navigateSection('tech-library')} />}
                 {canUseAwards && <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />}
@@ -1309,12 +1343,17 @@ export default function WineHub() {
 
       {mobileNav && <button className="no-print fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close menu overlay" />}
 
-      <main className="min-h-screen lg:pl-[292px]">
-        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="no-print fixed right-6 top-20 z-30 hidden items-center gap-2 rounded-full border border-[#3976b7]/20 bg-white px-4 py-2.5 text-xs font-black text-[#3976b7] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-[#3976b7]/40 hover:shadow-xl lg:inline-flex"><AskCentralMark className="h-4 w-4" /> Ask Central</button>}
+      <main className={`min-h-screen lg:pl-[292px] ${view !== 'ask' ? 'lg:pr-[88px]' : ''}`}>
+        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="ask-central-launcher no-print fixed bottom-6 right-4 z-30 hidden lg:flex" aria-label="Open Ask Central">
+          <span className="ask-central-launcher-tooltip" aria-hidden="true"><strong>Ask Central</strong><small>Search the winery in seconds</small></span>
+          <span className="ask-central-launcher-orbit" aria-hidden="true" />
+          <span className="ask-central-launcher-core"><AskCentralMark className="h-6 w-6" /><span className="ask-central-launcher-ai">AI</span></span>
+          <span className="ask-central-launcher-dot" aria-hidden="true" />
+        </button>}
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
           <span className="min-w-0 flex-1 truncate font-bold">Leelanau Cellars Central · {portalRole === 'distribution' ? 'Distributors' : portalRole === 'tasting' ? 'Tasting Room' : portalRole === 'sales' ? 'Sales' : 'Admin'}</span>
-          {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3976b7] text-white shadow-sm" aria-label="Open Ask Central"><AskCentralMark className="h-[18px] w-[18px]" /></button>}
+          {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="ask-central-mobile-launcher flex h-10 w-10 shrink-0 items-center justify-center" aria-label="Open Ask Central"><AskCentralMark className="h-[19px] w-[19px]" /></button>}
         </div>
 
         {view === 'ask' && <AskCentral wines={wines} distributionWines={distributionWines} portalRole={portalRole} openPath={(path) => { const fullPath = centralPath(path); const route = parseCentralRoute(fullPath); if (!route) return; setPendingRoute(route); writeCentralPath(fullPath); applyRouteState(route, portalRole); }} />}
@@ -1342,7 +1381,7 @@ export default function WineHub() {
         )}
         {view === 'case-sales' && canUseTastingRoom && <CaseSalesTracker role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />}
         {view === 'sales-analysis' && isPortalAdmin && <TastingRoomSalesAnalysis />}
-        {view === 'image-upload' && canUseTastingRoom && <Commerce7ImageUpload />}
+        {view === 'image-upload' && canUseTastingRoom && <ProductImagePrep />}
         {view === 'quickfacts' && canUseQuickFacts && <QuickFactsView />}
         {view === 'tech-library' && canUseTechSheets && (
           <TechSheetLibrary wines={wines} distributionWines={distributionWines} openTech={openTech} />
@@ -1353,9 +1392,9 @@ export default function WineHub() {
         {view === 'awards' && canUseAwards && <AwardsView wines={wines} openWine={openWine} />}
       </main>
 
-      <div className={`no-print fixed inset-0 z-[70] transition ${askDrawerOpen ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'}`} aria-hidden={!askDrawerOpen}>
-        <button type="button" className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" onClick={() => setAskDrawerOpen(false)} aria-label="Close Ask Central" tabIndex={askDrawerOpen ? 0 : -1} />
-        <aside className={`absolute inset-y-0 right-0 w-full max-w-[560px] border-l border-black/10 bg-white shadow-2xl transition-transform duration-200 ${askDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`no-print fixed inset-0 z-[70] transition duration-300 ${askDrawerOpen ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'}`} aria-hidden={!askDrawerOpen}>
+        <button type="button" className="absolute inset-0 bg-[#07111f]/45 backdrop-blur-[3px]" onClick={() => setAskDrawerOpen(false)} aria-label="Close Ask Central" tabIndex={askDrawerOpen ? 0 : -1} />
+        <aside className={`ask-central-drawer absolute inset-y-0 right-0 w-full max-w-[620px] border-l border-white/10 bg-white shadow-2xl transition-transform duration-300 ${askDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <AskCentral wines={wines} distributionWines={distributionWines} portalRole={portalRole} embedded onClose={() => setAskDrawerOpen(false)} openPath={(path) => { const fullPath = centralPath(path); const route = parseCentralRoute(fullPath); if (!route) return; setPendingRoute(route); writeCentralPath(fullPath); applyRouteState(route, portalRole); setAskDrawerOpen(false); }} />
         </aside>
       </div>
@@ -1379,16 +1418,17 @@ function AskCentralMark({ className = 'h-5 w-5' }: { className?: string }) {
   </svg>;
 }
 
-function AskCentralHelp({ suggestions, ask, loading, align = 'right' }: { suggestions: string[]; ask: (text?: string) => Promise<void>; loading: boolean; align?: 'left' | 'right' }) {
+function AskCentralHelp({ suggestions, ask, loading, align = 'right', dark = false }: { suggestions: string[]; ask: (text?: string) => Promise<void>; loading: boolean; align?: 'left' | 'right'; dark?: boolean }) {
   return <details className="relative group">
-    <summary className="cursor-pointer list-none rounded-full border border-black/10 bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-black/60 shadow-sm transition hover:border-[#3976b7]/30 hover:text-[#3976b7]">Help</summary>
-    <div className={`absolute z-[90] mt-2 w-[300px] rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-2xl shadow-black/15 sm:w-[340px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
-      <p className="font-bold leading-6 text-black/75">Ask Central is a fast way to find information about Leelanau Cellars. Powered by Google Gemini, this AI Chat finds answers through sources only found on Leelanau Cellars Central.</p>
+    <summary className={dark ? 'ask-central-help-dark cursor-pointer list-none px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em]' : 'cursor-pointer list-none rounded-full border border-black/10 bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-black/60 shadow-sm transition hover:border-[#3976b7]/30 hover:text-[#3976b7]'}>Help</summary>
+    <div className={`absolute z-[90] mt-2 w-[300px] rounded-[22px] border border-black/10 bg-white p-4 text-sm font-semibold leading-6 text-black/70 shadow-2xl shadow-black/15 sm:w-[340px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
+      <div className="mb-3 flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><AskCentralMark className="h-4 w-4" /></span><div><p className="text-xs font-black text-black">Ask Central</p><p className="text-[9px] font-black uppercase tracking-[.14em] text-black/35">Central intelligence</p></div></div>
+      <p className="font-bold leading-6 text-black/70">Ask questions about wines, specs, awards, tasting-room information, case sales and other information stored in Central.</p>
       <p className="mt-4 text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Try asking</p>
       <ul className="mt-2 space-y-2">
-        {suggestions.map((item) => <li key={item}><button type="button" onClick={(event) => { const details = event.currentTarget.closest('details'); if (details) details.removeAttribute('open'); void ask(item); }} disabled={loading} className="text-left text-sm font-semibold text-black/65 transition hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
+        {suggestions.map((item) => <li key={item}><button type="button" onClick={(event) => { const details = event.currentTarget.closest('details'); if (details) details.removeAttribute('open'); void ask(item); }} disabled={loading} className="w-full rounded-xl bg-[#f5f8fc] px-3 py-2.5 text-left text-sm font-semibold text-black/65 transition hover:bg-[#edf4fc] hover:text-[#3976b7] disabled:opacity-50">{item}</button></li>)}
       </ul>
-      <p className="mt-4 border-t border-black/10 pt-3 text-[10px] font-bold uppercase tracking-[.12em] text-black/35">Central sources only</p>
+      <p className="mt-4 border-t border-black/10 pt-3 text-[10px] font-bold uppercase tracking-[.12em] text-black/35">Answers stay grounded in Central sources</p>
     </div>
   </details>;
 }
@@ -1540,46 +1580,67 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
 
   const conversation = messages.length ? <div className="space-y-5">
     {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-      <div className={message.role === 'user' ? 'max-w-[86%] rounded-2xl rounded-br-md bg-[#3976b7] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'max-w-[94%] rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
+      <div className={message.role === 'user' ? 'ask-central-user-bubble max-w-[88%] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'ask-central-assistant-bubble max-w-[95%] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
         {message.role === 'assistant' ? <AskAnswer content={message.content} sources={message.sources} openPath={openPath} /> : <div className="whitespace-pre-wrap">{message.content}</div>}
-        {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] hover:border-[#3976b7]/35"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
+        {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-[#3976b7]/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-xl border border-[#3976b7]/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] shadow-sm transition hover:-translate-y-0.5 hover:border-[#3976b7]/30 hover:shadow-md"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
       </div>
     </div>)}
-    {loading && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div>}
-  </div> : loading ? <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl border border-black/10 bg-[#f8f9fb] px-4 py-3 text-sm font-bold text-black/50"><Loader2 className="h-4 w-4 animate-spin text-[#3976b7]" /> Looking through Central…</div></div> : null;
+    {loading && <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
+  </div> : loading ? <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div> : null;
 
-  const composer = <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className={`${messages.length ? 'sticky bottom-3' : ''} rounded-full border border-black/10 bg-white p-2 shadow-xl shadow-black/10`}>
-    <div className="flex items-center gap-2 sm:gap-3">
-      <span className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center text-[#3976b7]"><AskCentralMark className="h-5 w-5" /></span>
-      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={1} placeholder="Ask Central a question…" className="min-h-[48px] max-h-[120px] flex-1 resize-none bg-transparent px-1 py-3 text-base font-semibold leading-6 text-black outline-none placeholder:text-black/40" />
-      <button type="submit" disabled={!question.trim() || loading} className="shrink-0 rounded-full bg-[#3976b7] px-5 py-3.5 text-sm font-black text-white transition hover:bg-[#2f68a4] disabled:cursor-not-allowed disabled:bg-[#3976b7]/45 sm:px-6">Ask</button>
+  const emptyState = <div className="ask-central-empty-state">
+    <div className="ask-central-empty-orb"><span className="ask-central-empty-orbit" /><span className="ask-central-empty-core"><AskCentralMark className="h-7 w-7" /></span></div>
+    <p className="ask-central-eyebrow">Leelanau Cellars · Central Intelligence</p>
+    <h3>One question.<br /><span>Central knows where to look.</span></h3>
+    <p className="ask-central-empty-copy">Search wines, tech specs, awards, tasting-room information, case sales and internal references without hunting through pages.</p>
+    <div className="ask-central-suggestion-grid">
+      {suggestions.map((item, index) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading} className="ask-central-suggestion-card"><span>{String(index + 1).padStart(2, '0')}</span><strong>{item}</strong><b aria-hidden="true">→</b></button>)}
+    </div>
+  </div>;
+
+  const composer = <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className={`${messages.length ? 'sticky bottom-3' : ''} ask-central-composer`}>
+    <div className="flex items-end gap-2 sm:gap-3">
+      <span className="ask-central-composer-mark"><AskCentralMark className="h-5 w-5" /></span>
+      <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(); } }} rows={1} placeholder="Ask anything about Central…" className="min-h-[48px] max-h-[120px] flex-1 resize-none bg-transparent px-1 py-3 text-base font-semibold leading-6 text-black outline-none placeholder:text-black/35" />
+      <button type="submit" disabled={!question.trim() || loading} className="ask-central-submit shrink-0 px-5 py-3.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45 sm:px-6"><span>Ask</span><span aria-hidden="true">↗</span></button>
     </div>
   </form>;
 
   const help = <AskCentralHelp suggestions={suggestions} ask={ask} loading={loading} align="right" />;
+  const darkHelp = <AskCentralHelp suggestions={suggestions} ask={ask} loading={loading} align="right" dark />;
 
   if (embedded) {
-    return <div className="flex h-full min-h-0 flex-col bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-4 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><AskCentralMark className="h-5 w-5" /></span><div className="min-w-0"><h2 className="text-lg font-black tracking-[-.025em]">Ask Central</h2><p className="text-[10px] font-black uppercase tracking-[.13em] text-black/35">Central sources only</p></div></div>
-        <div className="flex items-center gap-2">{help}<button type="button" onClick={onClose} className="rounded-full border border-black/10 bg-white p-2 text-black/55 shadow-sm transition hover:text-black" aria-label="Close Ask Central"><X className="h-4 w-4" /></button></div>
+    return <div className="ask-central-embedded flex h-full min-h-0 flex-col bg-white">
+      <div className="ask-central-panel-header flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="ask-central-header-orb"><AskCentralMark className="h-5 w-5" /></span>
+          <div className="min-w-0"><p className="ask-central-panel-kicker">Central Intelligence</p><h2 className="text-xl font-black tracking-[-.035em] text-white">Ask Central</h2><div className="mt-1 flex items-center gap-1.5"><span className="ask-central-live-dot" /><p className="text-[9px] font-black uppercase tracking-[.14em] text-white/55">Grounded in Central sources</p></div></div>
+        </div>
+        <div className="flex items-center gap-2">{darkHelp}<button type="button" onClick={() => onClose?.()} className="ask-central-close" aria-label="Close Ask Central"><X className="h-4 w-4" /></button></div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
-        {messages.length || loading ? <div className="min-h-0 flex-1 overflow-y-auto rounded-[22px] border border-black/10 bg-white p-4 sm:p-5">{conversation}</div> : null}
+      <div className="ask-central-panel-body flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
+        <div className={`min-h-0 flex-1 overflow-y-auto ${messages.length || loading ? 'ask-central-conversation-surface p-4 sm:p-5' : ''}`}>{messages.length || loading ? conversation : emptyState}</div>
         {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
         {composer}
       </div>
     </div>;
   }
 
-  return <div className="p-5 md:p-8 lg:p-10">
-    <PageHeader title="Ask Central" right={help} />
+  return <div className="ask-central-page p-5 md:p-8 lg:p-10">
+    <div className="ask-central-page-hero mx-auto mb-6 max-w-[1080px]">
+      <div className="ask-central-page-hero-content">
+        <div className="ask-central-page-hero-mark"><AskCentralMark className="h-8 w-8" /></div>
+        <div><p className="ask-central-panel-kicker">Leelanau Cellars · Central Intelligence</p><h1>Ask Central</h1><p>One question can search the winery’s internal knowledge in seconds.</p></div>
+      </div>
+      <div className="ask-central-page-hero-actions"><span className="ask-central-status"><i /> Central sources only</span>{darkHelp}</div>
+    </div>
     <div className="mx-auto max-w-[980px]">
-      {messages.length || loading ? <div className="mb-4 min-h-[220px] rounded-[26px] border border-black/10 bg-white p-4 shadow-sm md:p-6">{conversation}</div> : null}
+      {messages.length || loading ? <div className="ask-central-conversation-surface mb-4 min-h-[220px] p-4 md:p-6">{conversation}</div> : <div className="mb-5">{emptyState}</div>}
       {error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
       {composer}
     </div>
   </div>;
+
 }
 
 function PortalArrow() {
@@ -1809,14 +1870,30 @@ function distributionCollectionForItem(item: DistributionWine, wines: WineRecord
   return match ? collectionForWine(match) : distributionFamilyFallback(item.family);
 }
 
-function CollectionTiles({ counts, onSelect, noun }: {
+function CollectionTiles({ counts, onSelect, noun, showBrandLogos = false }: {
   counts: Partial<Record<WineCollectionName, number>>;
   onSelect: (collection: WineCollectionName) => void;
   noun: 'wine' | 'product';
+  showBrandLogos?: boolean;
 }) {
-  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
     {WINE_COLLECTIONS.map((collection) => {
       const count = counts[collection] || 0;
+      if (showBrandLogos) {
+        return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group overflow-hidden rounded-2xl border border-black/10 bg-white text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#8fbce7] enabled:hover:shadow-lg disabled:cursor-default disabled:opacity-40">
+          <div className="flex h-[94px] items-center justify-center bg-[#326eac] px-6 transition group-hover:bg-[#2b639c]">
+            <CollectionBrandLogo collection={collection} />
+          </div>
+          <div className="flex min-h-[78px] items-center justify-between gap-4 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-black uppercase leading-[1.05] tracking-[-.02em] text-black">{collection}</h2>
+              <p className="mt-2 text-xs font-bold text-black/42">{count} {noun}{count === 1 ? '' : 's'}</p>
+            </div>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#edf5fd] text-lg font-black text-[#326eac] transition group-hover:translate-x-0.5">{count ? '→' : '—'}</span>
+          </div>
+        </button>;
+      }
+
       return <button key={collection} type="button" onClick={() => onSelect(collection)} disabled={!count} className="group flex min-h-[104px] flex-col justify-between rounded-xl border border-[#b9d7f3] bg-white p-5 text-left text-[#326eac] shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#7fb8e8] enabled:hover:bg-[#f4f9fe] enabled:hover:shadow-md disabled:cursor-default disabled:opacity-40">
         <h2 className="text-[21px] font-black uppercase leading-[1.05] tracking-[-.02em]">{collection}</h2>
         <div className="mt-4 flex items-center justify-between gap-3">
@@ -2188,7 +2265,7 @@ function WineLibrary({ wines, allWines, distributionWines, categories, query, se
 
       {!showWines ? <section>
         <h2 className="mb-4 text-2xl font-black tracking-[-.03em]">Collections</h2>
-        <CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" />
+        <CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" showBrandLogos />
       </section> : <>
         <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
           <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{wines.length} matching wine{wines.length === 1 ? '' : 's'}</p></div>
@@ -3262,7 +3339,7 @@ function TechSheetLibrary({ wines, distributionWines, openTech }: { wines: WineR
           <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/45">{filtered.length} matching wine{filtered.length === 1 ? '' : 's'}</p></div>
           <div className="flex max-w-[760px] gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{filtered.map((wine) => { const selected = selectedIds.includes(wine.id); const award = wine.awards[0]; return <article key={wine.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}><button onClick={() => batchMode ? toggle(wine.id) : openTech(wine)} className="block w-full text-left"><div className="relative h-56 overflow-hidden bg-[#eef2f6]">{wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}{batchMode && <span className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 ${selected ? 'border-[#3976b7] bg-[#3976b7] text-white' : 'border-white bg-white/90 text-black/20'}`}>{selected ? <Check className="h-4 w-4" /> : null}</span>}</div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/50">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/60">{shortCommerce7TastingNotes(wine) || wine.shortDescription || wine.tastingNotes || 'Open the tech sheet to customize this wine.'}</p><p className="mt-3 text-[11px] font-black text-[#326eac]">{batchMode ? (selected ? 'Selected for PDF' : 'Click to select') : 'Open tech sheet →'}</p></div></button></article>; })}</div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{filtered.map((wine) => { const selected = selectedIds.includes(wine.id); const award = automaticTechSheetAward(wine); return <article key={wine.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[#3976b7] ring-2 ring-[#3976b7]/15' : 'border-black/10'}`}><button onClick={() => batchMode ? toggle(wine.id) : openTech(wine)} className="block w-full text-left"><div className="relative h-56 overflow-hidden bg-[#eef2f6]">{wine.bottleImage ? <img src={wine.bottleImage} alt="" className="h-full w-full object-contain object-center p-3 transition duration-300 group-hover:scale-[1.02]" /> : <WinePlaceholder wine={wine} />}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}{batchMode && <span className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border-2 ${selected ? 'border-[#3976b7] bg-[#3976b7] text-white' : 'border-white bg-white/90 text-black/20'}`}>{selected ? <Check className="h-4 w-4" /> : null}</span>}</div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/50">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/60">{shortCommerce7TastingNotes(wine) || wine.shortDescription || wine.tastingNotes || 'Open the tech sheet to customize this wine.'}</p><p className="mt-3 text-[11px] font-black text-[#326eac]">{batchMode ? (selected ? 'Selected for PDF' : 'Click to select') : 'Open tech sheet →'}</p></div></button></article>; })}</div>
         {!filtered.length && <div className="rounded-2xl border border-dashed border-black/20 bg-white py-24 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-black/20" /><p className="font-bold">No wines match that search.</p></div>}
       </>}
     </div>
@@ -3287,6 +3364,7 @@ function TechSheetBuilder({ wines, distributionWines, activeWine, activeWineId, 
   const update = <K extends keyof TechSheetDraft>(key: K, value: TechSheetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const automaticCasePackaging = casePackagingForWine(activeWine);
   const availablePosDisplays = posDisplaysForWine(activeWine);
+  const automaticAward = automaticTechSheetAward(activeWine);
   const availableLifestyleImages = activeWine ? lifestyleAssetsForWine(activeWine) : [];
   const commerce7TastingNotes = shortCommerce7TastingNotes(activeWine);
   const commerce7Highlights = commerce7SalesHighlights(activeWine);
@@ -3510,7 +3588,8 @@ function TechSheetBuilder({ wines, distributionWines, activeWine, activeWineId, 
 
           <div className="rounded-xl border border-black/10 bg-[#fafafa] p-3">
             <p className="text-xs font-black">Award badge</p>
-            <p className="mt-1 text-[10px] leading-4 text-black/45">Wine Hub applies the matching award artwork automatically when it can. You can override the badge for a specific sheet.</p>
+            <p className="mt-1 text-[10px] leading-4 text-black/45">Central automatically uses the wine’s highest non-Bronze award. If two awards are the same level, the newest year wins. Bronze stays off tech sheets unless you add an award image manually.</p>
+            <div className="mt-2 inline-flex rounded-full bg-[#edf5fd] px-2.5 py-1 text-[10px] font-black text-[#326eac]">{automaticAward ? `Auto: ${automaticAward.result} · ${automaticAward.year}` : 'No automatic award'}</div>
             <div className="mt-3 space-y-2"><EditField label="Award graphic URL (optional)" value={draft.awardGraphic || ''} onChange={(value) => update('awardGraphic', value || undefined)} /><label className="inline-flex cursor-pointer rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black">Upload award image<input type="file" accept="image/*" className="hidden" onChange={(event) => loadImageFile(event.target.files?.[0], 'awardGraphic')} /></label></div>
           </div>
 
@@ -3586,6 +3665,27 @@ function BrandLogoMark({ wine }: { wine?: WineRecord }) {
   return <img src={logo.src} alt={logo.alt} className={`${logo.className || 'max-h-[104px] max-w-[230px]'} object-contain`} style={screenStyle} />;
 }
 
+const COLLECTION_LOGO_BRANDS: Record<WineCollectionName, string> = {
+  'Country Crush': 'Country Crush',
+  'Farm Fresh': 'Farm Fresh',
+  'Lakeshore Farms': 'Lakeshore Farms',
+  'Lakeshore Collection': 'Leelanau Cellars',
+  'Estate': 'Leelanau Cellars',
+  'Leelanau Cellars': 'Leelanau Cellars',
+  'Zilly': 'Zilly',
+  'Witches Brew': 'Leelanau Cellars',
+  'Seasonal Series': 'Leelanau Cellars',
+};
+
+function CollectionBrandLogo({ collection }: { collection: WineCollectionName }) {
+  const logo = BRAND_LOGOS[COLLECTION_LOGO_BRANDS[collection]] || BRAND_LOGOS['Leelanau Cellars'];
+  if (logo.mode === 'square') {
+    return <img src={logo.src} alt={logo.alt} className="h-[68px] w-[64px] border border-black/20 bg-white object-cover shadow-sm" />;
+  }
+  const style = logo.mode === 'screen-white' ? { filter: 'brightness(0) invert(1)' } : undefined;
+  return <img src={logo.src} alt={logo.alt} className={`max-h-[64px] object-contain ${collection === 'Zilly' ? 'max-w-[230px]' : 'max-w-[205px]'}`} style={style} />;
+}
+
 function awardGraphicFor(award: Award) {
   if (!award.competition.toLowerCase().includes('san francisco chronicle')) return undefined;
   const normalized = award.result
@@ -3648,9 +3748,9 @@ function awardGraphicFor(award: Award) {
 }
 
 function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRecord }) {
-  const firstAward = wine?.awards[0];
+  const automaticAward = automaticTechSheetAward(wine);
   const compositeColdDuck = draft.bottleImage?.includes('cold-duck-composite');
-  const awardGraphic = draft.awardGraphic || (firstAward ? awardGraphicFor(firstAward) : undefined);
+  const awardGraphic = draft.awardGraphic || (automaticAward ? awardGraphicFor(automaticAward) : undefined);
   const hasLifestyleFeature = Boolean(draft.lifestyleImage || draft.lifestyleTitle || draft.lifestyleBullets.length);
   const compact = Boolean(draft.includeCasePackaging || draft.displayImage || hasLifestyleFeature);
 
@@ -3671,9 +3771,9 @@ function TechSheetPaper({ draft, wine }: { draft: TechSheetDraft; wine?: WineRec
 
       <div className="absolute bottom-0 right-0 top-0 w-[42%] overflow-hidden">
         {draft.bottleImage ? <img src={draft.bottleImage} alt="" className="absolute inset-0 h-full w-full origin-bottom object-contain object-bottom" style={{ transform: `translateY(${draft.bottleOffsetY ?? 0}px) scale(${draft.bottleScale})` }} /> : <div className="absolute inset-8 flex items-center justify-center rounded-2xl border-2 border-dashed border-black/15 text-sm font-bold text-black/25">Bottle image</div>}
-        {firstAward && !compositeColdDuck && (awardGraphic
-          ? <img src={awardGraphic} alt={`${firstAward.result} award`} className="absolute left-[4px] top-[15%] z-20 h-[132px] w-[132px] object-contain drop-shadow-md" />
-          : <AwardBadge award={firstAward} />)}
+        {!compositeColdDuck && (awardGraphic
+          ? <img src={awardGraphic} alt={automaticAward ? `${automaticAward.result} award` : 'Award badge'} className="absolute left-[4px] top-[15%] z-20 h-[132px] w-[132px] object-contain drop-shadow-md" />
+          : automaticAward ? <AwardBadge award={automaticAward} /> : null)}
       </div>
     </div>
     <footer className="flex h-[32px] shrink-0 items-center justify-center bg-black px-6 text-center text-[12px] font-medium text-white">{draft.footer}</footer>

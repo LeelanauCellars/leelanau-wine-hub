@@ -121,5 +121,6 @@ export const QUICK_FACTS = {
     { year: '2022', bullets: ['Average warmth and rainfall, except for a wet spring and late fall.', 'High yields with solid sugar development.', 'Slightly elevated acids contribute to good wine structure.'] },
     { year: '2023', bullets: ['High-quality yields with low winterkill.', 'The season started cool and warmed significantly late in the year.', 'Good ripeness with prominent fruit and acidity; wines expected to have strong flavor and structure.'] },
     { year: '2024', bullets: ['Mild winter with no crop loss.', 'High temperatures and early phenology stages.', 'Drought from August–October resulted in concentrated flavors and excellent quality, with high sugar and relatively low acidity.', 'Sauvignon Blanc 2024 received early leaf pulling before bloom to develop tropical fruit notes and was hand-harvested.'] },
+    { year: '2025', bullets: ['Sub-zero winter temperatures resulted in slight crop loss before an overall average season.', 'Delayed spring warming and high rainfall prior to bud break, normalizing to average conditions by summer.', 'A new pruning system led to lower yields, producing grapes with high sugar content and balanced acidity.'] },
   ],
 };

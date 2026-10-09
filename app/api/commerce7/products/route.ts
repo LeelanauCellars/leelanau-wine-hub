@@ -264,7 +264,9 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
       const saved = awardsMeta(meta);
       const website = matchWebsiteAwards(product.title, vintage, brand, websiteAwards);
       const combined = [...website, ...saved];
-      return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index);
+      return combined
+        .filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index)
+        .sort((a, b) => b.year - a.year || a.result.localeCompare(b.result));
     })(),
     onTastingMenu: booleanMeta(meta, ['tech_on_tasting_menu', 'on_tasting_menu']),
     updatedAt: product.updatedAt || new Date().toISOString(),

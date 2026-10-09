@@ -267,13 +267,13 @@ NEXT_PUBLIC_CENTRAL_PATH_PREFIX=/central
 That produces links such as `https://lwc.wine/central/tech-sheets/baco-noir`. If Central is instead deployed at a dedicated subdomain such as `central.lwc.wine`, leave `NEXT_PUBLIC_CENTRAL_PATH_PREFIX` blank.
 
 
-## Image Upload to Commerce7
+## Product Image Prep
 
-Admin and Tasting Room access include an image-prep workflow that matches a product by SKU/UPC, removes a plain photo background inside Central, crops/centers the product on a 2048×2048 transparent PNG, and stores the processed draft in Vercel Blob for review. No paid image-generation API is required. For the cleanest automatic cutout, photograph the entire item with empty space around it against a plain background that contrasts with the product. Publishing the approved image back to Commerce7 requires the installed Central app to have **Product → Full** access.
+Admin and Tasting Room access include a local image-prep workflow that removes the photo background in the staff member's browser, crops/centers the product on a 2048×2048 transparent PNG, previews the result, and downloads the finished PNG. Nothing is uploaded to Commerce7, no Commerce7 product permissions are required, and no paid image-generation API is used. For the cleanest automatic cutout, photograph the entire item by itself with empty space around it against a background that contrasts with the product.
 
 ## v87 product image cutout
 
-`Image Upload to Commerce7` now uses a local browser-side U²-Net-p segmentation model for product cutouts instead of the earlier edge-color background remover. The model runs in the staff member's browser and does not use Gemini or another paid image API. The first run loads ONNX Runtime Web from a pinned CDN URL and downloads the small ONNX cutout model, which the browser can cache. ONNX Runtime is loaded at runtime rather than bundled into the Next.js build.
+`Product Image Prep` uses a local browser-side U²-Net-p segmentation model for product cutouts. The model runs in the staff member's browser and does not use Gemini or another paid image API. The first run loads ONNX Runtime Web from a pinned CDN URL and downloads the small ONNX cutout model, which the browser can cache. The finished 2048 × 2048 transparent PNG is downloaded locally; Central does not publish or upload it to Commerce7.
 
 For best product-only results, photograph merchandise by itself rather than holding it in a hand. The tool is designed to remove scene backgrounds; a hand touching the product is also a foreground object and may remain in the cutout.
 
@@ -287,3 +287,20 @@ Use this only if you want to self-host the U²-Net-p ONNX model instead of the p
 ## v88 build fix
 
 Removed the bundled `onnxruntime-web` dependency that could cause the Vercel/Next.js production build to fail. The product cutout engine is now loaded in the browser from a pinned CDN script, so it is excluded from the server/build bundle while preserving the same local U²-Net workflow.
+
+## v91 Wine Library branding + tech-sheet award rules
+
+- Wine Library collection cards now use the same brand-logo system as tech-sheet headers for a more polished brand-hub presentation.
+- Country Crush, Farm Fresh, Lakeshore Farms, and Zilly use their brand logos. Estate, Lakeshore Collection, Leelanau Cellars, Witches Brew, and Seasonal Series use the Leelanau Cellars mark because that is the logo their current tech sheets inherit.
+- Tech sheets now automatically choose one award using this rule: highest award level first, then newest year as the tie-breaker.
+- Automatic ranking is Sweepstakes > Best of Class > Double Gold > Gold > Silver. Bronze is excluded from automatic tech-sheet badges.
+- A Bronze badge can still be added manually through the award-image override when specifically wanted.
+- The Tech Sheet Builder now shows which award Central selected automatically, and the Tech Sheets library cards use the same selection rule.
+
+## v92 Ask Central visual overhaul
+
+- Moves the desktop Ask Central launcher out of page controls and into its own reserved right-side rail so it no longer covers Wine Library counters or other page actions.
+- Replaces the old white pill launcher with a compact animated AI orb, availability dot, hover label, and a matching upgraded mobile launcher.
+- Redesigns the Ask Central drawer with a dark Central Intelligence header, grounded-source status, richer empty state, role-specific prompt cards, upgraded composer, response bubbles, source buttons, and a more visual searching state.
+- Gives the full Ask Central page the same premium visual system so the feature feels consistent whether it is opened from navigation or the floating launcher.
+- Keeps all Ask Central retrieval/source behavior unchanged; this update is presentation and layout only.
