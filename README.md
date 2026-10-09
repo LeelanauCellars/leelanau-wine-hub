@@ -1,3 +1,16 @@
+## v97 Tech Sheets branded collection update
+
+- Updates the Tech Sheets collection landing page to use the same branded collection logo tiles as the Wine Library.
+- Keeps Tech Sheet search, category filters, batch selection, PDF generation, and builder behavior unchanged.
+
+## v96 Wine profile overview cleanup
+
+- Combines Quick Description and Tasting Notes into one staff-facing **Tasting Notes** block. Editing that block keeps the legacy short-description field synchronized for compatibility.
+- Removes the separate **Sales** wine-profile tab and moves Sales Highlights, Production Notes, and Vineyard Notes into **Overview**. Existing `/sales` wine links fall back to Overview.
+- Expands **At a Glance** with varietal and appellation.
+- Adds **Vineyard & Wine Quick Facts** to Overview. It automatically matches the wine against the existing Quick Facts reference for appellation context, vineyard site, varietal acreage/locations/notes, and vintage growing-season notes.
+- Keeps wine-specific vineyard notes editable while the matched Quick Facts stay centrally managed.
+
 ## v95 Tasting Notes web reference
 
 - Removes the Tasting Notes print/PDF workflow, print preview, and menu-list management UI.

@@ -58,7 +58,7 @@ type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
 type AdminNavGroup = 'sales' | 'tasting' | 'projects' | null;
 type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
-type ProfileTab = 'overview' | 'sales' | 'specs' | 'assets';
+type ProfileTab = 'overview' | 'specs' | 'assets';
 
 type CentralRoute =
   | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
@@ -174,7 +174,7 @@ function parseCentralRoute(pathname: string): CentralRoute | null {
   const [section, slug, third] = route;
   if (section === 'wine-library') {
     if (!slug) return { kind: 'section', view: 'library' };
-    const tab: ProfileTab = third === 'sales' || third === 'specs' || third === 'assets' ? third : 'overview';
+    const tab: ProfileTab = third === 'specs' || third === 'assets' ? third : 'overview';
     return { kind: 'wine', slug, tab };
   }
   if (section === 'tech-sheets') return slug ? { kind: 'tech', slug } : { kind: 'section', view: 'tech-library' };
@@ -229,6 +229,67 @@ const FOOTER = 'Leelanau Cellars | 231-386-5201 | sales@lwc.wine | lwc.wine';
 
 const normalize = (value = '') => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 const money = (value?: number) => value === undefined ? '—' : `$${value.toFixed(2)}`;
+
+type WineReferenceFact = {
+  label: string;
+  title: string;
+  detail?: string;
+};
+
+function quickFactsVarietyForWine(wine: WineRecord) {
+  const candidates = [wine.varietal || '', wine.name || ''].map((value) => normalize(value)).filter(Boolean);
+  return QUICK_FACTS.varieties.find((item) => {
+    const varietyKey = normalize(item.variety);
+    const searchKeys = varietyKey === 'pinotgris' ? ['pinotgris', 'pinotgrigio'] : [varietyKey];
+    return candidates.some((candidate) => searchKeys.some((key) => candidate === key || candidate.includes(key)));
+  });
+}
+
+function quickFactsSiteForWine(wine: WineRecord) {
+  const haystack = normalize([wine.name, wine.appellation, wine.vineyardNotes].filter(Boolean).join(' '));
+  return QUICK_FACTS.vineyards.find((site) => haystack.includes(normalize(site.site)));
+}
+
+function wineReferenceFacts(wine: WineRecord): WineReferenceFact[] {
+  const facts: WineReferenceFact[] = [];
+  const appellation = wine.appellation?.trim();
+  const variety = quickFactsVarietyForWine(wine);
+  const site = quickFactsSiteForWine(wine);
+  const vintage = QUICK_FACTS.vintages.find((item) => item.year === wine.vintage);
+
+  if (appellation) {
+    const leelanauContext = normalize(appellation).includes('leelanau')
+      ? `${QUICK_FACTS.region.bullets[0]} ${QUICK_FACTS.region.bullets[2]} ${QUICK_FACTS.region.bullets[3]} ${QUICK_FACTS.vineyardNote}`
+      : undefined;
+    facts.push({ label: 'Appellation', title: appellation, detail: leelanauContext });
+  }
+
+  if (site) {
+    facts.push({
+      label: 'Vineyard site',
+      title: site.site,
+      detail: `${site.features}. Vineyards: ${site.vineyards}.`,
+    });
+  }
+
+  if (variety) {
+    facts.push({
+      label: 'Varietal',
+      title: `${variety.variety} · ${variety.type}`,
+      detail: `${variety.acreage} planted · ${variety.locations}. ${variety.notes}.`,
+    });
+  }
+
+  if (vintage) {
+    facts.push({
+      label: 'Vintage',
+      title: vintage.year,
+      detail: vintage.bullets.join(' '),
+    });
+  }
+
+  return facts;
+}
 const safeArray = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
 const formatUpc = (value = '') => {
   const digits = value.replace(/\D/g, '');
@@ -2286,7 +2347,7 @@ function WineCard({ wine, open, tech, batchMode = false, selected = false, toggl
         <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white shadow-sm">{collectionForWine(wine)}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
         {award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}
       </div>
-      <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/55">{wine.shortDescription || wine.tastingNotes || 'Add a quick description for your staff.'}</p></div>
+      <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/55">{wine.tastingNotes || wine.shortDescription || 'Add tasting notes for your staff.'}</p></div>
     </button>
     <div className="flex flex-wrap border-t border-black/8 p-2">
       {batchMode && <label className={`mr-1 flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-black ${selected ? 'bg-[#eaf3fb] text-[#326eac]' : 'hover:bg-black/[.04]'}`}><input type="checkbox" checked={selected} onChange={() => toggleSelected?.()} className="h-3.5 w-3.5 accent-[#326eac]" /> PDF</label>}
@@ -2307,7 +2368,10 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
   const distributionItem = distributionItemForWine(shown, distributionWines);
   const gtin = distributionItem?.gtin || '—';
   const isEditing = Boolean(editing);
+  const referenceFacts = wineReferenceFacts(shown);
+  const combinedTastingNotes = shown.tastingNotes || shown.shortDescription || '';
   const update = <K extends keyof WineRecord>(key: K, value: WineRecord[K]) => editing && setEditing({ ...editing, [key]: value });
+  const updateCombinedTastingNotes = (value: string) => editing && setEditing({ ...editing, tastingNotes: value, shortDescription: value });
   const updateAward = (index: number, patch: Partial<Award>) => editing && setEditing({ ...editing, awards: editing.awards.map((award, awardIndex) => awardIndex === index ? { ...award, ...patch } : award) });
   const removeAward = (index: number) => editing && setEditing({ ...editing, awards: editing.awards.filter((_, awardIndex) => awardIndex !== index) });
   return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
@@ -2320,27 +2384,35 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
       <div className="flex flex-col items-start gap-2 lg:items-end"><div className="flex flex-wrap gap-2"><CopyLinkButton path={wineProfilePath(wine, tab)} label="Copy wine link" />{allowTechSheets && <button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button>}</div><p className="max-w-sm text-right text-[11px] leading-4 text-black/40">Product and master wine information is managed in Commerce7.</p></div>
     </div>
 
-    <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-black/10 bg-white p-1.5">{(['overview','sales','specs','assets'] as ProfileTab[]).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-lg px-4 py-2 text-xs font-black capitalize ${tab === item ? 'bg-black text-white' : 'text-black/45 hover:bg-black/[.04]'}`}>{item}</button>)}</div>
+    <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-black/10 bg-white p-1.5">{(['overview','specs','assets'] as ProfileTab[]).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-lg px-4 py-2 text-xs font-black capitalize ${tab === item ? 'bg-black text-white' : 'text-black/45 hover:bg-black/[.04]'}`}>{item}</button>)}</div>
 
     {tab === 'overview' && <div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
       <div className="space-y-5">
-        <ProfileBlock title="Quick description" badge="Staff-ready">{isEditing ? <Textarea value={shown.shortDescription} onChange={(value) => update('shortDescription', value)} rows={3} /> : <p className="profile-copy">{shown.shortDescription || 'Add a short description.'}</p>}</ProfileBlock>
-        <ProfileBlock title="Tasting notes">{isEditing ? <Textarea value={shown.tastingNotes} onChange={(value) => update('tastingNotes', value)} rows={5} /> : <p className="profile-copy">{shown.tastingNotes || 'Add tasting notes.'}</p>}</ProfileBlock>
+        <ProfileBlock title="Tasting notes" badge="Staff-ready">{isEditing ? <Textarea value={combinedTastingNotes} onChange={updateCombinedTastingNotes} rows={5} /> : <p className="profile-copy">{combinedTastingNotes || 'Add tasting notes.'}</p>}</ProfileBlock>
         <ProfileBlock title="What to tell a customer" badge="Sales team">{isEditing ? <Textarea value={shown.staffPitch} onChange={(value) => update('staffPitch', value)} rows={4} /> : <p className="profile-copy">{shown.staffPitch || 'Add a simple customer-facing pitch.'}</p>}</ProfileBlock>
         <ProfileBlock title="Pairings">{isEditing ? <Textarea value={shown.pairings} onChange={(value) => update('pairings', value)} rows={3} /> : <p className="profile-copy">{shown.pairings || 'Add pairing ideas.'}</p>}</ProfileBlock>
+        <ProfileBlock title="Sales highlights" badge="Sales team">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={7} /> : shown.highlights.length ? <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul> : <p className="text-sm text-black/40">No sales highlights added yet.</p>}</ProfileBlock>
+        <ProfileBlock title="Production notes">{isEditing ? <Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /> : <p className="profile-copy">{shown.productionNotes || 'No production notes added.'}</p>}</ProfileBlock>
       </div>
       <div className="space-y-5">
-        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Collection" value={collectionForWine(shown)} /><QuickFact label="Style" value={shown.category} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /></dl></ProfileBlock>
+        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Collection" value={collectionForWine(shown)} /><QuickFact label="Style" value={shown.category} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /></dl></ProfileBlock>
+        <ProfileBlock title="Vineyard & wine quick facts" badge="Quick Facts">
+          {isEditing ? <div className="mb-5"><label className="field-label">Wine-specific vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></div> : shown.vineyardNotes ? <div className="mb-5"><p className="field-label">Wine-specific vineyard notes</p><p className="profile-copy">{shown.vineyardNotes}</p></div> : null}
+          {referenceFacts.length ? <div className="space-y-3">{referenceFacts.map((fact) => <WineReferenceFactCard key={`${fact.label}-${fact.title}`} fact={fact} />)}</div> : !shown.vineyardNotes ? <p className="text-sm leading-6 text-black/40">No matching vineyard, varietal, appellation or vintage quick facts are available for this wine yet.</p> : null}
+          {referenceFacts.length > 0 && <p className="mt-4 text-[10px] leading-4 text-black/35">Quick Facts are pulled automatically from the tasting-room reference using this wine&apos;s varietal, appellation, vineyard/site name and vintage.</p>}
+        </ProfileBlock>
         <ProfileBlock title="Awards" badge={`${shown.awards.length} total`}><div className="space-y-2">{shown.awards.map((award, index) => isEditing ? <AwardEditor key={award.id} award={award} onChange={(patch) => updateAward(index, patch)} onRemove={() => removeAward(index)} /> : <AwardRow key={award.id} award={award} />)}{!shown.awards.length && <p className="text-sm text-black/40">No awards added yet.</p>}{isEditing && <button onClick={addAward} className="mt-2 flex items-center gap-1.5 text-xs font-black text-[#326eac]"><Plus className="h-3.5 w-3.5" /> Add award</button>}</div></ProfileBlock>
       </div>
     </div>}
-
-    {tab === 'sales' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Sales highlights">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={9} /> : <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul>}</ProfileBlock><ProfileBlock title="Production / vineyard notes">{isEditing ? <><label className="field-label">Production notes</label><Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /><label className="field-label mt-4">Vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></> : <div className="space-y-5"><div><p className="field-label">Production notes</p><p className="profile-copy">{shown.productionNotes || 'No production notes added.'}</p></div><div><p className="field-label">Vineyard notes</p><p className="profile-copy">{shown.vineyardNotes || 'No vineyard notes added.'}</p></div></div>}</ProfileBlock></div>}
 
     {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><QuickFact label="GTIN" value={gtin} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock><div className="lg:col-span-2"><ProfileBlock title="Unit & case dimensions / weight" badge="Distribution data"><div className="grid gap-6 md:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Unit</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.height, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.width, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.weightOz, 'oz')} /><QuickFact label="Pack" value={packagingMeasure(distributionItem?.imperial.pack)} /></dl></div><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Case</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.caseHeight, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.caseWidth, 'in')} /><QuickFact label="Length" value={packagingMeasure(distributionItem?.imperial.caseLength, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.caseWeight, 'lb')} /></dl></div></div>{!distributionItem && <p className="mt-4 text-xs font-semibold text-black/40">No matching distribution packaging record is available for this wine yet.</p>}</ProfileBlock></div></div>}
 
     {tab === 'assets' && <WineProfileAssets wine={shown} />}
   </div>;
+}
+
+function WineReferenceFactCard({ fact }: { fact: WineReferenceFact }) {
+  return <div className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{fact.label}</p><p className="mt-1 text-sm font-black">{fact.title}</p>{fact.detail && <p className="mt-1.5 text-[12px] leading-5 text-black/62">{fact.detail}</p>}</div>;
 }
 
 function WineProfileAssets({ wine }: { wine: WineRecord }) {
@@ -3176,7 +3248,7 @@ function TechSheetLibrary({ wines, distributionWines, openTech }: { wines: WineR
 
       {batchMode && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#b9d7f3] bg-[#eef6fd] p-4 md:flex-row md:items-center md:justify-between"><div><p className="text-sm font-black">Batch tech sheets</p><p className="mt-1 text-xs leading-5 text-black/55">Select the wines you need, then save the group as one multi-page PDF.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-lg bg-white px-3 py-2 text-xs font-black shadow-sm">{selectedWines.length} selected</span>{showWines && <button onClick={() => setSelectedIds(Array.from(new Set([...selectedIds, ...filtered.map((wine) => wine.id)])))} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold">Select visible</button>}<button onClick={() => setSelectedIds([])} disabled={!selectedWines.length} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold disabled:opacity-40">Clear</button><button onClick={() => void printBatch()} disabled={!selectedWines.length || preparingBatch} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-black text-white disabled:opacity-40">{preparingBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{preparingBatch ? 'Preparing…' : `Print / Save ${selectedWines.length || ''} sheets`}</button></div></div>}
 
-      {!showWines ? <section><h2 className="mb-4 text-2xl font-black tracking-[-.03em]">Collections</h2><CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" /></section> : <>
+      {!showWines ? <section><h2 className="mb-4 text-2xl font-black tracking-[-.03em]">Collections</h2><CollectionTiles counts={counts} onSelect={chooseCollection} noun="wine" showBrandLogos /></section> : <>
         <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
           <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/45">{filtered.length} matching wine{filtered.length === 1 ? '' : 's'}</p></div>
           <div className="flex max-w-[760px] gap-2 overflow-x-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-bold ${category === item ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/60 hover:border-black/25'}`}>{item}</button>)}</div>
