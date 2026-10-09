@@ -1,4 +1,11 @@
-## v93 Ask Central simplification + Wine Library polish
+## v95 Tasting Notes web reference
+
+- Removes the Tasting Notes print/PDF workflow, print preview, and menu-list management UI.
+- Rebuilds Tasting Notes as a clean searchable web reference based on the supplied October 9, 2026 Tasting Room Wine Descriptions sheet.
+- Uses the staff sheet as the source of truth for its 38 listed wines, including description, RS level, ABV, composition, format, appellation, vintage, bottling date, cases produced, and aging.
+- Searching for a wine not represented by the staff sheet falls back to the live Commerce7/Wine Library information instead of borrowing notes from another vintage.
+
+## v94 Ask Central top launcher + streamlined chat + Distribution branding + awards source
 
 - Simplifies branded Wine Library collection cards: removes wine counts and arrows, centers larger collection names, and enlarges the Zilly brand mark.
 - Replaces the generic Ask Central sparkle mark with the supplied Leelanau peninsula + star icon.

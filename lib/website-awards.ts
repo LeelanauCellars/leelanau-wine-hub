@@ -2,7 +2,8 @@ import type { Award } from './types';
 
 export type WebsiteAward = Award & { wineName: string };
 
-const AWARDS_URL = 'https://lwc.wine/awards/';
+// Official source of truth for published Leelanau Cellars award results.
+const AWARDS_URL = 'https://www.lwc.wine/awards/';
 const RESULTS = ['Best of Class', 'Best in Class', 'Double Gold', 'Gold', 'Silver', 'Bronze'];
 
 const awardGraphicUrl = (year: number, result: string) => {
@@ -84,10 +85,10 @@ const FALLBACK_BY_YEAR: Record<number, Array<[string, string]>> = {
     ['2022 Pinot Grigio', 'Silver'],
     ['2023 Pleasant Hill Pinot Grigio', 'Silver'],
     ['Cherry Cordial', 'Bronze'],
-    ['2023 Zilly Cabernet Sauvignon', 'Silver'],
-    ['2023 Zilly Pinot Grigio', 'Silver'],
-    ['2023 Zilly Chardonnay', 'Bronze'],
-    ['2023 Zilly Sauvignon Blanc', 'Bronze'],
+    ['Zilly Cabernet Sauvignon', 'Silver'],
+    ['Zilly Pinot Grigio', 'Silver'],
+    ['Zilly Chardonnay', 'Bronze'],
+    ['Zilly Sauvignon Blanc', 'Bronze'],
   ],
   2026: [
     ['Cherries Galore', 'Double Gold'],
@@ -111,7 +112,7 @@ const FALLBACK_BY_YEAR: Record<number, Array<[string, string]>> = {
     ['Cranberry Fruit Wine', 'Silver'],
     ['2023 Zilly Pinot Grigio', 'Gold'],
     ['2023 Zilly Chardonnay', 'Gold'],
-    ['2023 Zilly Sauvignon Blanc', 'Bronze'],
+    ['Zilly Sauvignon Blanc', 'Bronze'],
     ['2023 Zilly Cabernet Sauvignon', 'Bronze'],
   ],
 };

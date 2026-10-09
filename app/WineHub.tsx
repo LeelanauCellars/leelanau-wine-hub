@@ -11,7 +11,7 @@ import { lifestyleAssetsForWine } from '@/lib/lifestyle-assets';
 import { posDisplaysForWine } from '@/lib/pos-displays';
 import { normalizeUpcA, upcASvg, upcASvgDataUrl } from '@/lib/upc';
 import { CURRENT_TASTING_MENU_TEXT, CURRENT_TASTING_MENU_VERSION, QUICK_FACTS } from '@/lib/tasting-room-content';
-import { staffFlavorProfile, staffReferenceForWine, staffStyleLabel, vintageViticultureForWine, type StaffWineReference } from '@/lib/staff-notes-data';
+import { STAFF_WINE_REFERENCE, type StaffWineReference } from '@/lib/staff-notes-data';
 import { DISTRIBUTION_WINES, type DistributionWine } from '@/lib/distribution-wines';
 import { applyWineHubOverrides, buildDistributionCatalog, DISTRIBUTION_EDITS_KEY, matchWineByName } from '@/lib/catalog-overrides';
 import MerchApparel from '@/app/components/MerchApparel';
@@ -1343,12 +1343,11 @@ export default function WineHub() {
 
       {mobileNav && <button className="no-print fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setMobileNav(false)} aria-label="Close menu overlay" />}
 
-      <main className={`min-h-screen lg:pl-[292px] ${view !== 'ask' ? 'lg:pr-[88px]' : ''}`}>
-        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="ask-central-launcher no-print fixed bottom-6 right-4 z-30 hidden lg:flex" aria-label="Open Ask Central">
-          <span className="ask-central-launcher-tooltip" aria-hidden="true"><strong>Ask Central</strong></span>
-          <span className="ask-central-launcher-orbit" aria-hidden="true" />
-          <span className="ask-central-launcher-core"><AskCentralMark className="h-6 w-6" /><span className="ask-central-launcher-ai">AI</span></span>
-          <span className="ask-central-launcher-dot" aria-hidden="true" />
+      <main className={`min-h-screen lg:pl-[292px] ${view !== 'ask' ? 'lg:pr-[176px]' : ''}`}>
+        {view !== 'ask' && <button type="button" onClick={() => setAskDrawerOpen(true)} className="ask-central-launcher no-print fixed right-5 top-5 z-30 hidden lg:flex" aria-label="Open Ask Central">
+          <span className="ask-central-launcher-glow" aria-hidden="true" />
+          <span className="ask-central-launcher-core"><AskCentralMark className="h-6 w-6" /></span>
+          <span className="ask-central-launcher-label">Ask Central</span>
         </button>}
         <div className="no-print sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-black/10 bg-white/95 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setMobileNav(true)} className="rounded-lg border border-black/10 p-2"><Menu className="h-5 w-5" /></button>
@@ -1577,20 +1576,17 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
     {messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
       <div className={message.role === 'user' ? 'ask-central-user-bubble max-w-[88%] px-4 py-3 text-sm font-semibold leading-6 text-white' : 'ask-central-assistant-bubble max-w-[95%] px-5 py-4 text-[15px] font-semibold leading-7 text-black/80'}>
         {message.role === 'assistant' ? <AskAnswer content={message.content} sources={message.sources} openPath={openPath} /> : <div className="whitespace-pre-wrap">{message.content}</div>}
-        {message.role === 'assistant' && message.sources?.length ? <details className="mt-4 border-t border-[#3976b7]/10 pt-3"><summary className="cursor-pointer list-none text-[10px] font-black uppercase tracking-[.16em] text-[#3976b7]">Sources ({message.sources.length})</summary><div className="mt-3 flex flex-wrap gap-2">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="rounded-xl border border-[#3976b7]/10 bg-white px-3 py-2 text-left text-[11px] font-black text-[#3976b7] shadow-sm transition hover:-translate-y-0.5 hover:border-[#3976b7]/30 hover:shadow-md"><span className="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3976b7]/10 px-1 text-[9px]">{askSourceNumber(source.id)}</span>{source.title}</button>)}</div></details> : null}
+        {message.role === 'assistant' && message.sources?.length ? <details className="ask-central-sources mt-4"><summary className="cursor-pointer list-none">Sources <span>{message.sources.length}</span></summary><div className="ask-central-source-list">{message.sources.map((source) => <button key={`${message.id}-${source.id}`} type="button" onClick={() => openPath(source.path)} className="ask-central-source-row"><span className="ask-central-source-icon"><FileText className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1"><strong>{source.title}</strong><small>{source.type}</small></span><span className="ask-central-source-open">Open</span></button>)}</div></details> : null}
       </div>
     </div>)}
     {loading && <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div>}
   </div> : loading ? <div className="flex justify-start"><div className="ask-central-thinking flex items-center gap-3 px-4 py-3 text-sm font-bold text-black/55"><span className="ask-central-thinking-orb"><AskCentralMark className="h-3.5 w-3.5" /></span><span>Searching Central</span><span className="ask-central-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div></div> : null;
 
-  const introCopy = 'Search wines, quick facts, tasting room information, and more with Ask Central, an AI powered with information only found in Leelanau Cellars Central.';
+  const introCopy = 'An AI-powered tool with information only found in Leelanau Cellars Central.';
 
-  const emptyState = <div className="ask-central-empty-state">
-    <p className="ask-central-empty-copy">Search wines, quick facts, tasting room information, and more with Ask Central, an AI powered with information only found in Leelanau Cellars Central.</p>
-    <div className="ask-central-suggestion-grid">
-      {suggestions.map((item) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading} className="ask-central-suggestion-card"><strong>{item}</strong></button>)}
-    </div>
-  </div>;
+  const quickQuestions = !messages.length && !loading ? <div className="ask-central-quick-questions">
+    {suggestions.map((item) => <button key={item} type="button" onClick={() => void ask(item)} disabled={loading}>{item}</button>)}
+  </div> : null;
 
   const composer = <form onSubmit={(event) => { event.preventDefault(); void ask(); }} className={`${messages.length ? 'sticky bottom-3' : ''} ask-central-composer`}>
     <div className="flex items-end gap-2 sm:gap-3">
@@ -1600,37 +1596,36 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
     </div>
   </form>;
 
-  const help = <AskCentralHelp suggestions={suggestions} ask={ask} loading={loading} align="right" />;
-  const darkHelp = <AskCentralHelp suggestions={suggestions} ask={ask} loading={loading} align="right" dark />;
 
   if (embedded) {
     return <div className="ask-central-embedded flex h-full min-h-0 flex-col bg-white">
       <div className="ask-central-panel-header flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="ask-central-header-orb"><AskCentralMark className="h-9 w-9" /></span>
-          <h2 className="text-2xl font-black tracking-[-.035em] text-white">Ask Central</h2>
+          <span className="ask-central-header-orb"><AskCentralMark className="h-10 w-10" /></span>
+          <div className="min-w-0"><h2 className="text-2xl font-black tracking-[-.035em] text-white">Ask Central</h2><p className="ask-central-header-copy">{introCopy}</p></div>
         </div>
-        <div className="flex items-center gap-2">{darkHelp}<button type="button" onClick={() => onClose?.()} className="ask-central-close" aria-label="Close Ask Central"><X className="h-4 w-4" /></button></div>
+        <button type="button" onClick={() => onClose?.()} className="ask-central-close" aria-label="Close Ask Central"><X className="h-4 w-4" /></button>
       </div>
-      <div className="ask-central-panel-body flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
-        <div className={`min-h-0 flex-1 overflow-y-auto ${messages.length || loading ? 'ask-central-conversation-surface p-4 sm:p-5' : ''}`}>{messages.length || loading ? conversation : emptyState}</div>
+      <div className="ask-central-panel-body flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+        <div className="ask-central-chat-stage min-h-0 flex-1 overflow-y-auto">{messages.length || loading ? <div className="p-4 sm:p-5">{conversation}</div> : null}</div>
         {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
+        {quickQuestions}
         {composer}
       </div>
     </div>;
   }
 
   return <div className="ask-central-page p-5 md:p-8 lg:p-10">
-    <div className="ask-central-page-hero mx-auto mb-6 max-w-[1080px]">
+    <div className="ask-central-page-hero mx-auto mb-5 max-w-[1080px]">
       <div className="ask-central-page-hero-content">
         <div className="ask-central-page-hero-mark"><AskCentralMark className="h-14 w-14" /></div>
         <div><h1>Ask Central</h1><p>{introCopy}</p></div>
       </div>
-      <div className="ask-central-page-hero-actions">{darkHelp}</div>
     </div>
     <div className="mx-auto max-w-[980px]">
-      {messages.length || loading ? <div className="ask-central-conversation-surface mb-4 min-h-[220px] p-4 md:p-6">{conversation}</div> : <div className="mb-5">{emptyState}</div>}
+      <div className="ask-central-chat-stage mb-3 min-h-[360px]">{messages.length || loading ? <div className="p-4 md:p-6">{conversation}</div> : null}</div>
       {error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
+      {quickQuestions}
       {composer}
     </div>
   </div>;
@@ -2004,7 +1999,7 @@ function DistributionLibrary({ wines, distributionWines, collection, setCollecti
 
     {!showProducts ? <section>
       <h2 className="mb-4 text-2xl font-black tracking-[-.03em]">Collections</h2>
-      <CollectionTiles counts={counts} onSelect={chooseCollection} noun="product" />
+      <CollectionTiles counts={counts} onSelect={chooseCollection} noun="product" showBrandLogos />
     </section> : <>
       <div className="mb-5 flex flex-col gap-3 border-b border-black/10 pb-5 md:flex-row md:items-end md:justify-between">
         <div><button type="button" onClick={backToCollections} className="mb-2 flex items-center gap-1 text-[11px] font-black text-[#326eac]"><ChevronLeft className="h-3.5 w-3.5" /> Collections</button><h2 className="text-2xl font-black tracking-[-.03em]">{collection || 'Search Results'}</h2><p className="mt-1 text-xs font-semibold text-black/40">{filtered.length} matching product{filtered.length === 1 ? '' : 's'}</p></div>
@@ -2576,717 +2571,109 @@ function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (p
 function QuickFactsView() {
   const downloadButton = 'flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black shadow-sm hover:bg-black/[.03]';
   return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <PageHeader
-      title="Leelanau Cellars Quick Facts"
-      right={<div className="flex flex-wrap gap-2">
-        <a href="/tasting-room/quick-facts.pdf" download="Leelanau Cellars Quick Facts for Tasting Room Staff.pdf" className={downloadButton}><Download className="h-4 w-4" /> Download PDF</a>
-        <a href="/tasting-room/quick-facts.docx" download="Leelanau Cellars Quick Facts for Tasting Room Staff.docx" className={downloadButton}><Download className="h-4 w-4" /> Download Word</a>
-      </div>}
-    />
+    <PageHeader title="Tasting Notes" />
+    <StaffNotesWeb wines={wines} openWine={openWine} />
+  </div>;
+}
 
-    <div className="grid gap-5 xl:grid-cols-[1.08fr_.92fr]">
-      <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-        <h2 className="text-2xl font-black">{QUICK_FACTS.story.title}</h2>
-        <ul className="mt-5 space-y-3.5 text-[15px] leading-7 text-black/75">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-[15px] font-black">{brand}</p><p className="mt-1.5 text-[13px] leading-5 text-black/68">{detail}</p></div>)}</div>
-      </section>
 
-      <div className="grid gap-5">
-        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">{section.title}</h2><ul className="mt-4 space-y-3 text-[15px] leading-7 text-black/72">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
-      </div>
+function staffGuideAccent(style: string) {
+  const key = style.toLowerCase();
+  if (key === 'low') return { dot: '#2f7b68', chip: 'bg-[#e8f5f0] text-[#236354]' };
+  if (key === 'medium') return { dot: '#b67c18', chip: 'bg-[#fff4db] text-[#8a5a0d]' };
+  if (key === 'high') return { dot: '#9d5267', chip: 'bg-[#f8eaf0] text-[#7e3f54]' };
+  return { dot: '#3976b7', chip: 'bg-[#eaf3fb] text-[#326eac]' };
+}
+
+function tastingReferenceMatchesWine(reference: StaffWineReference, wine: WineRecord) {
+  if (routeSlug(reference.name) !== routeSlug(wine.name)) return false;
+  if (!reference.vintage || reference.vintage === 'NV') return !wine.vintage || wine.vintage === 'NV';
+  return String(wine.vintage || '') === reference.vintage;
+}
+
+function matchingWineForReference(reference: StaffWineReference, wines: WineRecord[]) {
+  const exact = wines.find((wine) => tastingReferenceMatchesWine(reference, wine));
+  if (exact) return exact;
+  const sameName = wines.filter((wine) => routeSlug(wine.name) === routeSlug(reference.name));
+  return sameName.sort((a, b) => {
+    const availableDelta = Number(b.status === 'Available') - Number(a.status === 'Available');
+    if (availableDelta) return availableDelta;
+    const av = /^(?:19|20)\d{2}$/.test(a.vintage) ? Number(a.vintage) : 0;
+    const bv = /^(?:19|20)\d{2}$/.test(b.vintage) ? Number(b.vintage) : 0;
+    return bv - av;
+  })[0];
+}
+
+function tastingReferenceSearchText(reference: StaffWineReference) {
+  return [reference.name, reference.description, reference.rsStyle, reference.abv, reference.composition, reference.format, reference.appellation, reference.vintage, reference.bottlingDate, reference.casesProduced, reference.aging].join(' ').toLowerCase();
+}
+
+function commerceWineSearchText(wine: WineRecord) {
+  return [wine.name, wine.vintage, wine.brand, wine.category, wine.varietal, wine.appellation, wine.sweetness, wine.rs, wine.abv, wine.tastingNotes, wine.shortDescription, wine.staffPitch, ...(wine.commerce7CopyLines || [])].filter(Boolean).join(' ').toLowerCase();
+}
+
+function referenceDescriptionLines(value: string) {
+  return value.split(/\n\s*\n/g).map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+function StaffNotesWeb({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+
+  const referenceRows = STAFF_WINE_REFERENCE
+    .filter((reference) => !needle || tastingReferenceSearchText(reference).includes(needle))
+    .map((reference) => ({ reference, wine: matchingWineForReference(reference, wines) }));
+
+  const fallbackRows = needle
+    ? wines
+        .filter((wine) => !STAFF_WINE_REFERENCE.some((reference) => tastingReferenceMatchesWine(reference, wine)))
+        .filter((wine) => commerceWineSearchText(wine).includes(needle))
+        .sort((a, b) => a.name.localeCompare(b.name) || String(b.vintage || '').localeCompare(String(a.vintage || '')))
+        .slice(0, 30)
+    : [];
+
+  const noResults = !referenceRows.length && !fallbackRows.length;
+
+  return <section className="overflow-hidden rounded-[28px] border border-black/[.08] bg-white shadow-[0_16px_50px_rgba(25,46,72,.08)]">
+    <div className="border-b border-black/[.07] bg-[linear-gradient(135deg,#f7fbff_0%,#ffffff_52%,#f6f8fb_100%)] p-4 md:p-5">
+      <div className="relative"><Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#3976b7]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search any wine, flavor or grape…" className="h-14 w-full rounded-2xl border border-black/[.08] bg-white pl-12 pr-4 text-sm font-bold text-[#132238] outline-none shadow-sm transition placeholder:font-semibold placeholder:text-black/30 focus:border-[#8bb9e4] focus:ring-4 focus:ring-[#3976b7]/10" /></div>
     </div>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-      <h2 className="text-2xl font-black">Our Vineyard Sites</h2>
-      <div className="mt-3 rounded-xl bg-[#f2f7fc] px-4 py-3 text-[15px] leading-6 text-black/75"><strong className="text-[#326eac]">Leelanau Cellars has 68.5 total vineyard acres.</strong> A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</div>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-[15px]"><thead><tr className="border-b border-black/10 text-[11px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3.5 pr-4 font-black">{item.site}</td><td className="py-3.5 pr-4 text-black/70">{item.features}</td><td className="py-3.5 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
-    </section>
-
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-      <h2 className="text-2xl font-black">Grape Varieties Grown</h2>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-[13px]"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3.5 pr-4 text-[14px] font-black">{item.variety}</td><td className="py-3.5 pr-4 text-black/68">{item.type}</td><td className="py-3.5 pr-4 font-bold">{item.acreage}</td><td className="py-3.5 pr-4 text-black/68">{item.locations}</td><td className="py-3.5 text-black/68">{item.notes}</td></tr>)}</tbody></table></div>
-      <div className="mt-5 grid gap-3 lg:grid-cols-3"><FactMini title="Hilltop white hybrid trial" text={QUICK_FACTS.trials.white} /><FactMini title="Hilltop red hybrid trial" text={QUICK_FACTS.trials.red} /><FactMini title="Coming Soon" text={QUICK_FACTS.trials.comingSoon} /></div>
-    </section>
-
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-xl font-black">{vintage.year}</p><ul className="mt-2.5 space-y-2 text-[13px] leading-5 text-black/68">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
-  </div>;
-}
-
-function FactMini({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-sm font-black">{title}</p><p className="mt-1.5 text-[13px] leading-5 text-black/65">{text}</p></div>;
-}
-
-function menuCandidates(wine: WineRecord) {
-  const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
-  const withoutVintage = withoutBrand.replace(/^(?:19|20)\d{2}\s+|\s+(?:19|20)\d{2}$/g, '').trim();
-  return Array.from(new Set([wine.name, withoutBrand, withoutVintage]))
-    .map((value) => normalize(value))
-    .filter((value) => value.length >= 5);
-}
-
-function menuMatchScore(wine: WineRecord, lines: string[], whole: string) {
-  const candidates = menuCandidates(wine);
-  const hasVintage = /^(?:19|20)\d{2}$/.test(wine.vintage || '');
-  let score = 0;
-  for (const candidate of candidates) {
-    if (hasVintage) {
-      const vintageCandidate = normalize(`${wine.vintage} ${candidate}`);
-      if (lines.some((line) => line === vintageCandidate)) score = Math.max(score, 120);
-      else if (lines.some((line) => line.startsWith(vintageCandidate) || line.endsWith(vintageCandidate))) score = Math.max(score, 110);
-    }
-    if (lines.some((line) => line === candidate)) score = Math.max(score, 90);
-    if (candidate.length >= 10 && whole.includes(candidate)) score = Math.max(score, 35);
-  }
-  return score;
-}
-
-function matchMenuText(text: string, wines: WineRecord[]) {
-  const lines = text.split(/\r?\n/).map((line) => normalize(line)).filter(Boolean);
-  const whole = normalize(text);
-  const bestByWine = new Map<string, { wine: WineRecord; score: number }>();
-
-  for (const wine of wines) {
-    const score = menuMatchScore(wine, lines, whole);
-    if (!score) continue;
-    const key = winePermalinkSlug(wine);
-    const current = bestByWine.get(key);
-    if (!current || score > current.score) {
-      bestByWine.set(key, { wine, score });
-      continue;
-    }
-    if (score === current.score) {
-      const preferred = preferredWineForRoute([current.wine, wine], key);
-      bestByWine.set(key, { wine: preferred, score });
-    }
-  }
-
-  return Array.from(bestByWine.values()).map(({ wine }) => wine);
-}
-
-function notesSelectionKey(wine: WineRecord) {
-  return `${winePermalinkSlug(wine)}::${routeSlug(wine.vintage || 'NV') || 'nv'}`;
-}
-
-async function menuApiJson(response: Response) {
-  const raw = await response.text();
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    const message = response.ok
-      ? 'Central received an unexpected response while loading the tasting-room menu.'
-      : `The tasting-room menu service returned an unexpected server response (${response.status}).`;
-    throw new Error(message);
-  }
-}
-
-
-type CaseSalesApiPayload = {
-  summary: CaseSalesSummary | null;
-  metrics: CaseSalesGoalMetrics | null;
-  storageConfigured: boolean;
-};
-
-function caseSalesDisplayDate(value?: string | null, options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' }) {
-  if (!value) return '—';
-  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-US', options).format(date);
-}
-
-function caseSalesMonthDays(summary: CaseSalesSummary) {
-  if (!summary.asOfDate) return [];
-  const [year, month] = summary.asOfDate.split('-').map(Number);
-  if (!year || !month) return [];
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const byDate = new Map((summary.dailyCases || []).map((day) => [day.date, day]));
-  return Array.from({ length: daysInMonth }, (_, index) => {
-    const date = `${year}-${String(month).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`;
-    const day = byDate.get(date);
-    return {
-      date,
-      future: date > summary.asOfDate,
-      cases: day?.cases ?? 0,
-      grossCases: day?.grossCases ?? day?.cases ?? 0,
-      caseOrders: day?.caseOrders ?? 0,
-    };
-  });
-}
-
-function formatCaseQuantity(value: number) {
-  return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
-}
-
-function formatSignedMoney(value: number) {
-  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-}
-
-function CaseSalesTracker({ role }: { role: AccessRole }) {
-  const [data, setData] = useState<CaseSalesApiPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [syncingPos, setSyncingPos] = useState(false);
-  const [savingGoal, setSavingGoal] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [goalCases, setGoalCases] = useState('');
-  const [goalEndDate, setGoalEndDate] = useState('');
-
-  async function readJson(response: Response) {
-    const raw = await response.text();
-    try {
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      throw new Error(`Case Sales Tracker received an unexpected server response (${response.status}).`);
-    }
-  }
-
-  async function loadTracker() {
-    setLoading(true);
-    setNotice('');
-    try {
-      const response = await fetch('/api/tasting-room/case-sales', { cache: 'no-store' });
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload.error || 'Unable to load the Case Sales Tracker.');
-      setData(payload);
-      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
-      setGoalEndDate(payload.summary?.goalEndDate || '');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Unable to load the Case Sales Tracker.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { void loadTracker(); }, []);
-
-  async function uploadReport(file?: File) {
-    if (!file || uploading) return;
-    setUploading(true);
-    setNotice('');
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const response = await fetch('/api/tasting-room/case-sales', { method: 'POST', body: form });
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload.error || 'Unable to process the sales report.');
-      setData(payload);
-      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
-      setGoalEndDate(payload.summary?.goalEndDate || '');
-      setNotice(`Updated through ${caseSalesDisplayDate(payload.summary?.asOfDate)}.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Unable to process the sales report.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function syncCommerce7Pos() {
-    if (syncingPos) return;
-    setSyncingPos(true);
-    setNotice('');
-    try {
-      const response = await fetch('/api/tasting-room/case-sales/sync', { method: 'POST' });
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload.error || 'Unable to sync Commerce7 POS sales.');
-      setData(payload);
-      setGoalCases(payload.summary?.goalCases ? String(payload.summary.goalCases) : '');
-      setGoalEndDate(payload.summary?.goalEndDate || '');
-      const posOrders = payload.liveSync?.posOrdersReviewed;
-      setNotice(`Commerce7 POS synced through ${caseSalesDisplayDate(payload.summary?.asOfDate)}${Number.isFinite(posOrders) ? ` · ${Number(posOrders).toLocaleString()} POS orders reviewed.` : '.'}`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Unable to sync Commerce7 POS sales.');
-    } finally {
-      setSyncingPos(false);
-    }
-  }
-
-  async function saveGoal() {
-    if (savingGoal) return;
-    setSavingGoal(true);
-    setNotice('');
-    try {
-      const response = await fetch('/api/tasting-room/case-sales', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goalCases: Number(goalCases), goalEndDate }),
-      });
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload.error || 'Unable to save the case-sales goal.');
-      setData(payload);
-      setNotice('Case-sales goal updated.');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Unable to save the case-sales goal.');
-    } finally {
-      setSavingGoal(false);
-    }
-  }
-
-  const summary = data?.summary;
-  const metrics = data?.metrics;
-  const progress = metrics?.progressPercent ?? 0;
-  const legacySummary = summary && summary.version !== 3;
-  const grossCases = summary ? (summary.grossCasesSold ?? summary.casesSold) : 0;
-  const netCases = summary ? (summary.casesRemainingAfterLinkedRefunds ?? summary.casesSold) : 0;
-  const validationRows = summary?.validationRows ?? [];
-  const refundRows = validationRows.filter((item) => item.linkedRefunds?.length);
-  const monthDays = summary ? caseSalesMonthDays(summary) : [];
-  const overGoal = summary?.goalCases ? Math.max(0, netCases - summary.goalCases) : 0;
-  const legacyPosOrders = summary ? (summary as CaseSalesSummary & { posOrdersReviewed?: number }).posOrdersReviewed : undefined;
-  const wineTransactionsReviewed = summary?.wineTransactionsReviewed ?? legacyPosOrders ?? 0;
-
-  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <PageHeader
-      title="Case Sales Tracker"
-      right={<div className="flex flex-wrap items-center justify-end gap-2">
-        <button type="button" onClick={() => void syncCommerce7Pos()} disabled={syncingPos || uploading || data?.storageConfigured === false} className="flex items-center gap-2 rounded-xl bg-[#326eac] px-5 py-3.5 text-base font-black text-white shadow-sm hover:bg-[#285f97] disabled:cursor-not-allowed disabled:opacity-45">
-          {syncingPos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} {syncingPos ? 'Syncing POS…' : 'Sync Commerce7 POS'}
-        </button>
-        <label className={`flex items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-black shadow-sm ${data?.storageConfigured === false ? 'cursor-not-allowed bg-black/10 text-black/35' : 'cursor-pointer border border-black/10 bg-white text-black/65 hover:bg-black/[.03]'}`}>
-          <Upload className="h-4 w-4" /> {uploading ? 'Updating…' : 'CSV fallback'}
-          <input type="file" accept=".csv,text/csv" className="hidden" disabled={uploading || syncingPos || data?.storageConfigured === false} onChange={(event) => { void uploadReport(event.target.files?.[0]); event.currentTarget.value = ''; }} />
-        </label>
-      </div>}
-    />
-
-    {notice && <div className="mb-5 rounded-xl border border-black/8 bg-[#f7f8f9] px-5 py-4 text-base font-bold text-black/70">{notice}</div>}
-
-    {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-black/10 bg-white"><Loader2 className="h-6 w-6 animate-spin text-black/35" /></div> :
-      !data?.storageConfigured ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><p className="text-lg font-black text-amber-950">Vercel Blob is not connected.</p><p className="mt-2 text-base leading-7 text-amber-900/80">Connect the same Blob store used by the tasting-room menu, then redeploy Central.</p></div> :
-      !summary ? <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-20 text-center">
-        <BarChart3 className="mx-auto h-9 w-9 text-black/20" />
-        <h2 className="mt-4 text-2xl font-black">Sync the current month from Commerce7</h2>
-        <p className="mx-auto mt-3 max-w-[760px] text-base leading-7 text-black/55">Use <strong>Sync Commerce7 POS</strong> to pull this month's tasting-room POS orders directly into the tracker. The CSV upload remains available as a fallback while we compare the live totals with the report workflow.</p>
-      </div> :
-      <>
-        {legacySummary && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base font-bold leading-6 text-amber-950">This report was calculated with the previous case-sales rules. Sync Commerce7 POS again (or upload the Commerce7 CSV) to apply the current bottle-counting and linked-refund calculation.</div>}
-
-        <section className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-          <div className="grid gap-7 xl:grid-cols-[1.15fr_.85fr] xl:items-center">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[.14em] text-[#326eac]">Current progress</p>
-              <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
-                <span className="text-6xl font-black leading-none tracking-[-.05em]">{netCases.toLocaleString()}</span>
-                <span className="pb-1 text-xl font-black text-black/50">{summary.goalCases ? `of ${summary.goalCases.toLocaleString()} cases` : 'cases counting toward goal'}</span>
-              </div>
-              <p className="mt-4 text-base font-bold text-black/60">As of {caseSalesDisplayDate(summary.asOfDate)}{summary.goalEndDate && summary.goalCases ? ` · Goal through ${caseSalesDisplayDate(summary.goalEndDate, { month: 'short', day: 'numeric' })}` : ''}</p>
-
-              {summary.goalCases && <div className="mt-6">
-                <div className="h-5 overflow-hidden rounded-full bg-black/[.07]"><div className="h-full rounded-full bg-[#326eac] transition-all" style={{ width: `${Math.max(1, progress)}%` }} /></div>
-                <div className="mt-3 flex items-center justify-between text-sm font-black text-black/55"><span>{progress.toFixed(1)}% of goal</span><span>{summary.goalCases.toLocaleString()} cases</span></div>
-              </div>}
-            </div>
-
-            {summary.goalCases ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-4">
-              <CaseSalesKpi label="Cases to go" value={metrics?.remainingCases !== null && metrics?.remainingCases !== undefined ? metrics.remainingCases.toLocaleString() : '—'} detail={metrics?.goalReached ? `Goal reached${overGoal ? ` · ${overGoal} over` : ''}` : 'Remaining'} />
-              <CaseSalesKpi label="Days remaining" value={metrics?.remainingDays !== null && metrics?.remainingDays !== undefined ? metrics.remainingDays.toLocaleString() : '—'} detail={metrics?.currentDayCountsAsUsed ? 'Today counted after 5 PM' : 'Today still available until 5 PM'} />
-              <CaseSalesKpi label="Needed per day" value={metrics?.casesPerDayNeeded !== null && metrics?.casesPerDayNeeded !== undefined ? metrics.casesPerDayNeeded.toFixed(1) : '—'} detail={metrics?.goalReached ? 'Goal reached' : 'Cases/day over available days'} />
-              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
-            </div> : <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">Set a goal in Admin to calculate cases remaining, days left, and the daily pace needed.</div>
-              <CaseSalesKpi label="Avg. cases / day" value={metrics?.averageCasesPerDay !== null && metrics?.averageCasesPerDay !== undefined ? metrics.averageCasesPerDay.toFixed(1) : '—'} detail={metrics?.completedSellingDays ? `${metrics.completedSellingDays} completed selling ${metrics.completedSellingDays === 1 ? 'day' : 'days'}` : 'Completed selling days only'} />
-            </div>}
-          </div>
-        </section>
-
-        <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div><h2 className="text-2xl font-black">Daily Case Sales</h2><p className="mt-1 text-base font-semibold text-black/55">Every day in {caseSalesDisplayDate(summary.asOfDate, { month: 'long', year: 'numeric' })}. Totals count whole cases remaining after any linked refunds.</p></div>
-            <div className="text-base font-black text-[#326eac]">{netCases.toLocaleString()} cases through {caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}</div>
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-            {monthDays.map((day) => {
-              const adjusted = !day.future && day.grossCases !== day.cases;
-              return <div key={day.date} className={`rounded-2xl border p-4 ${day.future ? 'border-black/[.06] bg-black/[.025] text-black/30' : day.date === summary.asOfDate ? 'border-[#326eac]/45 bg-[#eef5fd]' : 'border-black/[.08] bg-white'}`}>
-                <p className="text-sm font-black">{caseSalesDisplayDate(day.date, { month: 'short', day: 'numeric' })}</p>
-                <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black leading-none">{day.future ? '—' : day.cases}</span>{!day.future && <span className="pb-0.5 text-sm font-bold text-black/50">{day.cases === 1 ? 'case' : 'cases'}</span>}</div>
-                {day.future ? <p className="mt-2 text-sm font-semibold">Not reported</p> : adjusted ? <p className="mt-2 text-sm font-bold text-amber-700">{day.grossCases} gross · refund adjusted</p> : <p className="mt-2 text-sm font-semibold text-black/45">{day.caseOrders} case {day.caseOrders === 1 ? 'transaction' : 'transactions'}</p>}
-              </div>;
-            })}
-          </div>
-        </section>
-
-        {role === 'admin' && <>
-          <section className="mt-5 rounded-3xl border border-black/10 bg-[#f8f9fb] p-6 md:p-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div><h2 className="text-xl font-black">Goal settings</h2><p className="mt-1 text-base font-semibold text-black/55">Set the case goal and the final day the team has to reach it.</p></div>
-              <div className="grid gap-3 sm:grid-cols-[170px_200px_auto]">
-                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Case goal</span><input type="number" min="1" step="1" value={goalCases} onChange={(event) => setGoalCases(event.target.value)} className="field-input h-12 text-base" placeholder="300" /></label>
-                <label><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-black/55">Goal end date</span><input type="date" value={goalEndDate} onChange={(event) => setGoalEndDate(event.target.value)} className="field-input h-12 text-base" /></label>
-                <button onClick={() => void saveGoal()} disabled={savingGoal || !goalCases || !goalEndDate} className="flex h-12 items-center justify-center gap-2 self-end rounded-xl bg-[#326eac] px-5 text-base font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save goal</button>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-            <h2 className="text-2xl font-black">Admin Report Details</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <CaseSalesAdminStat label="Gross Number of Cases Sold" value={grossCases.toLocaleString()} />
-              <CaseSalesAdminStat label="Cases Remaining After Linked Refunds" value={netCases.toLocaleString()} />
-              <CaseSalesAdminStat label="Transactions Featuring a Case or More" value={summary.caseOrders.toLocaleString()} />
-              <CaseSalesAdminStat label="Wine Transactions Reviewed" value={wineTransactionsReviewed.toLocaleString()} />
-            </div>
-            <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-black/[.07] pt-5 text-base md:grid-cols-2">
-              <CaseSalesDetail label="Sales period" value={`${caseSalesDisplayDate(summary.periodStartDate, { month: 'short', day: 'numeric' })} – ${caseSalesDisplayDate(summary.asOfDate, { month: 'short', day: 'numeric' })}`} />
-              <CaseSalesDetail label="Wine rows reviewed" value={(summary.wineRowsReviewed ?? 0).toLocaleString()} />
-              <CaseSalesDetail label="Source" value={summary.sourceFilename} />
-              <CaseSalesDetail label="Last updated" value={new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(summary.importedAt))} />
-            </dl>
-            <div className="mt-6 rounded-2xl bg-[#f5f7f9] p-5 text-base font-semibold leading-7 text-black/65"><strong className="text-black">Calculation:</strong> {summary.sourceKind === 'commerce7-pos' ? <>Live sync keeps POS orders, counts only Wine items, counts each Wine unit as one bottle regardless of bottle size (matching Commerce7 Bottle Quantity), totals the transaction, and applies FLOOR(total bottles ÷ 12). Linked refunds/exchanges are applied back to the original qualifying POS order.</> : <>Central includes only Type = Wine rows, groups them by Id, sums Bottle Quantity across the entire transaction (using Quantity only when Bottle Quantity is blank), and then applies FLOOR(total bottles ÷ 12). Separate transactions are never combined. Refund/exchange transactions never create new case sales; linked Wine quantities are applied back to the original qualifying Order Number.</>}</div>
-            {summary.sourceDetail && <p className="mt-4 text-sm font-black leading-6 text-[#326eac]">{summary.sourceDetail}</p>}
-            <p className="mt-4 text-sm font-semibold leading-6 text-black/45">For privacy, Central does not store customer names, addresses, or payment details. It stores only the calculated tracker summary and the transaction-level validation fields shown below.</p>
-          </section>
-
-          <section className="mt-5 rounded-3xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-            <h2 className="text-2xl font-black">Case Refund Review</h2>
-            {refundRows.length ? <>
-              <p className="mt-2 text-base font-semibold leading-7 text-black/55">Linked Wine refunds/exchanges affecting an original case transaction are shown here. Gross case sales remain visible separately from the adjusted total.</p>
-              <div className="mt-5 overflow-x-auto rounded-2xl border border-black/[.08]">
-                <table className="min-w-[900px] w-full border-collapse text-left text-sm">
-                  <thead className="bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Original Order</th><th className="p-4 font-black">Refund / Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Wine Product SubTotal</th><th className="p-4 font-black">Gross Cases</th><th className="p-4 font-black">Cases Remaining</th></tr></thead>
-                  <tbody>{refundRows.flatMap((item) => item.linkedRefunds.map((refund, refundIndex) => <tr key={`${item.id}-${refund.id}`} className="border-t border-black/[.07]"><td className="p-4 font-black">{item.orderNumber}</td><td className="p-4 font-black">{refund.orderNumber || '—'}</td><td className="p-4 font-black">{formatCaseQuantity(refund.wineBottles)}</td><td className="p-4 font-black">{formatSignedMoney(refund.wineProductSubtotal)}</td><td className="p-4 font-black">{refundIndex === 0 ? item.grossWholeCases : '—'}</td><td className="p-4 font-black">{refundIndex === 0 ? item.casesRemainingAfterRefunds : '—'}</td></tr>))}</tbody>
-                </table>
-              </div>
-            </> : <p className="mt-3 rounded-2xl bg-[#f5f7f9] p-5 text-base font-bold leading-7 text-black/65">No case-sale refunds or exchanges were found. Gross Number of Cases Sold and Cases Remaining After Linked Refunds are the same.</p>}
-          </section>
-
-          <details className="mt-5 rounded-3xl border border-black/10 bg-white shadow-sm">
-            <summary className="cursor-pointer list-none px-6 py-5 text-xl font-black md:px-7">Validation Table · {validationRows.length.toLocaleString()} qualifying case transactions</summary>
-            <div className="border-t border-black/[.07] px-4 pb-6 pt-4 md:px-6">
-              <p className="mb-4 text-base font-semibold leading-7 text-black/55">Every original positive Wine transaction containing at least 12 bottles is listed here before the final totals are reported.</p>
-              <div className="max-h-[680px] overflow-auto rounded-2xl border border-black/[.08]">
-                <table className="min-w-[1320px] w-full border-collapse text-left text-sm">
-                  <thead className="sticky top-0 z-10 bg-[#f5f7f9] text-black/65"><tr><th className="p-4 font-black">Order Number</th><th className="p-4 font-black">Id</th><th className="p-4 font-black">Original Wine Bottles</th><th className="p-4 font-black">Gross Whole Cases</th><th className="p-4 font-black">Linked Refund/Exchange Order</th><th className="p-4 font-black">Refunded Wine Bottles</th><th className="p-4 font-black">Remaining Wine Bottles</th><th className="p-4 font-black">Cases Remaining After Refunds</th></tr></thead>
-                  <tbody>{validationRows.map((item) => <tr key={item.id} className="border-t border-black/[.07] align-top"><td className="p-4 font-black">{item.orderNumber}</td><td className="max-w-[270px] break-all p-4 font-mono text-xs font-bold text-black/65">{item.id}</td><td className="p-4 font-black">{formatCaseQuantity(item.originalWineBottles)}</td><td className="p-4 font-black">{item.grossWholeCases}</td><td className="p-4 font-black">{item.linkedRefunds.length ? item.linkedRefunds.map((refund) => refund.orderNumber).filter(Boolean).join(', ') : ''}</td><td className="p-4 font-black">{item.linkedRefunds.length ? formatCaseQuantity(item.refundedWineBottles) : ''}</td><td className="p-4 font-black">{formatCaseQuantity(item.remainingWineBottles)}</td><td className="p-4 font-black">{item.casesRemainingAfterRefunds}</td></tr>)}</tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-        </>}
-      </>}
-  </div>;
-}
-
-function CaseSalesKpi({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-2xl border border-black/[.08] bg-[#f7f9fb] p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p><p className="mt-2 text-sm font-bold text-black/50">{detail}</p></div>;
-}
-
-function CaseSalesAdminStat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-black/[.08] bg-[#f8f9fb] p-5"><p className="text-sm font-black leading-5 text-black/55">{label}</p><p className="mt-2 text-3xl font-black tracking-[-.03em]">{value}</p></div>;
-}
-
-function CaseSalesDetail({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-4 border-b border-black/[.06] pb-3 last:border-0 last:pb-0"><dt className="font-bold text-black/55">{label}</dt><dd className="max-w-[62%] text-right font-black text-black/80">{value}</dd></div>;
-}
-
-function TastingRoom({ wines, selected, setSelected, openWine, role, mode }: { wines: WineRecord[]; selected: string[]; setSelected: (ids: string[]) => void; openWine: (wine: WineRecord) => void; role: AccessRole; mode: 'menu' | 'notes' }) {
-  const [q, setQ] = useState('');
-  const [showPicker, setShowPicker] = useState(false);
-  const [notesView, setNotesView] = useState<'web' | 'print'>('web');
-  const [menuInfo, setMenuInfo] = useState<{ filename: string; updatedAt: string; source: string; storageConfigured: boolean; canReplace: boolean; downloadUrl: string; viewUrl: string; menuText: string; textSource: string; textError?: string; selectedSlugs: string[] | null; selectionSource: string } | null>(null);
-  const [menuLoading, setMenuLoading] = useState(true);
-  const [menuUploading, setMenuUploading] = useState(false);
-  const [menuUploadNotice, setMenuUploadNotice] = useState('');
-  const [selectionSaving, setSelectionSaving] = useState(false);
-  const [selectionNotice, setSelectionNotice] = useState('');
-  const chosen = wines.filter((wine) => selected.includes(wine.id));
-  const available = wines.filter((wine) => `${wine.name} ${wine.vintage} ${wine.category}`.toLowerCase().includes(q.toLowerCase()));
-  const toggle = (id: string) => setSelected(selected.includes(id) ? selected.filter((wineId) => wineId !== id) : [...selected, id]);
-
-  const selectionFromMenuInfo = (info = menuInfo) => {
-    if (info?.selectedSlugs !== null && Array.isArray(info?.selectedSlugs)) {
-      const saved = new Set(info.selectedSlugs);
-      const exact = wines.filter((wine) => saved.has(notesSelectionKey(wine)));
-      if (exact.length || !info.selectedSlugs.some((value) => !value.includes('::'))) return exact;
-      const legacySlugs = info.selectedSlugs.filter((value) => !value.includes('::'));
-      return legacySlugs.map((slug) => preferredWineForRoute(wines, slug)).filter((wine): wine is WineRecord => Boolean(wine));
-    }
-    return matchMenuText(info?.menuText || CURRENT_TASTING_MENU_TEXT, wines);
-  };
-
-  async function loadMenuInfo() {
-    setMenuLoading(true);
-    try {
-      const response = await fetch('/api/tasting-room/menu', { cache: 'no-store' });
-      const data = await menuApiJson(response);
-      if (!response.ok) throw new Error(data.error || 'Unable to load menu information.');
-      setMenuInfo(data);
-    } catch (error) {
-      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to load current menu.');
-    } finally {
-      setMenuLoading(false);
-    }
-  }
-
-  async function replaceOfficialMenu(file?: File) {
-    if (!file || menuUploading) return;
-    setMenuUploading(true);
-    setMenuUploadNotice('');
-    setSelectionNotice('');
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const response = await fetch('/api/tasting-room/menu', { method: 'POST', body: form });
-      const data = await menuApiJson(response);
-      if (!response.ok) throw new Error(data.error || 'Unable to replace the current menu.');
-      await loadMenuInfo();
-      setMenuUploadNotice('Menu updated. Central rebuilt the Tasting Notes list from the new PDF.');
-    } catch (error) {
-      setMenuUploadNotice(error instanceof Error ? error.message : 'Unable to replace the current menu.');
-    } finally {
-      setMenuUploading(false);
-    }
-  }
-
-  async function persistNotesSelection(ids: string[], notice: string) {
-    if (selectionSaving) return;
-    setSelectionSaving(true);
-    setSelectionNotice('');
-    try {
-      const selectedSlugs = wines.filter((wine) => ids.includes(wine.id)).map((wine) => notesSelectionKey(wine));
-      const response = await fetch('/api/tasting-room/menu', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedSlugs }),
-      });
-      const data = await menuApiJson(response);
-      if (!response.ok) throw new Error(data.error || 'Unable to save the Notes list.');
-      setSelectionNotice(notice);
-      await loadMenuInfo();
-    } catch (error) {
-      setSelectionNotice(error instanceof Error ? error.message : 'Unable to save the Notes list.');
-    } finally {
-      setSelectionSaving(false);
-    }
-  }
-
-  const resetNotesFromPdf = async () => {
-    const ids = matchMenuText(menuInfo?.menuText || CURRENT_TASTING_MENU_TEXT, wines).map((wine) => wine.id);
-    setSelected(ids);
-    await persistNotesSelection(ids, `Reset to the ${ids.length} wines matched from the current menu PDF.`);
-  };
-
-  const printStaffNotes = () => {
-    const style = document.createElement('style');
-    style.media = 'print';
-    style.textContent = '@page { size: letter landscape; margin: 0; }';
-    document.head.appendChild(style);
-    const cleanup = () => {
-      style.remove();
-      window.removeEventListener('afterprint', cleanup);
-    };
-    window.addEventListener('afterprint', cleanup);
-    printWithTitle(`Leelanau Cellars - Tasting Notes - ${new Date().toISOString().slice(0, 10)}`);
-  };
-
-  useEffect(() => { void loadMenuInfo(); }, []);
-
-  useEffect(() => {
-    if (!menuInfo || !wines.length) return;
-    const matches = selectionFromMenuInfo(menuInfo);
-    setSelected(matches.map((wine) => wine.id));
-    window.localStorage.setItem(MENU_VERSION_KEY, menuInfo.updatedAt || CURRENT_TASTING_MENU_VERSION);
-  }, [menuInfo, wines]);
-
-  const rawMenuDate = menuInfo?.updatedAt || `${CURRENT_TASTING_MENU_VERSION}T12:00:00`;
-  const menuDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(rawMenuDate));
-  const pdfMatchCount = matchMenuText(menuInfo?.menuText || CURRENT_TASTING_MENU_TEXT, wines).length;
-  const menuViewUrl = menuInfo?.viewUrl || '/api/tasting-room/menu?inline=1';
-  const menuDownloadUrl = menuInfo?.downloadUrl || '/api/tasting-room/menu?download=1';
-
-  if (mode === 'menu') {
-    return <div className="mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
-      <PageHeader title="Tasting Menu" />
-
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold text-black/48">{menuLoading ? 'Loading menu…' : `Updated ${menuDate}`}</p>
-        <div className="flex flex-wrap gap-2">
-          <a href={menuViewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black shadow-sm hover:bg-black/[.025]"><ExternalLink className="h-4 w-4" /> View PDF</a>
-          <a href={menuDownloadUrl} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Download className="h-4 w-4" /> Download PDF</a>
-          {role === 'admin' && <label className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${menuInfo?.storageConfigured ? 'cursor-pointer bg-[#326eac] text-white' : 'cursor-not-allowed bg-black/10 text-black/35'}`}><Upload className="h-4 w-4" /> {menuUploading ? 'Uploading…' : 'Replace Menu'}<input type="file" accept="application/pdf,.pdf" disabled={!menuInfo?.storageConfigured || menuUploading} className="hidden" onChange={(event) => { void replaceOfficialMenu(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
-        </div>
-      </div>
-
-      {role === 'admin' && menuInfo && !menuInfo.storageConfigured && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>The current menu is bundled and downloadable.</strong> Connect Vercel Blob to replace it from Central.</p>}
-      {menuUploadNotice && <p className="mb-4 rounded-xl bg-[#f6f7f8] px-4 py-3 text-xs font-bold leading-5 text-black/60">{menuUploadNotice}</p>}
-      {role === 'admin' && menuInfo?.textError && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"><strong>Tasting Notes auto-match needs attention.</strong> {menuInfo.textError}</p>}
-
-      <section className="overflow-hidden rounded-3xl border border-black/10 bg-[#f2f3f5] shadow-sm">
-        <iframe
-          src={menuViewUrl}
-          title="Leelanau Cellars tasting menu"
-          className="h-[760px] w-full bg-white md:h-[900px] xl:h-[1040px]"
-        />
-      </section>
-    </div>;
-  }
-
-  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
-    <div className="no-print"><PageHeader title="Tasting Notes" right={<button onClick={printStaffNotes} className="flex items-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white"><Printer className="h-4 w-4" /> Print / Save Notes PDF</button>} /></div>
-
-    <section className="no-print mb-5 rounded-2xl border border-black/10 bg-white px-5 py-4 shadow-sm">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.16em] text-[#326eac]">Built from current tasting menu</p><h2 className="mt-1 text-[17px] font-black">{chosen.length} wines in Tasting Notes</h2><p className="mt-1 text-[12px] font-semibold text-black/45">Menu updated {menuDate} · {menuInfo?.selectionSource === 'admin-override' ? 'Admin corrections saved' : `${pdfMatchCount} wines matched automatically from the PDF`}</p></div>
-        <a href={menuViewUrl} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-xs font-black"><ExternalLink className="h-4 w-4" /> View source menu</a>
-      </div>
-      <details className="mt-4 border-t border-black/10 pt-4">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4"><div><p className="text-[12px] font-black">Manage Notes list</p><p className="mt-0.5 text-[11px] font-semibold text-black/45">The PDF remains the source of truth. Use corrections only when auto-matching misses a wine.</p></div><span className="rounded-lg bg-[#edf5fd] px-3 py-2 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">Manage</span></summary>
-        <div className="pt-4">
-          <div className="rounded-xl bg-[#edf5fd] p-3 text-[12px] leading-5 text-[#285f96]"><strong>Automatic workflow stays intact.</strong> Replacing the menu on the Tasting Menu page rebuilds this list. Corrections are saved separately until the next menu upload.</div>
-          <div className="mt-4 flex flex-wrap gap-2">{chosen.slice(0, 20).map((wine) => <button key={wine.id} onClick={() => toggle(wine.id)} className="rounded-full bg-[#eef5fb] px-3 py-1.5 text-[11px] font-bold text-black/70">{wine.name}{wine.vintage && wine.vintage !== 'NV' ? ` ${wine.vintage}` : ''} ×</button>)}{chosen.length > 20 && <span className="rounded-full bg-black/[.05] px-3 py-1.5 text-[11px] font-bold text-black/45">+{chosen.length - 20} more</span>}</div>
-          <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => setShowPicker(!showPicker)} className="flex items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-xs font-black text-white"><Plus className="h-4 w-4" /> Add / change wines</button><button onClick={() => void persistNotesSelection(selected, `Saved ${selected.length} wines for Tasting Notes.`)} disabled={selectionSaving} className="flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-black disabled:opacity-50">{selectionSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {selectionSaving ? 'Saving…' : 'Save corrections'}</button><button onClick={() => void resetNotesFromPdf()} disabled={selectionSaving} className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-bold text-black/60 disabled:opacity-50">Reset from PDF</button></div>
-          {selectionNotice && <p className="mt-3 text-[11px] font-bold leading-5 text-black/55">{selectionNotice}</p>}
-          {showPicker && <div className="mt-4"><div className="relative mb-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search the wine library…" className="field-input pl-9" /></div><div className="grid max-h-[420px] gap-2 overflow-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">{available.map((wine) => <label key={wine.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selected.includes(wine.id) ? 'border-[#b9d7f3] bg-[#eaf3fb]' : 'border-black/8 hover:bg-black/[.025]'}`}><input type="checkbox" checked={selected.includes(wine.id)} onChange={() => toggle(wine.id)} className="h-4 w-4 accent-black" /><div className="min-w-0"><p className="truncate text-sm font-bold">{wine.name}</p><p className="text-[11px] text-black/45">{wine.vintage} · {wine.category}</p></div></label>)}</div></div>}
-        </div>
-      </details>
-    </section>
-
-    <div className="no-print mb-4 flex gap-2"><button onClick={() => setNotesView('web')} className={`rounded-lg border px-3 py-2 text-xs font-black transition ${notesView === 'web' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Web View</button><button onClick={() => setNotesView('print')} className={`rounded-lg border px-3 py-2 text-xs font-black transition ${notesView === 'print' ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/65'}`}>Print Preview</button></div>
-    <div className="no-print">{notesView === 'web' ? <StaffNotesWeb chosen={chosen} openWine={openWine} /> : <TastingGuide chosen={chosen} openWine={openWine} />}</div>
-    <div className="print-root hidden print:block"><TastingGuide chosen={chosen} /></div>
-  </div>;
-}
-
-
-function staffGuideAccent(category: string) {
-  const accents: Record<string, string> = {
-    Red: '#7b2f43',
-    White: '#a57b18',
-    'Rosé': '#b85d73',
-    Sparkling: '#66798d',
-    'Fruit & Sweet': '#825777',
-    Dessert: '#6c4d3d',
-    'Seasonal / Specialty': '#b65f35',
-    Other: '#4e6c73',
-  };
-  return accents[category] || accents.Other;
-}
-
-function staffGuideCopy(value = '') {
-  return value.replace(/\s*\n\s*/g, ' · ').replace(/\s+/g, ' ').trim();
-}
-
-function conciseStaffFlavor(wine: WineRecord, reference?: StaffWineReference) {
-  if (reference?.description) return shortenToWords(staffGuideCopy(reference.description), 170);
-
-  const sourceLines = [
-    ...(wine.commerce7CopyLines || []),
-    ...(wine.highlights || []),
-    wine.tastingNotes || '',
-    wine.shortDescription || '',
-    wine.staffPitch || '',
-  ].filter(Boolean);
-  const candidates = sourceLines
-    .flatMap((line) => sentenceParts(cleanCommerce7Copy(line)))
-    .map((text, index) => ({ text: simplifySalesSentence(text), index }))
-    .filter(({ text }) => text.length > 18)
-    .map((candidate) => ({ ...candidate, sensory: sensoryScore(candidate.text) }))
-    .sort((a, b) => b.sensory - a.sensory || a.index - b.index);
-  const best = candidates.find((candidate) => candidate.sensory >= 2)?.text || candidates[0]?.text || shortCommerce7TastingNotes(wine) || staffGuideCopy(staffFlavorProfile(wine, reference));
-  return shortenToWords(best, 145);
-}
-
-function conciseVintageContext(wine: WineRecord, reference?: StaffWineReference) {
-  return shortenToWords(vintageViticultureForWine(wine, reference), 145);
-}
-
-function StaffNotesWeb({ chosen, openWine }: { chosen: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const [guideQuery, setGuideQuery] = useState('');
-  const [guideCategory, setGuideCategory] = useState('All');
-  const sorted = [...chosen].sort((a, b) => {
-    const aCategory = guideCategoryFor(a);
-    const bCategory = guideCategoryFor(b);
-    const ai = GUIDE_CATEGORY_ORDER.indexOf(aCategory);
-    const bi = GUIDE_CATEGORY_ORDER.indexOf(bCategory);
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.name.localeCompare(b.name);
-  });
-  const categories = ['All', ...GUIDE_CATEGORY_ORDER.filter((category) => sorted.some((wine) => guideCategoryFor(wine) === category))];
-  const needle = guideQuery.trim().toLowerCase();
-  const filtered = sorted.filter((wine) => {
-    const reference = staffReferenceForWine(wine);
-    const flavor = conciseStaffFlavor(wine, reference);
-    const context = conciseVintageContext(wine, reference);
-    const haystack = `${wine.name} ${wine.vintage || ''} ${guideCategoryFor(wine)} ${wine.varietal || ''} ${flavor} ${context}`.toLowerCase();
-    return (guideCategory === 'All' || guideCategoryFor(wine) === guideCategory) && (!needle || haystack.includes(needle));
-  });
-  const groups = GUIDE_CATEGORY_ORDER.map((category) => ({ category, wines: filtered.filter((wine) => guideCategoryFor(wine) === category) })).filter((group) => group.wines.length);
-
-  if (!chosen.length) return <div className="rounded-2xl border border-dashed border-black/15 bg-white py-24 text-center"><ClipboardList className="mx-auto h-8 w-8 text-black/20" /><p className="mt-3 font-black">No wines are in Tasting Notes yet.</p><p className="mt-1 text-sm text-black/40">Upload the current tasting-room menu to populate the list automatically.</p></div>;
-
-  return <section className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-    <div className="wine-report-toolbar flex flex-col gap-3 border-b border-black/10 bg-white px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
-      <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">{categories.map((category) => <button key={category} onClick={() => setGuideCategory(category)} className={`whitespace-nowrap rounded-lg border px-3 py-2 text-[11px] font-black transition ${guideCategory === category ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55 hover:bg-black/[.03]'}`}>{category}</button>)}</div>
-      <div className="relative w-full lg:w-[300px]"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/25" /><input value={guideQuery} onChange={(event) => setGuideQuery(event.target.value)} placeholder="Search wines or flavors…" className="field-input h-10 pl-9 text-xs" /></div>
+    <div className="hidden grid-cols-[1.12fr_2.15fr_.82fr_1.38fr_1.3fr] border-b border-black/[.07] bg-[#f4f7fa] px-6 py-3 text-[9px] font-black uppercase tracking-[.14em] text-black/38 lg:grid">
+      <div>Wine</div><div>Notes</div><div>Style</div><div>Grape / Blend</div><div>Details</div>
     </div>
 
-    <div className="wine-report-head hidden grid-cols-[1.05fr_1.25fr_1.9fr_1.55fr_.48fr] bg-[#f4f3f1] px-6 py-3 text-[9px] font-black uppercase tracking-[.12em] text-black/42 lg:grid"><div>Wine</div><div>Specs</div><div>Flavor &amp; Style</div><div>Vintage / Vineyard</div><div className="text-right">Price</div></div>
-    <div className="px-4 pb-5 lg:px-6">
-      {!groups.length ? <div className="py-16 text-center text-sm font-semibold text-black/40">No wines match that search.</div> : groups.map(({ category, wines }) => {
-        const accent = staffGuideAccent(category);
-        return <div key={category} className="wine-report-section pt-4">
-          <div className="flex items-center gap-3 py-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accent }} /><span className="text-[10px] font-black uppercase tracking-[.14em]" style={{ color: accent }}>{category}</span><span className="h-px flex-1 bg-black/[.08]" /></div>
-          {wines.map((wine) => {
-            const reference = staffReferenceForWine(wine);
-            const flavor = conciseStaffFlavor(wine, reference);
-            const vintageContext = conciseVintageContext(wine, reference);
-            const style = staffStyleLabel(wine, reference);
-            const abv = wine.abv || (reference?.abv ? `${reference.abv}%` : '');
-            const composition = reference?.composition || wine.varietal || '';
-            const specs = [style, abv ? `${abv.includes('%') ? abv : `${abv}%`} ABV` : '', reference?.aging ? `${reference.aging} aged` : '', reference?.casesProduced && Number(reference.casesProduced) <= 250 ? `${reference.casesProduced} cases` : ''].filter(Boolean);
-            return <article key={wine.id} className="wine-report-row mb-2 grid gap-3 rounded-xl border border-black/[.07] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.025)] last:mb-0 lg:grid-cols-[1.05fr_1.25fr_1.9fr_1.55fr_.48fr] lg:gap-0" style={{ borderLeftColor: accent, borderLeftWidth: 4 }}>
-              <div className="lg:pr-5"><button onClick={() => openWine(wine)} className="text-left text-[15px] font-black leading-5 tracking-[-.015em] hover:text-[#326eac]">{wine.name}</button>{wine.vintage && wine.vintage !== 'NV' && <span className="mt-0.5 block text-[11px] font-semibold text-black/38">{wine.vintage}</span>}</div>
-              <div className="text-[12px] leading-[1.5] text-black/62 lg:pr-5"><span className="wine-report-mobile-label">Specs</span>{specs.join(' · ') || 'Wine'}{composition && <span className="mt-1 block text-[10px] leading-4 text-black/42">{composition}</span>}</div>
-              <div className="text-[13px] leading-[1.5] text-black/72 lg:pr-6"><span className="wine-report-mobile-label">Flavor &amp; Style</span>{flavor || 'Use the Commerce7 flavor profile and style for this wine.'}</div>
-              <div className="text-[12px] leading-[1.5] text-black/52 lg:pr-5"><span className="wine-report-mobile-label">Vintage / Vineyard</span>{vintageContext || '—'}</div>
-              <div className="text-[14px] font-black lg:text-right"><span className="wine-report-mobile-label">Price</span>{money(wine.price)}</div>
-            </article>;
-          })}
-        </div>;
+    <div className="divide-y divide-black/[.06]">
+      {referenceRows.map(({ reference, wine }) => {
+        const accent = staffGuideAccent(reference.rsStyle);
+        const lines = referenceDescriptionLines(reference.description);
+        return <article key={`${reference.name}-${reference.vintage}`} className="group relative grid gap-4 px-4 py-5 transition hover:bg-[#f8fbfe] md:px-6 lg:grid-cols-[1.12fr_2.15fr_.82fr_1.38fr_1.3fr] lg:gap-0">
+          <span className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full" style={{ backgroundColor: accent.dot }} />
+          <div className="lg:pr-5"><button type="button" onClick={() => wine && openWine(wine)} disabled={!wine} className={`text-left text-[16px] font-black leading-5 tracking-[-.02em] ${wine ? 'transition hover:text-[#326eac]' : 'cursor-default'}`}>{reference.name}</button><p className="mt-1 text-[11px] font-bold text-black/38">{reference.vintage || 'NV'}</p></div>
+          <div className="lg:pr-7"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Notes</span>{lines.map((line, index) => <p key={`${reference.name}-note-${index}`} className={`${index ? 'mt-1.5 text-black/58' : 'font-bold text-black/76'} text-[13px] leading-[1.5]`}>{line}</p>)}</div>
+          <div className="lg:pr-5"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Style</span><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.06em] ${accent.chip}`}>{reference.rsStyle}</span><p className="mt-2 text-[11px] font-black text-black/58">{reference.abv}% ABV</p></div>
+          <div className="text-[12px] font-semibold leading-[1.5] text-black/62 lg:pr-6"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Grape / Blend</span>{reference.composition || '—'}</div>
+          <div className="text-[11px] font-semibold leading-[1.55] text-black/48"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Details</span><p>{[reference.appellation, reference.format].filter(Boolean).join(' · ')}</p><p className="mt-1">{[reference.aging, reference.bottlingDate ? `Bottled ${reference.bottlingDate}` : '', reference.casesProduced ? `${reference.casesProduced} cases` : ''].filter(Boolean).join(' · ')}</p></div>
+        </article>;
       })}
+
+      {fallbackRows.map((wine) => {
+        const style = wine.sweetness || wine.rs || wine.category || 'Wine';
+        const accent = staffGuideAccent(style);
+        const notes = shortCommerce7TastingNotes(wine) || wine.tastingNotes || wine.shortDescription || wine.staffPitch || 'See the Commerce7 product information for this wine.';
+        return <article key={`commerce-${wine.id}`} className="group relative grid gap-4 bg-[#fbfcfe] px-4 py-5 transition hover:bg-[#f5f9fd] md:px-6 lg:grid-cols-[1.12fr_2.15fr_.82fr_1.38fr_1.3fr] lg:gap-0">
+          <span className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full bg-[#3976b7]" />
+          <div className="lg:pr-5"><button type="button" onClick={() => openWine(wine)} className="text-left text-[16px] font-black leading-5 tracking-[-.02em] transition hover:text-[#326eac]">{wine.name}</button><div className="mt-1 flex flex-wrap items-center gap-1.5"><span className="text-[11px] font-bold text-black/38">{wine.vintage || 'NV'}</span><span className="rounded-full bg-[#eaf3fb] px-2 py-0.5 text-[8px] font-black uppercase tracking-[.08em] text-[#326eac]">Commerce7</span></div></div>
+          <div className="text-[13px] font-semibold leading-[1.5] text-black/65 lg:pr-7"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Notes</span>{cleanCommerce7Copy(notes)}</div>
+          <div className="lg:pr-5"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Style</span><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.06em] ${accent.chip}`}>{style}</span>{wine.abv && <p className="mt-2 text-[11px] font-black text-black/58">{wine.abv.includes('%') ? wine.abv : `${wine.abv}%`} ABV</p>}</div>
+          <div className="text-[12px] font-semibold leading-[1.5] text-black/62 lg:pr-6"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Grape / Blend</span>{wine.varietal || '—'}</div>
+          <div className="text-[11px] font-semibold leading-[1.55] text-black/48"><span className="mb-1 block text-[9px] font-black uppercase tracking-[.12em] text-black/30 lg:hidden">Details</span><p>{[wine.appellation, wine.volumeMl ? `${wine.volumeMl} ML` : ''].filter(Boolean).join(' · ') || 'Commerce7 product information'}</p>{wine.casesProduced && <p className="mt-1">{wine.casesProduced} cases</p>}</div>
+        </article>;
+      })}
+
+      {noResults && <div className="px-6 py-20 text-center"><Search className="mx-auto h-7 w-7 text-black/18" /><p className="mt-3 text-sm font-black text-black/55">No wine found.</p><p className="mt-1 text-xs font-semibold text-black/35">Try the wine name, grape or flavor.</p></div>}
     </div>
   </section>;
-}
-
-function TastingGuide({ chosen, openWine }: { chosen: WineRecord[]; openWine?: (wine: WineRecord) => void }) {
-  const categoryRank = (wine: WineRecord) => {
-    const category = guideCategoryFor(wine);
-    const index = GUIDE_CATEGORY_ORDER.indexOf(category);
-    return index === -1 ? GUIDE_CATEGORY_ORDER.length : index;
-  };
-  const sorted = [...chosen].sort((a, b) => categoryRank(a) - categoryRank(b) || a.name.localeCompare(b.name));
-  const pageSize = 7;
-  const pages = sorted.length ? Array.from({ length: Math.ceil(sorted.length / pageSize) }, (_, index) => sorted.slice(index * pageSize, (index + 1) * pageSize)) : [[]];
-  const today = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
-
-  const renderWine = (wine: WineRecord) => {
-    const reference = staffReferenceForWine(wine);
-    const category = guideCategoryFor(wine);
-    const accent = staffGuideAccent(category);
-    const flavor = conciseStaffFlavor(wine, reference);
-    const vintageContext = conciseVintageContext(wine, reference);
-    const style = staffStyleLabel(wine, reference);
-    const abv = wine.abv || (reference?.abv ? `${reference.abv}%` : '');
-    const composition = reference?.composition || wine.varietal || '';
-    const specs = [style, abv ? `${abv.includes('%') ? abv : `${abv}%`} ABV` : '', reference?.aging ? `${reference.aging} aged` : '', reference?.casesProduced && Number(reference.casesProduced) <= 250 ? `${reference.casesProduced} cases` : ''].filter(Boolean);
-
-    return <article key={wine.id} className="staff-report-row relative grid min-h-0 grid-cols-[1.02fr_1.25fr_1.9fr_1.5fr_.48fr] items-start border-b border-black/10 bg-white">
-      <span className="absolute bottom-0 left-0 top-0 w-[4px]" style={{ backgroundColor: accent }} />
-      <div className="staff-report-cell pl-4"><span className="staff-report-category" style={{ color: accent }}>{category}</span><p className="staff-report-name">{wine.name}</p>{wine.vintage && wine.vintage !== 'NV' && <p className="staff-report-vintage">{wine.vintage}</p>}{openWine && <button onClick={() => openWine(wine)} className="no-print mt-1 text-[9px] font-black text-[#326eac]">Open wine profile →</button>}</div>
-      <div className="staff-report-cell staff-report-specs"><p>{specs.join(' · ') || 'Wine'}</p>{composition && <p className="staff-report-blend">{composition}</p>}</div>
-      <div className="staff-report-cell staff-report-flavor">{flavor || 'Use the Commerce7 flavor profile and style for this wine.'}</div>
-      <div className="staff-report-cell staff-report-context">{vintageContext || '—'}</div>
-      <div className="staff-report-cell staff-report-price">{money(wine.price)}</div>
-    </article>;
-  };
-
-  return <div className="staff-report-pages space-y-5 print:space-y-0">
-    {pages.map((pageWines, pageIndex) => <section key={`staff-report-page-${pageIndex}`} className="staff-report-page overflow-hidden bg-white shadow-xl print:shadow-none">
-      <header className="staff-report-header flex items-center justify-between border-b border-black/10 bg-white px-7 py-4">
-        <div className="flex items-center gap-3"><img src="/lwc-logo.png" alt="" className="h-10 w-10 border border-black bg-white object-cover" /><div><p className="text-[7px] font-black uppercase tracking-[.23em] text-[#3976b7]">Leelanau Cellars · Tasting Room</p><h2 className="mt-0.5 text-[22px] font-black tracking-[-.035em]">Tasting Notes</h2><p className="mt-0.5 text-[7.5px] font-semibold text-black/40">Current wines · tasting-room profiles · concise vintage context</p></div></div>
-        <div className="text-right"><p className="text-[8px] font-black text-black/65">{today}</p><p className="mt-1 text-[7px] font-semibold text-black/35">{chosen.length} wines · {pageIndex + 1} / {pages.length}</p></div>
-      </header>
-      <div className="staff-report-columns grid grid-cols-[1.02fr_1.25fr_1.9fr_1.5fr_.48fr] bg-[#f3f2f0] px-0 text-[7px] font-black uppercase tracking-[.12em] text-black/45"><div className="pl-4">Wine</div><div>Specs</div><div>Flavor &amp; Style</div><div>Vintage / Vineyard</div><div className="pr-3 text-right">Price</div></div>
-      {!pageWines.length ? <div className="flex min-h-[620px] items-center justify-center p-10 text-center text-sm text-black/40">The current tasting-room menu will populate Tasting Notes here.</div> : <div className="staff-report-grid">{pageWines.map(renderWine)}{Array.from({ length: Math.max(0, pageSize - pageWines.length) }).map((_, index) => <div key={`empty-${index}`} className="staff-report-empty border-b border-black/10 bg-white" />)}</div>}
-      <footer className="staff-report-footer flex items-center justify-between border-t border-black/10 bg-[#f5f5f4] px-7 text-[7px] font-semibold text-black/38"><span>Internal tasting-room reference · write personal notes in the margins as needed.</span><span>lwc.wine · 231-386-5201</span></footer>
-    </section>)}
-  </div>;
 }
 
 function TechSheetLibrary({ wines, distributionWines, openTech }: { wines: WineRecord[]; distributionWines: DistributionWine[]; openTech: (wine: WineRecord) => void }) {
@@ -3827,6 +3214,7 @@ function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine:
   const total = withAwards.reduce((sum, wine) => sum + wine.awards.length, 0);
   return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
     <PageHeader title="Awards Library" right={<Stat value={total} label="awards" />} />
+    <a href="https://www.lwc.wine/awards/" target="_blank" rel="noreferrer" className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-[#326eac]/15 bg-[#f4f9fe] px-4 py-3 text-left transition hover:border-[#326eac]/30 hover:bg-[#eef6fd]"><span><strong className="block text-sm font-black text-[#1d4f82]">Official awards source</strong><span className="mt-0.5 block text-xs font-semibold text-black/50">San Francisco Chronicle results are verified against Leelanau Cellars’ Awards & Accolades page.</span></span><ExternalLink className="h-4 w-4 shrink-0 text-[#326eac]" /></a>
     <div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <article key={wine.id} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:shadow-md">
       <button type="button" onClick={() => openWine(wine)} className="mb-4 block w-full text-left"><h2 className="text-xl font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></button>
       <div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} downloadable />)}</div>

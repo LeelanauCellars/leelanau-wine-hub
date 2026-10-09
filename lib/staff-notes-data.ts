@@ -6,8 +6,10 @@ export type StaffWineReference = {
   rsStyle: string;
   abv: string;
   composition: string;
+  format: string;
   appellation: string;
   vintage: string;
+  bottlingDate: string;
   casesProduced: string;
   aging: string;
 };
@@ -15,12 +17,14 @@ export type StaffWineReference = {
 export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
   {
     "name": "Baco Noir",
-    "description": "Fun Fact: Baco Noir was one of the first grapes ever planted by Leelanau Cellars. \n\nPronounced acidity and notes of cherry, cedar",
+    "description": "Fun Fact: Baco Noir was one of the first grapes ever planted by Leelanau Cellars.\n\nPronounced acidity and notes of cherry, cedar",
     "rsStyle": "Medium",
     "abv": "11",
     "composition": "Baco Noir",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2021",
+    "bottlingDate": "12.16.2022",
     "casesProduced": "709",
     "aging": "Barrel"
   },
@@ -30,9 +34,24 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "01.30.2024",
     "casesProduced": "174",
+    "aging": "Barrel"
+  },
+  {
+    "name": "Blueberry Dessert Wine",
+    "description": "Port-style wine fortified with brandy\n\nBold blueberry flavors, perfect to end a meal",
+    "rsStyle": "High",
+    "abv": "19",
+    "composition": "",
+    "format": "375ML",
+    "appellation": "American",
+    "vintage": "NV",
+    "bottlingDate": "1.19.2026",
+    "casesProduced": "100",
     "aging": "Barrel"
   },
   {
@@ -41,8 +60,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "12",
     "composition": "45% Chardonnay, 45% Pinot Gris, 5% Sauvignon Blanc, 5% Vignoles",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "9.23.2025",
     "casesProduced": "143",
     "aging": "Steel"
   },
@@ -52,8 +73,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12.5",
     "composition": "55.02% Chardonnay, 40.7% Pinot Gris, 4.27% Sauvignon Blanc",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "4.22.2025",
     "casesProduced": "141",
     "aging": "Steel"
   },
@@ -63,8 +86,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "12.5",
     "composition": "Chardonnay",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "5.1.2024",
     "casesProduced": "215",
     "aging": "Steel"
   },
@@ -74,8 +99,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "12",
     "composition": "Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "NV",
+    "bottlingDate": "01.31.2024",
     "casesProduced": "221",
     "aging": "Steel"
   },
@@ -85,8 +112,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "19",
     "composition": "",
+    "format": "375ML",
     "appellation": "American",
     "vintage": "NV",
+    "bottlingDate": "1/4/2023",
     "casesProduced": "226",
     "aging": "Stainless Steel"
   },
@@ -96,8 +125,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "18",
     "composition": "Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "NV",
+    "bottlingDate": "01.31.2024",
     "casesProduced": "222",
     "aging": "Steel"
   },
@@ -107,8 +138,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "11.5",
     "composition": "60% Riesling, 20% Chardonnay, 20% Vignoles",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "9.23.25",
     "casesProduced": "105",
     "aging": "Steel"
   },
@@ -118,8 +151,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "12",
     "composition": "Riesling",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "02.28.2023",
     "casesProduced": "357",
     "aging": "Steel"
   },
@@ -129,20 +164,11 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12",
     "composition": "Gewürztraminer",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "4.22.25",
     "casesProduced": "77",
-    "aging": "Steel"
-  },
-  {
-    "name": "Gewürztraminer",
-    "description": "Floral and green apple notes with a hint of ginger",
-    "rsStyle": "Medium",
-    "abv": "13.5",
-    "composition": "Gewürztraminer",
-    "appellation": "Leelanau Peninsula",
-    "vintage": "2024",
-    "casesProduced": "99",
     "aging": "Steel"
   },
   {
@@ -151,8 +177,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "13",
     "composition": "Gewürztraminer",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "5.8.24",
     "casesProduced": "54",
     "aging": "Steel"
   },
@@ -162,9 +190,11 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "10",
     "composition": "Riesling",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
-    "casesProduced": "1058",
+    "bottlingDate": "2.28.2023",
+    "casesProduced": "1,058",
     "aging": "Steel"
   },
   {
@@ -173,10 +203,25 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "14",
     "composition": "Cabernet Sauvignon",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "12.9.2025",
     "casesProduced": "48",
     "aging": "Oak"
+  },
+  {
+    "name": "Limited Batch Chardonnay",
+    "description": "Full-bodied with honeydew and melon flavors\n\nPart of excellent 2024 harvest",
+    "rsStyle": "Medium",
+    "abv": "12",
+    "composition": "Chardonnay",
+    "format": "750 ML",
+    "appellation": "Leelanau Peninsula",
+    "vintage": "2024",
+    "bottlingDate": "9.24.2025",
+    "casesProduced": "80",
+    "aging": "Steel"
   },
   {
     "name": "Limited Batch Pinot Grigio",
@@ -184,8 +229,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Pinot Gris",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "5.2.24",
     "casesProduced": "251",
     "aging": "Steel"
   },
@@ -195,8 +242,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "11",
     "composition": "Riesling",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "9.30.2025",
     "casesProduced": "103",
     "aging": "Steel"
   },
@@ -206,8 +255,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "10.5",
     "composition": "100% Foch",
+    "format": "750 ML",
     "appellation": "Michigan",
     "vintage": "2023",
+    "bottlingDate": "5.8.24",
     "casesProduced": "115",
     "aging": "Steel"
   },
@@ -217,8 +268,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Merlot 73.7%, Cab Franc 12.4%, Cab Sauv 13.9%",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "9.24.2024",
     "casesProduced": "213",
     "aging": "Barrel"
   },
@@ -228,21 +281,12 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Merlot",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
-    "vintage": "2023",
-    "casesProduced": "128",
+    "vintage": "2024",
+    "bottlingDate": "12.9.2025",
+    "casesProduced": "205",
     "aging": "Barrel"
-  },
-  {
-    "name": "Merlot",
-    "description": "Black cherry and light oak\n\nMedium-bodied with a polished finish",
-    "rsStyle": "Low",
-    "abv": "12",
-    "composition": "",
-    "appellation": "",
-    "vintage": "",
-    "casesProduced": "",
-    "aging": ""
   },
   {
     "name": "Meritage",
@@ -250,8 +294,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Merlot 54%, Cab Franc 27%, Cab Sauv 18.1%",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "01.30.2024",
     "casesProduced": "446",
     "aging": "Barrel"
   },
@@ -261,8 +307,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13",
     "composition": "Merlot",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "9.23.24",
     "casesProduced": "109",
     "aging": "Barrel"
   },
@@ -272,8 +320,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "12",
     "composition": "100% Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "11.25.24",
     "casesProduced": "195",
     "aging": "Steel"
   },
@@ -283,9 +333,11 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12.7",
     "composition": "Pinot Gris",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
-    "casesProduced": "1153",
+    "bottlingDate": "03.01.2023",
+    "casesProduced": "1,153",
     "aging": "Steel"
   },
   {
@@ -294,8 +346,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12",
     "composition": "Pinot Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "09.23.2024",
     "casesProduced": "207",
     "aging": "Barrel"
   },
@@ -305,8 +359,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12.5",
     "composition": "Pinot Gris",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "5.1.24",
     "casesProduced": "523",
     "aging": "Steel"
   },
@@ -316,8 +372,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "19",
     "composition": "",
+    "format": "375ML",
     "appellation": "American",
     "vintage": "NV",
+    "bottlingDate": "1/4/2023",
     "casesProduced": "312",
     "aging": "Stainless Steel"
   },
@@ -327,8 +385,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "11",
     "composition": "55% Chardonnay, 25% Vignoles, 20% Riesling",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "4.23.25",
     "casesProduced": "213",
     "aging": "Steel"
   },
@@ -338,19 +398,23 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "10.5",
     "composition": "90% Foch, 10% Grüner Veltliner",
+    "format": "750 ML",
     "appellation": "Michigan",
     "vintage": "2023",
+    "bottlingDate": "5.3.24",
     "casesProduced": "415",
     "aging": "Steel"
   },
   {
     "name": "Rosé Bubbly",
-    "description": "Sweet Rose Bubbly\n\nLH Pinot Grigio, Riesling, Baco provide  cherry flavors, hint of pears/citrus",
+    "description": "Sweet Rose Bubbly\n\nLH Pinot Grigio, Riesling, Baco provide cherry flavors, hint of pears/citrus",
     "rsStyle": "High",
     "abv": "12",
     "composition": "76% Pinot Gris, 12% Riesling, 12% Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "9.24.25",
     "casesProduced": "148",
     "aging": "Steel"
   },
@@ -360,8 +424,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "13.5",
     "composition": "Sauvignon Blanc",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2025",
+    "bottlingDate": "6.29.26",
     "casesProduced": "38",
     "aging": "Steel"
   },
@@ -371,8 +437,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "11",
     "composition": "100% Riesling",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2023",
+    "bottlingDate": "4.1.2024",
     "casesProduced": "96",
     "aging": "Steel"
   },
@@ -382,8 +450,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "11",
     "composition": "Riesling",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "2.28.2023",
     "casesProduced": "742",
     "aging": "Steel"
   },
@@ -393,21 +463,12 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Low",
     "abv": "12",
     "composition": "Baco Noir",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2022",
+    "bottlingDate": "01.30.2024",
     "casesProduced": "211",
     "aging": "Steel"
-  },
-  {
-    "name": "Sleeping Bear Red",
-    "description": "Dry red blend inspired by the beauty of Sleeping Bear Dunes\n\nRich, layered, smooth finish",
-    "rsStyle": "Low",
-    "abv": "12.5",
-    "composition": "45% Merlot, 40% Baco Noir, 9% Teroldego, 3% Petit Sirah, 3% Zinfandel",
-    "appellation": "American",
-    "vintage": "NV",
-    "casesProduced": "215",
-    "aging": "Barrel"
   },
   {
     "name": "Sweet Pinot Grigio",
@@ -415,8 +476,10 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "12",
     "composition": "Pinot Grigio",
+    "format": "750 ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2024",
+    "bottlingDate": "9.26.25",
     "casesProduced": "268",
     "aging": "Steel"
   },
@@ -426,9 +489,11 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "Medium",
     "abv": "10.5",
     "composition": "Vignoles",
+    "format": "750",
     "appellation": "Leelanau Peninsula",
-    "vintage": "2022",
-    "casesProduced": "424",
+    "vintage": "2023",
+    "bottlingDate": "5.7.2024",
+    "casesProduced": "144",
     "aging": "Steel"
   },
   {
@@ -437,23 +502,14 @@ export const STAFF_WINE_REFERENCE: StaffWineReference[] = [
     "rsStyle": "High",
     "abv": "18.5",
     "composition": "",
+    "format": "750ML",
     "appellation": "Leelanau Peninsula",
     "vintage": "2020",
+    "bottlingDate": "1.19.2023",
     "casesProduced": "343",
     "aging": "Oak"
-  },
-  {
-    "name": "Vignoles Limited Batch",
-    "description": "Smooth with tropical fruit flavors\n\nHighlights a standout growing season",
-    "rsStyle": "High",
-    "abv": "10.5",
-    "composition": "Vignoles",
-    "appellation": "Leelanau Peninsula",
-    "vintage": "2023",
-    "casesProduced": "101",
-    "aging": "Steel"
   }
-] as StaffWineReference[];
+];
 
 export const VINTAGE_VITICULTURE_NOTES: Record<string, string> = {
   "2019": "Harsh winterkill and a cold, wet growing season led to very low yields and low heat accumulation.",
@@ -532,7 +588,7 @@ export function staffReferenceForWine(wine: WineRecord) {
   // Prefer the more complete duplicate if a sheet contains more than one row for the same wine.
   return [...matches].sort((a, b) => {
     const score = (ref: StaffWineReference) =>
-      [ref.description, ref.rsStyle, ref.abv, ref.composition, ref.appellation, ref.vintage, ref.casesProduced, ref.aging].filter(Boolean).length;
+      [ref.description, ref.rsStyle, ref.abv, ref.composition, ref.format, ref.appellation, ref.vintage, ref.bottlingDate, ref.casesProduced, ref.aging].filter(Boolean).length;
     return score(b) - score(a);
   })[0];
 }
