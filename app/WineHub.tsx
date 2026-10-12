@@ -2347,7 +2347,7 @@ function WineCard({ wine, open, tech, batchMode = false, selected = false, toggl
         <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2"><span className="rounded-full bg-[#326eac] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white shadow-sm">{collectionForWine(wine)}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] shadow-sm">{wine.category}</span>{wine.source === 'commerce7' && <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.08em] text-white">C7</span>}</div>
         {award && <span className="absolute bottom-3 left-3 rounded-full bg-[#d7a33d] px-2.5 py-1 text-[10px] font-black uppercase text-white">{award.result} · {award.year}</span>}
       </div>
-      <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div><p className="mt-3 line-clamp-2 min-h-10 text-xs leading-5 text-black/55">{wine.tastingNotes || wine.shortDescription || 'Add tasting notes for your staff.'}</p></div>
+      <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-black leading-5">{wine.name}</h2><p className="mt-1 text-xs font-semibold text-black/45">{wine.vintage} · {wine.varietal || wine.category}</p></div><span className="text-sm font-black">{money(wine.price)}</span></div>{(wine.tastingNotes || wine.shortDescription) && <p className="mt-3 line-clamp-2 text-xs leading-5 text-black/55">{wine.tastingNotes || wine.shortDescription}</p>}</div>
     </button>
     <div className="flex flex-wrap border-t border-black/8 p-2">
       {batchMode && <label className={`mr-1 flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-black ${selected ? 'bg-[#eaf3fb] text-[#326eac]' : 'hover:bg-black/[.04]'}`}><input type="checkbox" checked={selected} onChange={() => toggleSelected?.()} className="h-3.5 w-3.5 accent-[#326eac]" /> PDF</label>}
@@ -2370,6 +2370,12 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
   const isEditing = Boolean(editing);
   const referenceFacts = wineReferenceFacts(shown);
   const combinedTastingNotes = shown.tastingNotes || shown.shortDescription || '';
+  const headerDetails = [shown.vintage, shown.varietal, shown.appellation].filter(hasProfileValue).join(' · ');
+  const hasTechData = [shown.abv, shown.rs, shown.ta, shown.ph, shown.casePack, shown.casesProduced, shown.sweetness].some(hasProfileValue);
+  const hasPackagingData = Boolean(distributionItem && [
+    distributionItem.imperial.height, distributionItem.imperial.width, distributionItem.imperial.weightOz, distributionItem.imperial.pack,
+    distributionItem.imperial.caseHeight, distributionItem.imperial.caseWidth, distributionItem.imperial.caseLength, distributionItem.imperial.caseWeight,
+  ].some(hasProfileValue));
   const update = <K extends keyof WineRecord>(key: K, value: WineRecord[K]) => editing && setEditing({ ...editing, [key]: value });
   const updateCombinedTastingNotes = (value: string) => editing && setEditing({ ...editing, tastingNotes: value, shortDescription: value });
   const updateAward = (index: number, patch: Partial<Award>) => editing && setEditing({ ...editing, awards: editing.awards.map((award, awardIndex) => awardIndex === index ? { ...award, ...patch } : award) });
@@ -2379,7 +2385,7 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
     <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
       <div className="flex items-start gap-5">
         <div className="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white">{shown.bottleImage ? <img src={shown.bottleImage} alt="" className="h-full w-full object-contain p-2" /> : <WinePlaceholder wine={shown} />}</div>
-        <div><div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#e8f2fb] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{shown.category}</span><span className="rounded-full bg-black/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-black/45">{shown.status}</span>{shown.source === 'commerce7' && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Synced from Commerce7</span>}</div><h1 className="text-4xl font-black tracking-[-.04em]">{shown.name}</h1><p className="mt-2 text-sm font-semibold text-black/45">{shown.vintage} · {shown.varietal || 'Varietal not set'} · {shown.appellation || 'Appellation not set'}</p></div>
+        <div><div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#e8f2fb] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#326eac]">{shown.category}</span><span className="rounded-full bg-black/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-black/45">{shown.status}</span>{shown.source === 'commerce7' && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Synced from Commerce7</span>}</div><h1 className="text-4xl font-black tracking-[-.04em]">{shown.name}</h1>{headerDetails && <p className="mt-2 text-sm font-semibold text-black/45">{headerDetails}</p>}</div>
       </div>
       <div className="flex flex-col items-start gap-2 lg:items-end"><div className="flex flex-wrap gap-2"><CopyLinkButton path={wineProfilePath(wine, tab)} label="Copy wine link" />{allowTechSheets && <button onClick={openTech} className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Build tech sheet</button>}</div><p className="max-w-sm text-right text-[11px] leading-4 text-black/40">Product and master wine information is managed in Commerce7.</p></div>
     </div>
@@ -2388,24 +2394,82 @@ function WineProfile({ wine, distributionWines, tab, setTab, editing, setEditing
 
     {tab === 'overview' && <div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
       <div className="space-y-5">
-        <ProfileBlock title="Tasting notes" badge="Staff-ready">{isEditing ? <Textarea value={combinedTastingNotes} onChange={updateCombinedTastingNotes} rows={5} /> : <p className="profile-copy">{combinedTastingNotes || 'Add tasting notes.'}</p>}</ProfileBlock>
-        <ProfileBlock title="What to tell a customer" badge="Sales team">{isEditing ? <Textarea value={shown.staffPitch} onChange={(value) => update('staffPitch', value)} rows={4} /> : <p className="profile-copy">{shown.staffPitch || 'Add a simple customer-facing pitch.'}</p>}</ProfileBlock>
-        <ProfileBlock title="Pairings">{isEditing ? <Textarea value={shown.pairings} onChange={(value) => update('pairings', value)} rows={3} /> : <p className="profile-copy">{shown.pairings || 'Add pairing ideas.'}</p>}</ProfileBlock>
-        <ProfileBlock title="Sales highlights" badge="Sales team">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={7} /> : shown.highlights.length ? <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul> : <p className="text-sm text-black/40">No sales highlights added yet.</p>}</ProfileBlock>
-        <ProfileBlock title="Production notes">{isEditing ? <Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /> : <p className="profile-copy">{shown.productionNotes || 'No production notes added.'}</p>}</ProfileBlock>
+        {(isEditing || hasProfileValue(combinedTastingNotes)) && <ProfileBlock title="Tasting notes" badge="Staff-ready">{isEditing ? <Textarea value={combinedTastingNotes} onChange={updateCombinedTastingNotes} rows={5} /> : <p className="profile-copy">{combinedTastingNotes}</p>}</ProfileBlock>}
+        {(isEditing || hasProfileValue(shown.staffPitch)) && <ProfileBlock title="What to tell a customer" badge="Sales team">{isEditing ? <Textarea value={shown.staffPitch} onChange={(value) => update('staffPitch', value)} rows={4} /> : <p className="profile-copy">{shown.staffPitch}</p>}</ProfileBlock>}
+        {(isEditing || hasProfileValue(shown.pairings)) && <ProfileBlock title="Pairings">{isEditing ? <Textarea value={shown.pairings} onChange={(value) => update('pairings', value)} rows={3} /> : <p className="profile-copy">{shown.pairings}</p>}</ProfileBlock>}
+        {(isEditing || shown.highlights.length > 0) && <ProfileBlock title="Sales highlights" badge="Sales team">{isEditing ? <Textarea value={shown.highlights.join('\n')} onChange={(value) => update('highlights', safeArray(value))} rows={7} /> : <ul className="space-y-3">{shown.highlights.map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}</ul>}</ProfileBlock>}
+        {(isEditing || hasProfileValue(shown.productionNotes)) && <ProfileBlock title="Production notes">{isEditing ? <Textarea value={shown.productionNotes || ''} onChange={(value) => update('productionNotes', value)} rows={5} /> : <p className="profile-copy">{shown.productionNotes}</p>}</ProfileBlock>}
       </div>
       <div className="space-y-5">
-        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><QuickFact label="Collection" value={collectionForWine(shown)} /><QuickFact label="Style" value={shown.category} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /></dl></ProfileBlock>
-        <ProfileBlock title="Vineyard & wine quick facts" badge="Quick Facts">
-          {isEditing ? <div className="mb-5"><label className="field-label">Wine-specific vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></div> : shown.vineyardNotes ? <div className="mb-5"><p className="field-label">Wine-specific vineyard notes</p><p className="profile-copy">{shown.vineyardNotes}</p></div> : null}
-          {referenceFacts.length ? <div className="space-y-3">{referenceFacts.map((fact) => <WineReferenceFactCard key={`${fact.label}-${fact.title}`} fact={fact} />)}</div> : !shown.vineyardNotes ? <p className="text-sm leading-6 text-black/40">No matching vineyard, varietal, appellation or vintage quick facts are available for this wine yet.</p> : null}
+        <ProfileBlock title="At a glance"><dl className="grid grid-cols-2 gap-x-4 gap-y-4"><OptionalQuickFact label="Collection" value={collectionForWine(shown)} /><OptionalQuickFact label="Style" value={shown.category} /><OptionalQuickFact label="Varietal" value={shown.varietal} /><OptionalQuickFact label="Appellation" value={shown.appellation} /><OptionalQuickFact label="Sweetness" value={shown.sweetness} /><OptionalQuickFact label="ABV" value={shown.abv} /><OptionalQuickFact label="SRP" value={shown.price === undefined ? undefined : money(shown.price)} /><OptionalQuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : undefined} /><OptionalQuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : undefined} /><OptionalQuickFact label="GTIN" value={gtin} /></dl></ProfileBlock>
+        {(isEditing || hasProfileValue(shown.vineyardNotes) || referenceFacts.length > 0) && <ProfileBlock title="Vineyard & wine quick facts" badge="Quick Facts">
+          {isEditing ? <div className={referenceFacts.length ? 'mb-5' : ''}><label className="field-label">Wine-specific vineyard notes</label><Textarea value={shown.vineyardNotes || ''} onChange={(value) => update('vineyardNotes', value)} rows={5} /></div> : shown.vineyardNotes ? <div className={referenceFacts.length ? 'mb-5' : ''}><p className="field-label">Wine-specific vineyard notes</p><p className="profile-copy">{shown.vineyardNotes}</p></div> : null}
+          {referenceFacts.length > 0 && <div className="space-y-3">{referenceFacts.map((fact) => <WineReferenceFactCard key={`${fact.label}-${fact.title}`} fact={fact} />)}</div>}
           {referenceFacts.length > 0 && <p className="mt-4 text-[10px] leading-4 text-black/35">Quick Facts are pulled automatically from the tasting-room reference using this wine&apos;s varietal, appellation, vineyard/site name and vintage.</p>}
-        </ProfileBlock>
-        <ProfileBlock title="Awards" badge={`${shown.awards.length} total`}><div className="space-y-2">{shown.awards.map((award, index) => isEditing ? <AwardEditor key={award.id} award={award} onChange={(patch) => updateAward(index, patch)} onRemove={() => removeAward(index)} /> : <AwardRow key={award.id} award={award} />)}{!shown.awards.length && <p className="text-sm text-black/40">No awards added yet.</p>}{isEditing && <button onClick={addAward} className="mt-2 flex items-center gap-1.5 text-xs font-black text-[#326eac]"><Plus className="h-3.5 w-3.5" /> Add award</button>}</div></ProfileBlock>
+        </ProfileBlock>}
+        {(isEditing || shown.awards.length > 0) && <ProfileBlock title="Awards" badge={shown.awards.length ? `${shown.awards.length} total` : undefined}><div className="space-y-2">{shown.awards.map((award, index) => isEditing ? <AwardEditor key={award.id} award={award} onChange={(patch) => updateAward(index, patch)} onRemove={() => removeAward(index)} /> : <AwardRow key={award.id} award={award} />)}{isEditing && <button onClick={addAward} className="mt-2 flex items-center gap-1.5 text-xs font-black text-[#326eac]"><Plus className="h-3.5 w-3.5" /> Add award</button>}</div></ProfileBlock>}
       </div>
     </div>}
 
-    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2"><ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>{shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}<div className="grid gap-4 sm:grid-cols-2">{isEditing && shown.source !== 'commerce7' ? <><EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} /><EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} /><EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} /><EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} /><EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} /><QuickFact label="GTIN" value={gtin} /><EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} /><EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} /></> : <><QuickFact label="Wine name" value={shown.name} /><QuickFact label="Vintage" value={shown.vintage} /><QuickFact label="Varietal" value={shown.varietal || '—'} /><QuickFact label="Appellation" value={shown.appellation || '—'} /><QuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : '—'} /><QuickFact label="GTIN" value={gtin} /><QuickFact label="SRP" value={money(shown.price)} /><QuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : '—'} /></>}</div></ProfileBlock><ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <><EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} /><EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} /><EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} /><EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} /><EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} /><EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} /><EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} /></> : <><QuickFact label="ABV" value={shown.abv || '—'} /><QuickFact label="RS" value={shown.rs || '—'} /><QuickFact label="TA" value={shown.ta || '—'} /><QuickFact label="pH" value={shown.ph || '—'} /><QuickFact label="Case pack" value={shown.casePack || '—'} /><QuickFact label="Cases produced" value={shown.casesProduced || '—'} /><QuickFact label="Sweetness" value={shown.sweetness || '—'} /></>}</div></ProfileBlock><div className="lg:col-span-2"><ProfileBlock title="Unit & case dimensions / weight" badge="Distribution data"><div className="grid gap-6 md:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Unit</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.height, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.width, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.weightOz, 'oz')} /><QuickFact label="Pack" value={packagingMeasure(distributionItem?.imperial.pack)} /></dl></div><div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Case</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4"><QuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.caseHeight, 'in')} /><QuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.caseWidth, 'in')} /><QuickFact label="Length" value={packagingMeasure(distributionItem?.imperial.caseLength, 'in')} /><QuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.caseWeight, 'lb')} /></dl></div></div>{!distributionItem && <p className="mt-4 text-xs font-semibold text-black/40">No matching distribution packaging record is available for this wine yet.</p>}</ProfileBlock></div></div>}
+    {tab === 'specs' && <div className="grid gap-5 lg:grid-cols-2">
+      <ProfileBlock title="Commerce7 / product facts" badge={shown.source === 'commerce7' ? 'Managed in Commerce7' : 'Editable'}>
+        {shown.source === 'commerce7' && isEditing && <p className="mb-4 rounded-xl bg-[#edf5fd] p-3 text-xs leading-5 text-[#285f96]">Product name, vintage, varietal, appellation, UPC, price and bottle size stay managed in Commerce7. Wine Hub-specific technical and sales fields remain editable here.</p>}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {isEditing && shown.source !== 'commerce7' ? <>
+            <EditField label="Wine name" value={shown.name} onChange={(value) => update('name', value)} />
+            <EditField label="Vintage" value={shown.vintage} onChange={(value) => update('vintage', value)} />
+            <EditField label="Varietal" value={shown.varietal || ''} onChange={(value) => update('varietal', value)} />
+            <EditField label="Appellation" value={shown.appellation || ''} onChange={(value) => update('appellation', value)} />
+            <EditField label="UPC" value={shown.upc || ''} onChange={(value) => update('upc', value)} />
+            <OptionalQuickFact label="GTIN" value={gtin} />
+            <EditField label="SRP" value={shown.price === undefined ? '' : String(shown.price)} onChange={(value) => update('price', value ? Number(value) : undefined)} />
+            <EditField label="Volume mL" value={shown.volumeMl === undefined ? '' : String(shown.volumeMl)} onChange={(value) => update('volumeMl', value ? Number(value) : undefined)} />
+          </> : <>
+            <OptionalQuickFact label="Wine name" value={shown.name} />
+            <OptionalQuickFact label="Vintage" value={shown.vintage} />
+            <OptionalQuickFact label="Varietal" value={shown.varietal} />
+            <OptionalQuickFact label="Appellation" value={shown.appellation} />
+            <OptionalQuickFact label="UPC" value={shown.upc ? formatUpc(shown.upc) : undefined} />
+            <OptionalQuickFact label="GTIN" value={gtin} />
+            <OptionalQuickFact label="SRP" value={shown.price === undefined ? undefined : money(shown.price)} />
+            <OptionalQuickFact label="Volume" value={shown.volumeMl ? `${shown.volumeMl} mL` : undefined} />
+          </>}
+        </div>
+      </ProfileBlock>
+
+      {(isEditing || hasTechData) && <ProfileBlock title="Tech data"><div className="grid gap-4 sm:grid-cols-2">{isEditing ? <>
+        <EditField label="ABV" value={shown.abv || ''} onChange={(value) => update('abv', value)} />
+        <EditField label="Residual sugar" value={shown.rs || ''} onChange={(value) => update('rs', value)} />
+        <EditField label="TA" value={shown.ta || ''} onChange={(value) => update('ta', value)} />
+        <EditField label="pH" value={shown.ph || ''} onChange={(value) => update('ph', value)} />
+        <EditField label="Case pack" value={shown.casePack || ''} onChange={(value) => update('casePack', value)} />
+        <EditField label="Cases produced" value={shown.casesProduced || ''} onChange={(value) => update('casesProduced', value)} />
+        <EditField label="Sweetness" value={shown.sweetness || ''} onChange={(value) => update('sweetness', value)} />
+      </> : <>
+        <OptionalQuickFact label="ABV" value={shown.abv} />
+        <OptionalQuickFact label="RS" value={shown.rs} />
+        <OptionalQuickFact label="TA" value={shown.ta} />
+        <OptionalQuickFact label="pH" value={shown.ph} />
+        <OptionalQuickFact label="Case pack" value={shown.casePack} />
+        <OptionalQuickFact label="Cases produced" value={shown.casesProduced} />
+        <OptionalQuickFact label="Sweetness" value={shown.sweetness} />
+      </>}</div></ProfileBlock>}
+
+      {hasPackagingData && <div className="lg:col-span-2"><ProfileBlock title="Unit & case dimensions / weight" badge="Distribution data"><div className="grid gap-6 md:grid-cols-2">
+        {[distributionItem?.imperial.height, distributionItem?.imperial.width, distributionItem?.imperial.weightOz, distributionItem?.imperial.pack].some(hasProfileValue) && <div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Unit</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+          <OptionalQuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.height, 'in')} />
+          <OptionalQuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.width, 'in')} />
+          <OptionalQuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.weightOz, 'oz')} />
+          <OptionalQuickFact label="Pack" value={packagingMeasure(distributionItem?.imperial.pack)} />
+        </dl></div>}
+        {[distributionItem?.imperial.caseHeight, distributionItem?.imperial.caseWidth, distributionItem?.imperial.caseLength, distributionItem?.imperial.caseWeight].some(hasProfileValue) && <div><p className="mb-3 text-xs font-black uppercase tracking-[.12em] text-[#326eac]">Case</p><dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+          <OptionalQuickFact label="Height" value={packagingMeasure(distributionItem?.imperial.caseHeight, 'in')} />
+          <OptionalQuickFact label="Width" value={packagingMeasure(distributionItem?.imperial.caseWidth, 'in')} />
+          <OptionalQuickFact label="Length" value={packagingMeasure(distributionItem?.imperial.caseLength, 'in')} />
+          <OptionalQuickFact label="Weight" value={packagingMeasure(distributionItem?.imperial.caseWeight, 'lb')} />
+        </dl></div>}
+      </div></ProfileBlock></div>}
+    </div>}
 
     {tab === 'assets' && <WineProfileAssets wine={shown} />}
   </div>;
@@ -2428,53 +2492,69 @@ function WineProfileAssets({ wine }: { wine: WineRecord }) {
   const upcFilename = assetName(`${wine.name}${vintage}-UPC-${upc.digits || 'Barcode'}`);
 
   return <div className="space-y-5">
-    <ProfileBlock title="Bottle images" badge={images.length ? `${images.length} image${images.length === 1 ? '' : 's'}` : undefined}>
-      {images.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{images.map((asset, index) => {
+    {images.length > 0 && <ProfileBlock title="Bottle images" badge={`${images.length} image${images.length === 1 ? '' : 's'}`}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{images.map((asset, index) => {
         const label = asset.label || (asset.role === 'front' ? 'Front bottle image' : asset.role === 'back' ? 'Back bottle image' : `Additional bottle image ${index + 1}`);
         const filename = assetFileBase(wine, asset.label ? asset.label.replace(/[^a-z0-9]+/gi, '-') : asset.role, index);
         return <div key={asset.id || `${asset.src}-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <div className="flex h-72 items-center justify-center bg-[#f3f5f7] p-4"><img src={asset.src} alt={`${wine.name} ${label}`} className="h-full w-full object-contain" /></div>
           <div className="p-4"><p className="text-sm font-black">{label}</p><p className="mt-1 text-[10px] leading-4 text-black/45">Download a clean copy in the format your sales or design team needs.</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(asset.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(asset.src, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
         </div>;
-      })}</div> : <p className="text-sm text-black/40">No bottle images are attached to this Commerce7 product.</p>}
-    </ProfileBlock>
+      })}</div>
+    </ProfileBlock>}
 
-    <ProfileBlock title="Case Packaging" badge={packaging ? 'Approved case' : undefined}>
-      {packaging ? <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
+    {packaging && <ProfileBlock title="Case Packaging" badge="Approved case">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
         <div className="flex min-h-72 items-center justify-center rounded-xl border border-black/10 bg-[#f3f5f7] p-5"><img src={packaging.src} alt={`${wine.name} case packaging`} className="max-h-[360px] w-full object-contain" /></div>
         <div><p className="text-base font-black">{packaging.label}</p><p className="mt-2 max-w-xl text-xs leading-5 text-black/45">This is the same approved case artwork Wine Hub automatically offers in the Tech Sheet Builder for this wine.</p><div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void downloadImageAsFormat(packaging.src, 'png', caseFilename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(packaging.src, 'jpeg', caseFilename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
-      </div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><ImageIcon className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No case packaging is associated with this wine.</p><p className="mt-1 text-xs text-black/35">If an approved case is added later, it can appear here and in the Tech Sheet Builder automatically.</p></div>}
-    </ProfileBlock>
+      </div>
+    </ProfileBlock>}
 
-    <ProfileBlock title="POS Displays" badge={posDisplays.length ? `${posDisplays.length} display${posDisplays.length === 1 ? '' : 's'}` : undefined}>
-      {posDisplays.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{posDisplays.map((display, index) => {
+    {posDisplays.length > 0 && <ProfileBlock title="POS Displays" badge={`${posDisplays.length} display${posDisplays.length === 1 ? '' : 's'}`}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{posDisplays.map((display, index) => {
         const filename = assetName(`${wine.name}${vintage}-POS-${display.label || index + 1}`);
         return <div key={display.id} className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <div className="flex h-72 items-center justify-center bg-[#f3f5f7] p-4"><img src={display.src} alt={`${wine.name} ${display.label}`} className="h-full w-full object-contain" /></div>
           <div className="p-4"><p className="text-sm font-black">{display.label}</p><p className="mt-1 min-h-8 text-[10px] leading-4 text-black/45">{display.description || 'Approved point-of-sale display artwork.'}</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(display.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(display.jpegSrc, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
         </div>;
-      })}</div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><Store className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No POS displays are associated with this wine.</p><p className="mt-1 text-xs text-black/35">Approved case cards, floor displays and other merchandising assets will appear here when available.</p></div>}
-    </ProfileBlock>
+      })}</div>
+    </ProfileBlock>}
 
-    <ProfileBlock title="UPC Barcode" badge={upc.valid ? 'UPC-A' : undefined}>
-      {wine.upc ? upc.valid ? <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_1fr] lg:items-center">
+    {wine.upc && <ProfileBlock title="UPC Barcode" badge={upc.valid ? 'UPC-A' : undefined}>
+      {upc.valid ? <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_1fr] lg:items-center">
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white p-5"><img src={upcDataUrl} alt={`UPC barcode ${upc.formatted}`} className="mx-auto w-full max-w-[460px]" /></div>
         <div><p className="text-xs font-black uppercase tracking-[.12em] text-black/35">Commerce7 UPC</p><p className="mt-1 text-xl font-black tracking-[.08em]">{upc.formatted}</p><p className="mt-3 max-w-xl text-xs leading-5 text-black/45">Wine Hub creates standard UPC-A artwork directly from the UPC stored in Commerce7. Use SVG for packaging/design work, or PNG/JPEG for everyday sales files.</p><div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void downloadImageAsFormat(upcDataUrl, 'png', upcFilename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => downloadTextFile(upcSvg, 'image/svg+xml;charset=utf-8', `${upcFilename}.svg`)} className="flex items-center gap-1.5 rounded-lg bg-[#326eac] px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> SVG</button><button onClick={() => void downloadImageAsFormat(upcDataUrl, 'jpeg', upcFilename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
-      </div> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-900">UPC artwork could not be created.</p><p className="mt-1 text-xs leading-5 text-amber-800">{upc.reason} Wine Hub will not silently change the Commerce7 UPC.</p><p className="mt-2 font-mono text-xs text-amber-900">{wine.upc}</p></div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><p className="text-sm font-bold text-black/45">No UPC is stored for this wine in Commerce7.</p><p className="mt-1 text-xs text-black/35">Once a UPC is added there, the downloadable barcode will appear here automatically.</p></div>}
-    </ProfileBlock>
+      </div> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-900">UPC artwork could not be created.</p><p className="mt-1 text-xs leading-5 text-amber-800">{upc.reason} Wine Hub will not silently change the Commerce7 UPC.</p><p className="mt-2 font-mono text-xs text-amber-900">{wine.upc}</p></div>}
+    </ProfileBlock>}
 
-    <ProfileBlock title="Wine Lifestyle Images" badge={lifestyleImages.length ? `${lifestyleImages.length} image${lifestyleImages.length === 1 ? '' : 's'}` : undefined}>
-      {lifestyleImages.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{lifestyleImages.map((asset, index) => {
+    {lifestyleImages.length > 0 && <ProfileBlock title="Wine Lifestyle Images" badge={`${lifestyleImages.length} image${lifestyleImages.length === 1 ? '' : 's'}`}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{lifestyleImages.map((asset, index) => {
         const filename = `${wine.name}${vintage}-Lifestyle-${index + 1}`.replace(/[^a-z0-9._-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         return <div key={`${asset.src}-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <a href={asset.src} target="_blank" rel="noreferrer" className="block aspect-[4/3] overflow-hidden bg-[#f3f5f7]"><img src={asset.src} alt={`${wine.name} lifestyle image ${index + 1}`} className="h-full w-full object-cover transition duration-200 hover:scale-[1.015]" /></a>
           <div className="p-4"><p className="text-sm font-black">Lifestyle image {index + 1}</p><p className="mt-1 line-clamp-2 text-[10px] leading-4 text-black/45">{asset.title}</p><div className="mt-3 flex gap-2"><button onClick={() => void downloadImageAsFormat(asset.src, 'png', filename)} className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-[11px] font-black text-white"><Download className="h-3.5 w-3.5" /> PNG</button><button onClick={() => void downloadImageAsFormat(asset.src, 'jpeg', filename)} className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black"><Download className="h-3.5 w-3.5" /> JPEG</button></div></div>
         </div>;
-      })}</div> : <div className="rounded-xl border border-dashed border-black/15 bg-[#fafbfc] px-5 py-8 text-center"><ImageIcon className="mx-auto h-7 w-7 text-black/20" /><p className="mt-2 text-sm font-bold text-black/45">No lifestyle images added yet.</p><p className="mt-1 text-xs text-black/35">This section is ready for approved photography tied to this wine.</p></div>}
-    </ProfileBlock>
+      })}</div>
+    </ProfileBlock>}
 
-    <ProfileBlock title="Links"><div className="space-y-3">{wine.productUrl && <a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={wine.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a>}<p className="text-xs leading-5 text-black/45">Wine Hub reads the product photo gallery and UPC from Commerce7, adds approved case packaging and POS displays when available, and matches approved lifestyle photography to the wine by product name and brand.</p></div></ProfileBlock>
+    {wine.productUrl && <ProfileBlock title="Links"><a className="flex items-center gap-2 text-sm font-bold text-[#326eac]" href={wine.productUrl} target="_blank" rel="noreferrer">Open product page <ExternalLink className="h-4 w-4" /></a></ProfileBlock>}
   </div>;
+}
+
+function hasProfileValue(value: unknown) {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return Boolean(trimmed && trimmed !== '—' && trimmed !== '-' && trimmed !== '0' && trimmed !== '0.0');
+  }
+  return true;
+}
+
+function OptionalQuickFact({ label, value }: { label: string; value?: string | null }) {
+  if (!hasProfileValue(value)) return null;
+  return <QuickFact label={label} value={String(value)} />;
 }
 
 function ProfileBlock({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {

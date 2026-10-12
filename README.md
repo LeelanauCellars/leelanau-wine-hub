@@ -1,3 +1,12 @@
+## v98 Wine profile empty-state cleanup
+
+- Hides empty Overview sections in normal viewing mode instead of showing placeholder copy such as “Add tasting notes” or “No awards added yet.”
+- Keeps all editable fields visible while an admin is editing a wine, so missing information can still be added later.
+- Removes blank At a Glance and Specs values rather than showing dashes or “not set” labels.
+- Hides Tech Data and packaging sections when no usable values exist.
+- Hides empty Bottle Images, Case Packaging, POS Displays, UPC, Lifestyle Images, and Links sections on the Assets tab.
+- Removes the Wine Library card prompt that previously said to add tasting notes when none were available.
+
 ## v97 Tech Sheets branded collection update
 
 - Updates the Tech Sheets collection landing page to use the same branded collection logo tiles as the Wine Library.
