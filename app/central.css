@@ -1,61 +1,337 @@
 /* Shared brand styles for entry, portal selection and navigation.
-   Imported explicitly by page.tsx; checked before each production build. */
+   v99 modern visual refresh: same information architecture, quieter product-style UI. */
+:root {
+  --central-blue: #3976b7;
+  --central-blue-deep: #17395f;
+  --central-ink: #102033;
+  --central-muted: #667383;
+  --central-canvas: #f4f6f7;
+  --central-card: rgba(255,255,255,.92);
+  --central-line: rgba(16,32,51,.09);
+}
+
 .central-entry, .central-chooser {
-  min-height: 100svh; display: flex; align-items: center; justify-content: center;
-  padding: 48px 24px; background: #fff; color: #000;
+  min-height: 100svh;
+  color: var(--central-ink);
 }
-.central-entry-content { width: min(100%, 380px); display: flex; flex-direction: column; gap: 40px; }
-.central-entry-logo { display: block; width: 100%; height: auto; object-fit: contain; }
+
+/* Welcome screen */
+.central-entry {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(28px, 5vw, 72px);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(91,163,248,.13), transparent 30%),
+    linear-gradient(135deg, #f8fafb 0%, #eef2f4 100%);
+}
+.central-entry::after {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  inset: 0 0 0 48%;
+  background:
+    linear-gradient(90deg, #f2f5f6 0%, rgba(242,245,246,.18) 17%, rgba(10,25,42,.08) 100%),
+    url('/portal/tasting-room.jpg') center / cover no-repeat;
+}
+.central-entry::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0 68%, rgba(7,24,43,.12) 100%);
+}
+.central-entry-content {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: clamp(30px, 4vw, 52px);
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 34px;
+  background: rgba(255,255,255,.84);
+  box-shadow: 0 28px 80px rgba(17,39,61,.12);
+  backdrop-filter: blur(22px);
+}
+.central-entry-logo {
+  display: block;
+  width: 154px;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 34px;
+}
+.central-entry-copy { max-width: 430px; }
+.central-entry-kicker {
+  margin: 0 0 10px;
+  color: var(--central-blue);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .19em;
+  text-transform: uppercase;
+}
+.central-entry-copy h1 {
+  margin: 0;
+  max-width: 420px;
+  color: var(--central-ink);
+  font-size: clamp(34px, 4.1vw, 54px);
+  font-weight: 750;
+  line-height: 1.02;
+  letter-spacing: -.048em;
+}
+.central-entry-copy > p:last-child {
+  margin: 18px 0 0;
+  max-width: 390px;
+  color: rgba(16,32,51,.58);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.7;
+}
 .central-enter-button {
-  display: flex; align-items: center; justify-content: center; gap: 24px;
-  width: 100%; padding: 10px 12px 10px 24px; border: 0; border-radius: 999px;
-  background: #5ba3f8; color: #fff; font-size: 60px; font-weight: 800; line-height: 1.15;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 54px;
+  margin-top: 34px;
+  padding: 7px 8px 7px 22px;
+  border: 1px solid rgba(16,32,51,.05);
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #17395f 0%, #3976b7 100%);
+  box-shadow: 0 12px 28px rgba(39,91,145,.19);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
 }
-.central-arrow { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #fff; color: #5ba3f8; }
-.central-arrow svg { display: block; width: 76%; height: 76%; }
-.central-enter-button .central-arrow { width: 66px; height: 66px; }
-.central-chooser-content { width: 100%; max-width: 1500px; text-align: center; }
-.central-chooser-logo { display: block; width: 260px; height: auto; object-fit: contain; margin: 0 auto 28px; }
-.central-chooser h1 { margin: 0; font-size: clamp(30px, 3.7vw, 62px); font-weight: 800; line-height: 1.2; letter-spacing: -.025em; }
-.central-subtitle { margin: 18px 0 0; font-size: clamp(18px, 2vw, 30px); line-height: 1.5; }
-.central-role-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(24px, 4.5vw, 70px); max-width: 1240px; margin: 48px auto 0; }
-.central-role { display: block; min-width: 0; padding: 0; border: 0; background: transparent; }
-.central-role-photo { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 28px; }
+.central-enter-button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+  box-shadow: 0 16px 34px rgba(39,91,145,.25);
+}
+.central-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--central-blue);
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(10,37,65,.10);
+}
+.central-arrow svg { display: block; width: 50%; height: 50%; }
+.central-enter-button .central-arrow { width: 40px; height: 40px; }
+
+/* Portal chooser */
+.central-chooser {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(34px, 5vw, 68px) clamp(20px, 4vw, 54px);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(91,163,248,.10), transparent 34%),
+    var(--central-canvas);
+}
+.central-chooser-content { width: 100%; max-width: 1320px; text-align: center; }
+.central-chooser-logo {
+  display: block;
+  width: 128px;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 24px;
+}
+.central-chooser h1 {
+  margin: 0;
+  color: var(--central-ink);
+  font-size: clamp(34px, 4vw, 54px);
+  font-weight: 750;
+  line-height: 1.06;
+  letter-spacing: -.045em;
+}
+.central-subtitle {
+  margin: 12px 0 0;
+  color: rgba(16,32,51,.52);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.6;
+}
+.central-role-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 1180px;
+  margin: 42px auto 0;
+}
+.central-role {
+  position: relative;
+  display: block;
+  min-width: 0;
+  aspect-ratio: .82;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(16,32,51,.08);
+  border-radius: 26px;
+  background: #dfe5e8;
+  box-shadow: 0 10px 30px rgba(23,47,69,.08);
+  transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.central-role::after {
+  content: '';
+  position: absolute;
+  inset: 30% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(5,17,31,.70));
+  pointer-events: none;
+}
+.central-role:hover {
+  transform: translateY(-5px);
+  border-color: rgba(57,118,183,.20);
+  box-shadow: 0 22px 46px rgba(23,47,69,.15);
+}
+.central-role-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  transition: transform .45s cubic-bezier(.2,.7,.2,1);
+}
+.central-role:hover .central-role-photo { transform: scale(1.035); }
 .central-role-admin .central-role-photo { object-position: 58% center; }
 .central-role-tasting .central-role-photo { object-position: 48% center; }
 .central-role-sales .central-role-photo { object-position: center; }
 .central-role-distribution .central-role-photo { object-position: 50% 56%; }
-.central-role-caption { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 60px; margin-top: 10px; padding: 6px 7px 6px 13px; border-radius: 999px; background: #5ba3f8; color: #fff; }
-.central-role-label { flex: 1; text-align: center; font-size: 36px; font-weight: 800; text-transform: uppercase; line-height: 1; letter-spacing: .01em; }
-.central-role-tasting .central-role-label { font-size: 25px; }
-.central-role-distribution .central-role-label { font-size: 19px; }
-.central-back { display: block; margin: 28px auto 0; background: transparent; border: 0; color: #666; font-size: 12px; padding: 8px; }
-.central-sidebar-logo { display: block; width: 142px; height: auto; object-fit: contain; }
-.central-nav-button { display: flex; align-items: center; width: 100%; min-height: 48px; border: 0; border-radius: 7px; padding: 11px 10px; background: #5ba3f8; color: #fff; text-align: left; font-size: 18px; font-weight: 800; text-transform: uppercase; line-height: 1.2; }
-.central-nav-active { background: #448fe9; }
-.central-role:hover .central-role-caption, .central-enter-button:hover, .central-nav-button:hover { background: #428fe9; }
-.central-role:focus-visible, .central-enter-button:focus-visible, .central-nav-button:focus-visible { outline: 3px solid #2369bd; outline-offset: 4px; }
+.central-role-caption {
+  position: absolute;
+  z-index: 2;
+  left: 18px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  color: #fff;
+}
+.central-role-label {
+  flex: 1;
+  text-align: left;
+  font-size: clamp(18px, 1.6vw, 24px);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -.025em;
+}
+.central-role-caption .central-arrow {
+  width: 38px;
+  height: 38px;
+  color: #fff;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.24);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+}
+.central-back {
+  display: inline-flex;
+  margin: 28px auto 0;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(16,32,51,.48);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  transition: color .18s ease, background .18s ease;
+}
+.central-back:hover { color: var(--central-ink); background: rgba(16,32,51,.05); }
+.central-role:focus-visible, .central-enter-button:focus-visible, .central-nav-button:focus-visible { outline: 3px solid rgba(57,118,183,.34); outline-offset: 4px; }
+
+/* Main app shell */
+.app-shell { background: var(--central-canvas) !important; color: var(--central-ink) !important; }
+.app-shell > aside {
+  border-right: 1px solid var(--central-line) !important;
+  background: rgba(251,252,252,.94) !important;
+  box-shadow: 10px 0 38px rgba(21,47,70,.035);
+  backdrop-filter: blur(18px);
+}
+.app-shell > main { background: var(--central-canvas); }
+.central-sidebar-logo { display: block; width: 116px; height: auto; object-fit: contain; }
+.central-nav-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: rgba(16,32,51,.62);
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  transition: color .17s ease, background .17s ease, border-color .17s ease, transform .17s ease;
+}
+.central-nav-icon {
+  display: inline-flex;
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: rgba(16,32,51,.38);
+}
+.central-nav-icon svg { width: 17px; height: 17px; stroke-width: 2; }
+.central-nav-label { min-width: 0; flex: 1; }
+.central-nav-button:hover {
+  color: var(--central-ink);
+  background: rgba(16,32,51,.045);
+}
+.central-nav-active {
+  color: #245f9c;
+  border-color: rgba(57,118,183,.08);
+  background: rgba(57,118,183,.085);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+.central-nav-active .central-nav-icon { color: #3976b7; }
+.central-nav-active::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 999px;
+  background: #3976b7;
+}
+
 @media (max-width: 1100px) {
-  .central-role-grid { gap: 24px; }
-  .central-role-label { font-size: 28px; }
-  .central-role-distribution .central-role-label { font-size: 15px; }
-  .central-role-caption .central-arrow { width: 36px; height: 36px; }
+  .central-role-grid { gap: 14px; }
 }
 @media (max-width: 900px) {
-  .central-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 580px; gap: 28px; margin-top: 32px; }
-  .central-chooser-logo { width: 190px; }
-  .central-role-label { font-size: 34px; }
-  .central-role-distribution .central-role-label { font-size: 19px; }
+  .central-entry { justify-content: center; }
+  .central-entry::after { inset: 0; opacity: .20; }
+  .central-entry::before { background: rgba(241,245,247,.62); }
+  .central-entry-content { width: min(100%, 560px); }
+  .central-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 660px; gap: 16px; margin-top: 32px; }
+  .central-chooser-logo { width: 110px; }
 }
-@media (max-width: 480px) {
-  .central-entry-content { max-width: 290px; gap: 30px; }
-  .central-enter-button { font-size: 44px; gap: 18px; padding-left: 20px; }
-  .central-enter-button .central-arrow { width: 52px; height: 52px; }
-  .central-chooser { padding: 32px 20px; }
-  .central-chooser-logo { width: 155px; }
-  .central-role-grid { max-width: 280px; grid-template-columns: 1fr; }
-  .central-role-label { font-size: 36px; }
-  .central-role-distribution .central-role-label { font-size: 20px; }
+@media (max-width: 520px) {
+  .central-entry { padding: 18px; }
+  .central-entry-content { padding: 30px 26px; border-radius: 28px; }
+  .central-entry-logo { width: 118px; margin-bottom: 26px; }
+  .central-entry-copy h1 { font-size: 36px; }
+  .central-chooser { padding: 30px 16px; align-items: flex-start; }
+  .central-chooser-logo { width: 96px; margin-bottom: 18px; }
+  .central-chooser h1 { font-size: 34px; }
+  .central-role-grid { max-width: 340px; grid-template-columns: 1fr; }
+  .central-role { aspect-ratio: 1.2; }
 }
 
 /* Ask Central — premium AI launcher + workspace */
@@ -501,3 +777,36 @@
 @media (prefers-reduced-motion: reduce) {
   .ask-central-launcher-glow { animation: none !important; }
 }
+
+/* Shared page rhythm */
+.central-page-header { padding-top: 2px; }
+.central-page-eyebrow {
+  color: #3976b7;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+.central-page-title {
+  margin: 0;
+  color: var(--central-ink);
+  font-size: clamp(30px, 3vw, 40px);
+  font-weight: 750;
+  line-height: 1.04;
+  letter-spacing: -.04em;
+}
+.central-page-description {
+  color: rgba(16,32,51,.54);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.central-stat {
+  border: 1px solid rgba(16,32,51,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 6px 20px rgba(23,47,69,.045);
+  backdrop-filter: blur(10px);
+}
+.central-stat strong { display: block; color: var(--central-ink); font-size: 17px; font-weight: 750; line-height: 1.05; }
+.central-stat span { display: block; margin-top: 4px; color: rgba(16,32,51,.40); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }

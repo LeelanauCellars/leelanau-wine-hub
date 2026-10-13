@@ -1700,7 +1700,12 @@ function PortalArrow() {
 function WelcomePage({ onEnter }: { onEnter: () => void }) {
   return <main className="central-entry"><div className="central-entry-content">
     <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
-    <button onClick={onEnter} className="central-enter-button"><span>ENTER</span><PortalArrow /></button>
+    <div className="central-entry-copy">
+      <p className="central-entry-kicker">Leelanau Cellars Central</p>
+      <h1>Everything your team needs, in one place.</h1>
+      <p>Wines, sales tools, tasting room resources, projects and more.</p>
+    </div>
+    <button onClick={onEnter} className="central-enter-button"><span>Enter Central</span><PortalArrow /></button>
   </div></main>;
 }
 
@@ -1717,7 +1722,7 @@ function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => v
     <p className="central-subtitle">Select the area that best matches your needs.</p>
     <div className="central-role-grid">{options.map(option => <button key={option.role} onClick={() => onChoose(option.role)} className={`central-role central-role-${option.role}`} aria-label={`Open ${option.label}`}>
       <img src={option.image} alt="" width="600" height="600" className="central-role-photo" />
-      <span className="central-role-caption"><span className="central-role-label">{option.role === 'tasting' ? <>Tasting<br />Room</> : option.label}</span><PortalArrow /></span>
+      <span className="central-role-caption"><span className="central-role-label">{option.label}</span><PortalArrow /></span>
     </button>)}</div>
     <button onClick={onBack} className="central-back">Back to Enter</button>
   </div></main>;
@@ -1770,11 +1775,12 @@ function PinGate({ configured, onAccess }: { configured: boolean; onAccess: (rol
 }
 
 function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`central-nav-button ${active ? 'central-nav-active' : ''}`}>{label}</button>;
+  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`central-nav-button ${active ? 'central-nav-active' : ''}`}><span className="central-nav-icon" aria-hidden="true">{icon}</span><span className="central-nav-label">{label}</span></button>;
 }
 
+
 function PageHeader({ eyebrow, title, description, right }: { eyebrow?: string; title: string; description?: string; right?: React.ReactNode }) {
-  return <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div>{eyebrow && <p className="mb-2 text-xs font-black uppercase tracking-[.22em] text-[#3976b7]">{eyebrow}</p>}<h1 className="text-3xl font-black tracking-[-.035em] md:text-4xl">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-black/55">{description}</p>}</div>{right}</header>;
+  return <header className="central-page-header mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div>{eyebrow && <p className="central-page-eyebrow mb-2">{eyebrow}</p>}<h1 className="central-page-title">{title}</h1>{description && <p className="central-page-description mt-2 max-w-2xl">{description}</p>}</div>{right}</header>;
 }
 
 
@@ -2335,7 +2341,7 @@ function WineLibrary({ wines, allWines, distributionWines, categories, query, se
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
-  return <div className="min-w-20 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-center shadow-sm"><strong className="block text-lg leading-5">{value}</strong><span className="text-[10px] font-bold uppercase tracking-[.14em] text-black/40">{label}</span></div>;
+  return <div className="central-stat min-w-20 px-4 py-2.5 text-center"><strong>{value}</strong><span>{label}</span></div>;
 }
 
 function WineCard({ wine, open, tech, batchMode = false, selected = false, toggleSelected, allowTechSheet = true }: { wine: WineRecord; open: () => void; tech: () => void; batchMode?: boolean; selected?: boolean; toggleSelected?: () => void; allowTechSheet?: boolean }) {
