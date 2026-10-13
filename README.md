@@ -1,3 +1,12 @@
+## v100 Welcome, navigation + Awards refresh
+
+- Simplifies the opening copy to **Leelanau Cellars Central** with **“Wine information, sales tools, resources, and more.”** and removes the small eyebrow line.
+- Removes navigation icons from the sidebar and increases the navigation text size while keeping the same button structure and active-state behavior.
+- Rebuilds the Awards page around the supplied San Francisco Chronicle Wine Competition reference sheets for **2026, 2025, 2024, and 2023**.
+- Adds year switching, year-specific award totals, medal summaries, brand logos, and grouped award lists that preserve the reference-sheet organization.
+- Keeps matching award rows clickable when the corresponding wine exists in the Wine Library.
+- Retains the v99 modern visual shell and all existing Central workflows.
+
 ## v99 Modern visual refresh
 
 - Refreshes the opening screen into a more polished branded landing experience using the existing tasting-room photography, softer surfaces, modern typography, and a restrained Enter Central action.

@@ -1701,9 +1701,8 @@ function WelcomePage({ onEnter }: { onEnter: () => void }) {
   return <main className="central-entry"><div className="central-entry-content">
     <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
     <div className="central-entry-copy">
-      <p className="central-entry-kicker">Leelanau Cellars Central</p>
-      <h1>Everything your team needs, in one place.</h1>
-      <p>Wines, sales tools, tasting room resources, projects and more.</p>
+      <h1>Leelanau Cellars Central</h1>
+      <p>Wine information, sales tools, resources, and more.</p>
     </div>
     <button onClick={onEnter} className="central-enter-button"><span>Enter Central</span><PortalArrow /></button>
   </div></main>;
@@ -1774,8 +1773,8 @@ function PinGate({ configured, onAccess }: { configured: boolean; onAccess: (rol
   </div>;
 }
 
-function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`central-nav-button ${active ? 'central-nav-active' : ''}`}><span className="central-nav-icon" aria-hidden="true">{icon}</span><span className="central-nav-label">{label}</span></button>;
+function NavButton({ active, icon: _icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
+  return <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`central-nav-button ${active ? 'central-nav-active' : ''}`}><span className="central-nav-label">{label}</span></button>;
 }
 
 
@@ -3832,16 +3831,244 @@ function AwardBadge({ award }: { award: Award }) {
   </div>;
 }
 
+type AwardHistoryResult = 'Best of Class' | 'Double Gold' | 'Gold' | 'Silver' | 'Bronze';
+type AwardHistoryItem = { name: string; result: AwardHistoryResult };
+type AwardHistoryBrand = { brand: 'Leelanau Cellars' | 'Farm Fresh' | 'Lakeshore Farms' | 'Country Crush' | 'Zilly'; items: AwardHistoryItem[] };
+type AwardHistoryYear = { year: 2026 | 2025 | 2024 | 2023; brands: AwardHistoryBrand[] };
+
+const AWARD_HISTORY: AwardHistoryYear[] = [
+  {
+    year: 2026,
+    brands: [
+      {
+        brand: 'Leelanau Cellars',
+        items: [
+          { name: 'Cherries Galore', result: 'Double Gold' },
+          { name: '2023 Late Harvest Riesling', result: 'Double Gold' },
+          { name: '2023 Late Harvest Pinot Grigio', result: 'Double Gold' },
+          { name: 'Chocolate Cherry Dessert', result: 'Double Gold' },
+          { name: 'Cold Duck', result: 'Gold' },
+          { name: '2024 Blanc de Noir', result: 'Silver' },
+          { name: '2024 Brüt Sur Lie', result: 'Silver' },
+          { name: 'Spring Splendor', result: 'Silver' },
+          { name: 'Summer Sunset', result: 'Silver' },
+          { name: 'Winter White Bubbly', result: 'Silver' },
+          { name: 'Witches Brew', result: 'Silver' },
+          { name: 'Witches Brew Spiced Apple', result: 'Silver' },
+          { name: 'Festivus', result: 'Bronze' },
+          { name: '2023 Pinot Grigio', result: 'Bronze' },
+          { name: 'Winter White', result: 'Bronze' },
+          { name: 'Witches Brew Pumpkin Spice', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Farm Fresh',
+        items: [
+          { name: 'Cranberry Moscato', result: 'Best of Class' },
+          { name: 'Raspberry Bubbly Moscato', result: 'Double Gold' },
+          { name: 'Cranberry Fruit Wine', result: 'Silver' },
+        ],
+      },
+      {
+        brand: 'Zilly',
+        items: [
+          { name: '2023 Zilly Pinot Grigio', result: 'Gold' },
+          { name: '2023 Zilly Chardonnay', result: 'Gold' },
+          { name: '2023 Zilly Sauvignon Blanc', result: 'Bronze' },
+          { name: '2023 Zilly Cabernet Sauvignon', result: 'Bronze' },
+        ],
+      },
+    ],
+  },
+  {
+    year: 2025,
+    brands: [
+      {
+        brand: 'Leelanau Cellars',
+        items: [
+          { name: '2023 Merlot', result: 'Silver' },
+          { name: '2022 Pinot Grigio', result: 'Silver' },
+          { name: '2023 Pleasant Hill Pinot Grigio', result: 'Silver' },
+          { name: 'Cherry Cordial', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Zilly',
+        items: [
+          { name: 'Zilly Cabernet Sauvignon', result: 'Silver' },
+          { name: 'Zilly Pinot Grigio', result: 'Silver' },
+          { name: 'Zilly Chardonnay', result: 'Bronze' },
+          { name: 'Zilly Sauvignon Blanc', result: 'Bronze' },
+        ],
+      },
+    ],
+  },
+  {
+    year: 2024,
+    brands: [
+      {
+        brand: 'Leelanau Cellars',
+        items: [
+          { name: '2022 Gewürztraminer', result: 'Double Gold' },
+          { name: 'Blueberry Dessert Wine', result: 'Gold' },
+          { name: 'Cherry Dessert Wine', result: 'Gold' },
+          { name: 'Raspberry Dessert Wine', result: 'Gold' },
+          { name: '2022 Semi-Dry Riesling', result: 'Silver' },
+          { name: '2022 Vignoles', result: 'Silver' },
+          { name: '2022 Pinot Noir Rosé', result: 'Bronze' },
+          { name: '2022 Sauvignon Blanc', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Lakeshore Farms',
+        items: [
+          { name: 'Peach Sparkling Moscato', result: 'Best of Class' },
+          { name: 'Blackberry Fruit Wine', result: 'Bronze' },
+          { name: 'Cherry Fruit Wine', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Country Crush',
+        items: [
+          { name: 'Peach Fruit Wine', result: 'Bronze' },
+        ],
+      },
+    ],
+  },
+  {
+    year: 2023,
+    brands: [
+      {
+        brand: 'Leelanau Cellars',
+        items: [
+          { name: 'Lakeshore Collection Moscato', result: 'Gold' },
+          { name: 'Lakeshore Collection Riesling', result: 'Gold' },
+          { name: '2021 Late Harvest Riesling', result: 'Gold' },
+          { name: 'Lakeshore Collection Pinot Grigio', result: 'Silver' },
+          { name: '2021 Dry Riesling', result: 'Silver' },
+          { name: 'Sweet Peach Chill', result: 'Silver' },
+          { name: 'Pinot Noir Rosé', result: 'Bronze' },
+          { name: 'Lakeshore Collection Red Blend', result: 'Bronze' },
+          { name: 'Blackberry Chill', result: 'Bronze' },
+          { name: 'Mango Chill', result: 'Bronze' },
+          { name: '2021 Riesling', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Lakeshore Farms',
+        items: [
+          { name: 'Raspberry Sparkling Moscato', result: 'Best of Class' },
+          { name: 'Blackberry Sparkling Moscato', result: 'Gold' },
+          { name: 'Raspberry Moscato', result: 'Gold' },
+          { name: 'Mango Sparkling Moscato', result: 'Silver' },
+          { name: 'Peach Moscato', result: 'Silver' },
+          { name: 'Blackberry Moscato', result: 'Silver' },
+          { name: 'Peach Sparkling Moscato', result: 'Bronze' },
+        ],
+      },
+      {
+        brand: 'Farm Fresh',
+        items: [
+          { name: 'Mango Moscato', result: 'Best of Class' },
+          { name: 'Mango Bubbly Moscato', result: 'Silver' },
+          { name: 'Mango Fruit Wine', result: 'Bronze' },
+        ],
+      },
+    ],
+  },
+];
+
+const AWARD_RESULT_ORDER: AwardHistoryResult[] = ['Best of Class', 'Double Gold', 'Gold', 'Silver', 'Bronze'];
+
+function AwardsBrandMark({ brand }: { brand: AwardHistoryBrand['brand'] }) {
+  const logo = BRAND_LOGOS[brand] || BRAND_LOGOS['Leelanau Cellars'];
+  if (logo.mode === 'square') return <img src={logo.src} alt={logo.alt} className="awards-brand-square" />;
+  return <img src={logo.src} alt={logo.alt} className={`awards-brand-natural ${brand === 'Zilly' ? 'awards-brand-zilly' : ''}`} style={{ filter: 'brightness(0)' }} />;
+}
+
+function awardHistoryGraphic(year: number, result: AwardHistoryResult) {
+  return awardGraphicFor({
+    id: `history-${year}-${result}`,
+    year,
+    competition: 'San Francisco Chronicle Wine Competition',
+    result,
+  });
+}
+
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => a.name.localeCompare(b.name));
-  const total = withAwards.reduce((sum, wine) => sum + wine.awards.length, 0);
-  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
-    <PageHeader title="Awards Library" right={<Stat value={total} label="awards" />} />
-    <a href="https://www.lwc.wine/awards/" target="_blank" rel="noreferrer" className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-[#326eac]/15 bg-[#f4f9fe] px-4 py-3 text-left transition hover:border-[#326eac]/30 hover:bg-[#eef6fd]"><span><strong className="block text-sm font-black text-[#1d4f82]">Official awards source</strong><span className="mt-0.5 block text-xs font-semibold text-black/50">San Francisco Chronicle results are verified against Leelanau Cellars’ Awards & Accolades page.</span></span><ExternalLink className="h-4 w-4 shrink-0 text-[#326eac]" /></a>
-    <div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <article key={wine.id} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <button type="button" onClick={() => openWine(wine)} className="mb-4 block w-full text-left"><h2 className="text-xl font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></button>
-      <div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} downloadable />)}</div>
-    </article>)}</div>
+  const [selectedYear, setSelectedYear] = useState<AwardHistoryYear['year']>(2026);
+  const active = AWARD_HISTORY.find((entry) => entry.year === selectedYear) || AWARD_HISTORY[0];
+  const total = active.brands.reduce((sum, brand) => sum + brand.items.length, 0);
+  const summary = AWARD_RESULT_ORDER.map((result) => ({
+    result,
+    count: active.brands.reduce((sum, brand) => sum + brand.items.filter((item) => item.result === result).length, 0),
+  })).filter((entry) => entry.count > 0);
+
+  return <div className="no-print mx-auto max-w-[1380px] p-5 md:p-8 xl:p-10">
+    <PageHeader title="Awards" description="San Francisco Chronicle Wine Competition results, organized by year and brand." right={<Stat value={total} label={`${selectedYear} awards`} />} />
+
+    <div className="awards-year-tabs" role="tablist" aria-label="Award year">
+      {AWARD_HISTORY.map((entry) => <button key={entry.year} type="button" role="tab" aria-selected={selectedYear === entry.year} onClick={() => setSelectedYear(entry.year)} className={`awards-year-tab ${selectedYear === entry.year ? 'awards-year-tab-active' : ''}`}>{entry.year}</button>)}
+    </div>
+
+    <div className="awards-showcase">
+      <section className="awards-competition-card">
+        <div className="awards-year-mark"><span>{String(selectedYear).slice(0, 2)}</span><span>{String(selectedYear).slice(2)}</span></div>
+        <div className="awards-competition-title">
+          <p>San Francisco Chronicle</p>
+          <h2>Wine Competition</h2>
+          <span>Largest competition of North American wines</span>
+        </div>
+        <div className="awards-summary-strip">
+          {summary.map((entry) => {
+            const src = awardHistoryGraphic(selectedYear, entry.result);
+            return <div key={entry.result} className="awards-summary-medal">
+              {src ? <img src={src} alt="" /> : <AwardIcon />}
+              <span>{entry.count}</span>
+              <small>{entry.result}</small>
+            </div>;
+          })}
+        </div>
+      </section>
+
+      <div className={`awards-brand-grid ${active.brands.length === 2 ? 'awards-brand-grid-two' : ''}`}>
+        {active.brands.map((brand) => {
+        const brandSummary = AWARD_RESULT_ORDER.map((result) => ({
+          result,
+          count: brand.items.filter((item) => item.result === result).length,
+        })).filter((entry) => entry.count > 0);
+
+        return <article key={`${selectedYear}-${brand.brand}`} className="awards-brand-card">
+          <div className="awards-brand-heading">
+            <div className="awards-brand-logo-wrap"><AwardsBrandMark brand={brand.brand} /></div>
+            <div><h2>{brand.brand}</h2><p>{brand.items.length} award{brand.items.length === 1 ? '' : 's'}</p></div>
+          </div>
+
+          <div className="awards-brand-medals">
+            {brandSummary.map((entry) => {
+              const src = awardHistoryGraphic(selectedYear, entry.result);
+              return <div key={entry.result} className="awards-brand-medal">
+                {src ? <img src={src} alt={`${entry.result} award`} /> : <AwardIcon />}
+                <span>{entry.count}</span>
+              </div>;
+            })}
+          </div>
+
+          <div className="awards-history-list">
+            {brand.items.map((item) => {
+              const wine = matchWineByName(item.name, wines);
+              const row = <><strong>{item.name}</strong><span className="awards-history-separator">|</span><span>{item.result}</span></>;
+              return wine
+                ? <button type="button" key={`${item.name}-${item.result}`} onClick={() => openWine(wine)} className="awards-history-row awards-history-link">{row}</button>
+                : <div key={`${item.name}-${item.result}`} className="awards-history-row">{row}</div>;
+            })}
+          </div>
+        </article>;
+        })}
+      </div>
+    </div>
+
+    <p className="awards-reference-note">Award history transcribed from Leelanau Cellars’ San Francisco Chronicle Wine Competition reference sheets for 2023–2026.</p>
   </div>;
 }
 
