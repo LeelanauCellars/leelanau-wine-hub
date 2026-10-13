@@ -1,3 +1,12 @@
+## v99 Modern visual refresh
+
+- Refreshes the opening screen into a more polished branded landing experience using the existing tasting-room photography, softer surfaces, modern typography, and a restrained Enter Central action.
+- Rebuilds the portal chooser visually while keeping the same Admin, Tasting Room, Sales, and Distributors structure. Portal photography is now the card itself, with clean overlaid labels instead of separate bright-blue caption pills.
+- Modernizes the main Central shell with a softer neutral canvas, lighter sidebar, subtler dividers/shadows, and quieter active states.
+- Restores the existing navigation icons to the sidebar and removes the heavy all-uppercase button treatment.
+- Refines shared page headings and stat counters so the updated visual language carries into Wine Library, Tech Sheets, Projects, Distribution, Awards, and other sections without changing their workflows.
+- Keeps the v98 wine-profile empty-state cleanup and all existing page/navigation structure intact.
+
 ## v98 Wine profile empty-state cleanup
 
 - Hides empty Overview sections in normal viewing mode instead of showing placeholder copy such as “Add tasting notes” or “No awards added yet.”
