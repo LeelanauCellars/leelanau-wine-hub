@@ -154,20 +154,20 @@ function WineProductTable({ analysis }: { analysis: Analysis }) {
   return <section className="mt-6 rounded-3xl border border-black/[.08] bg-white p-6 shadow-sm md:p-7">
     <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
       <div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#326eac]">Product Detail</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Wine Sales by Product</h2></div>
-      <p className="text-sm font-bold text-black/45">Sorted by combined bottles sold · bottle-equivalent cases</p>
+      <p className="text-sm font-bold text-black/45">Sorted by combined bottles sold · bottle-equivalent cases · Net Sales</p>
     </div>
     <div className="mt-5 overflow-x-auto rounded-2xl border border-black/[.08]">
-      <table className="min-w-[1050px] w-full border-collapse text-sm">
+      <table className="min-w-[1320px] w-full border-collapse text-sm">
         <thead className="bg-[#f7f9fb] text-black/60">
           <tr>
             <th rowSpan={2} className="px-4 py-3 text-left font-black">Wine</th>
             <th rowSpan={2} className="px-4 py-3 text-left font-black">SKU</th>
-            {analysis.periods.map((period) => <th key={period.id} colSpan={2} className="border-l border-black/[.06] px-4 py-3 text-center font-black">{period.label}</th>)}
-            {showCombined && <th colSpan={2} className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-center font-black text-[#326eac]">Combined Total</th>}
+            {analysis.periods.map((period) => <th key={period.id} colSpan={3} className="border-l border-black/[.06] px-4 py-3 text-center font-black">{period.label}</th>)}
+            {showCombined && <th colSpan={3} className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-center font-black text-[#326eac]">Combined Total</th>}
           </tr>
           <tr className="border-t border-black/[.06]">
-            {analysis.periods.flatMap((period) => [<th key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-2 text-right font-black">Bottles</th>, <th key={`${period.id}-c`} className="px-4 py-2 text-right font-black">Cases</th>])}
-            {showCombined && <><th className="border-l border-black/[.06] bg-[#f7fbff] px-4 py-2 text-right font-black">Bottles</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Cases</th></>}
+            {analysis.periods.flatMap((period) => [<th key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-2 text-right font-black">Bottles</th>, <th key={`${period.id}-c`} className="px-4 py-2 text-right font-black">Cases</th>, <th key={`${period.id}-n`} className="px-4 py-2 text-right font-black">Net Sales</th>])}
+            {showCombined && <><th className="border-l border-black/[.06] bg-[#f7fbff] px-4 py-2 text-right font-black">Bottles</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Cases</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Net Sales</th></>}
           </tr>
         </thead>
         <tbody>
@@ -177,8 +177,9 @@ function WineProductTable({ analysis }: { analysis: Analysis }) {
             {analysis.periods.flatMap((period) => [
               <td key={`${period.id}-tb`} className="border-l border-black/[.06] px-4 py-3 text-right">{formatQuantity(period.wine.bottlesSold)}</td>,
               <td key={`${period.id}-tc`} className="px-4 py-3 text-right">{period.wine.casesSold.toFixed(2)}</td>,
+              <td key={`${period.id}-tn`} className="px-4 py-3 text-right">{formatMetric(period.wine.netSales, 'currency')}</td>,
             ])}
-            {showCombined && analysis.combined && <><td className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-right">{formatQuantity(analysis.combined.wine.bottlesSold)}</td><td className="bg-[#edf4fb] px-4 py-3 text-right">{analysis.combined.wine.casesSold.toFixed(2)}</td></>}
+            {showCombined && analysis.combined && <><td className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-right">{formatQuantity(analysis.combined.wine.bottlesSold)}</td><td className="bg-[#edf4fb] px-4 py-3 text-right">{analysis.combined.wine.casesSold.toFixed(2)}</td><td className="bg-[#edf4fb] px-4 py-3 text-right">{formatMetric(analysis.combined.wine.netSales, 'currency')}</td></>}
           </tr>
         </tbody>
       </table>
@@ -190,10 +191,10 @@ function WineProductRow({ row, periods, showCombined }: { row: CombinedWineProdu
   return <tr className="border-t border-black/[.06]">
     <td className="px-4 py-3 font-black">{row.wine}</td><td className="px-4 py-3 font-mono text-xs font-bold text-black/55">{row.sku}</td>
     {periods.flatMap((period) => {
-      const value = row.periods[period.id] || { bottlesSold: 0, casesSold: 0 };
-      return [<td key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-3 text-right font-black">{formatQuantity(value.bottlesSold)}</td>, <td key={`${period.id}-c`} className="px-4 py-3 text-right font-bold">{value.casesSold.toFixed(2)}</td>];
+      const value = row.periods[period.id] || { bottlesSold: 0, casesSold: 0, netSales: 0 };
+      return [<td key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-3 text-right font-black">{formatQuantity(value.bottlesSold)}</td>, <td key={`${period.id}-c`} className="px-4 py-3 text-right font-bold">{value.casesSold.toFixed(2)}</td>, <td key={`${period.id}-n`} className="px-4 py-3 text-right font-black">{formatMetric(value.netSales, 'currency')}</td>];
     })}
-    {showCombined && <><td className="border-l border-black/[.06] bg-[#fbfcfd] px-4 py-3 text-right font-black">{formatQuantity(row.combinedBottlesSold)}</td><td className="bg-[#fbfcfd] px-4 py-3 text-right font-black">{row.combinedCasesSold.toFixed(2)}</td></>}
+    {showCombined && <><td className="border-l border-black/[.06] bg-[#fbfcfd] px-4 py-3 text-right font-black">{formatQuantity(row.combinedBottlesSold)}</td><td className="bg-[#fbfcfd] px-4 py-3 text-right font-black">{row.combinedCasesSold.toFixed(2)}</td><td className="bg-[#fbfcfd] px-4 py-3 text-right font-black">{formatMetric(row.combinedNetSales, 'currency')}</td></>}
   </tr>;
 }
 
@@ -258,7 +259,7 @@ export default function TastingRoomSalesAnalysis() {
 
   return <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8 md:py-10">
     <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-      <div><p className="text-[11px] font-black uppercase tracking-[.18em] text-[#326eac]">Admin · Tasting Room</p><h1 className="mt-2 text-4xl font-black tracking-[-.045em] md:text-5xl">Sales Analysis</h1><p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-black/55">Choose a date range and Central will pull Commerce7 POS orders directly, apply the tasting-room reporting rules, validate the totals, and break Wine sales down by SKU.</p></div>
+      <div><p className="text-[11px] font-black uppercase tracking-[.18em] text-[#326eac]">Admin · Tasting Room</p><h1 className="mt-2 text-4xl font-black tracking-[-.045em] md:text-5xl">Sales Analysis</h1><p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-black/55">Choose a date range and Central will use the historical Square exports for 2020–2025 or pull Commerce7 POS orders live for 2026 onward, then apply the tasting-room reporting rules and break Wine sales down by product.</p></div>
       {analysis && <div className="rounded-2xl border border-black/[.08] bg-[#f7f9fb] px-4 py-3 text-sm font-bold text-black/55">Last analyzed {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(analysis.generatedAt))}</div>}
     </div>
 
@@ -270,7 +271,7 @@ export default function TastingRoomSalesAnalysis() {
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_145px_145px]"><label><span className="mb-1.5 block text-xs font-black text-black/55">Optional label</span><input value={period.label} onChange={(event) => updatePeriod(period.key, { label: event.target.value })} className="field-input h-11" placeholder="Aug. 1–8" /></label><label><span className="mb-1.5 block text-xs font-black text-black/55">Start</span><input type="date" value={period.startDate} onChange={(event) => updatePeriod(period.key, { startDate: event.target.value })} className="field-input h-11" /></label><label><span className="mb-1.5 block text-xs font-black text-black/55">End</span><input type="date" value={period.endDate} onChange={(event) => updatePeriod(period.key, { endDate: event.target.value })} className="field-input h-11" /></label></div>
         </div>)}
       </div>
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center"><button type="button" onClick={() => void analyze()} disabled={loading || periods.some((period) => !period.startDate || !period.endDate)} className="inline-flex h-12 items-center justify-center rounded-xl bg-[#326eac] px-6 text-sm font-black text-white shadow-sm disabled:opacity-45">{loading ? 'Analyzing Commerce7 POS…' : 'Analyze POS Sales'}</button><p className="text-sm font-semibold text-black/45">POS only · America/Detroit dates · refunds/exchanges included</p></div>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center"><button type="button" onClick={() => void analyze()} disabled={loading || periods.some((period) => !period.startDate || !period.endDate)} className="inline-flex h-12 items-center justify-center rounded-xl bg-[#326eac] px-6 text-sm font-black text-white shadow-sm disabled:opacity-45">{loading ? 'Analyzing sales…' : 'Analyze POS Sales'}</button><p className="text-sm font-semibold text-black/45">2020–2025 historical Square exports · 2026+ live Commerce7 POS · America/Detroit dates</p></div>
       {error && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{error}</div>}
     </section>
 

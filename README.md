@@ -1,3 +1,12 @@
+## v101 Historical Sales Analysis + product Net Sales
+
+- Keeps the existing **2026+ Commerce7 Tasting Room Sales Analysis calculations and report layout intact**.
+- Adds a historical comparison source for **2020–2025** built from the supplied Square Item Sales exports. Selecting a historical date range automatically uses the historical data; selecting 2026 or later continues to use live Commerce7 POS orders.
+- Allows historical and live periods to be compared in the same report, up to the existing four-period limit.
+- Stores compact daily historical summaries inside Central so the deployed app does not need to ship or parse the large raw Square export ZIP files at runtime.
+- Adds **Net Sales** to **Wine Sales by Product**, alongside Bottles and Cases, for both historical Square periods and live Commerce7 periods.
+- Uses the supplied Tasting Room Performance workbook as a validation reference while reconstructing the historical reporting categories from the raw Square exports.
+
 ## v100 Welcome, navigation + Awards refresh
 
 - Simplifies the opening copy to **Leelanau Cellars Central** with **“Wine information, sales tools, resources, and more.”** and removes the small eyebrow line.

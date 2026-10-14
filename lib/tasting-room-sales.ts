@@ -80,6 +80,7 @@ export type WineProductSales = {
   wine: string;
   bottlesSold: number;
   casesSold: number;
+  netSales: number;
 };
 
 export type ValidationSummary = {
@@ -114,9 +115,10 @@ export type TastingRoomSalesPeriodSummary = {
 export type CombinedWineProductSales = {
   sku: string;
   wine: string;
-  periods: Record<string, { bottlesSold: number; casesSold: number }>;
+  periods: Record<string, { bottlesSold: number; casesSold: number; netSales: number }>;
   combinedBottlesSold: number;
   combinedCasesSold: number;
+  combinedNetSales: number;
 };
 
 export type TastingRoomSalesAnalysis = {
@@ -154,6 +156,7 @@ type ProductAccumulator = {
   sku: string;
   titleCounts: Map<string, number>;
   bottlesSold: number;
+  netSales: number;
 };
 
 type FoodOtherAccumulator = {
@@ -322,8 +325,9 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
         working.wineNetSales += netSales;
 
         const productKey = sku || `NO-SKU:${String(item.productVariantId || item.productId || title)}`;
-        const product = products.get(productKey) || { sku: sku || '—', titleCounts: new Map<string, number>(), bottlesSold: 0 };
+        const product = products.get(productKey) || { sku: sku || '—', titleCounts: new Map<string, number>(), bottlesSold: 0, netSales: 0 };
         product.bottlesSold += bottles;
+        product.netSales += netSales;
         product.titleCounts.set(title, (product.titleCounts.get(title) || 0) + 1);
         products.set(productKey, product);
         const titles = conflictingTitles.get(productKey) || new Set<string>();
@@ -435,6 +439,7 @@ function periodSummary(input: SalesPeriodInput, orders: Commerce7Order[]): Tasti
       wine: mostCommonTitle(product.titleCounts, product.sku),
       bottlesSold: bottles,
       casesSold: round(bottles / 12),
+      netSales: round(product.netSales),
     };
   }).sort((a, b) => b.bottlesSold - a.bottlesSold || a.wine.localeCompare(b.wine));
 
@@ -554,12 +559,13 @@ function combineSummaries(periods: TastingRoomSalesPeriodSummary[]): TastingRoom
       foodMap.set(key, current);
     }
   }
-  const combinedProductsMap = new Map<string, { wine: string; bottles: number }>();
+  const combinedProductsMap = new Map<string, { wine: string; bottles: number; netSales: number }>();
   for (const period of periods) {
     for (const row of period.wineProducts) {
       const key = row.sku;
-      const current = combinedProductsMap.get(key) || { wine: row.wine, bottles: 0 };
+      const current = combinedProductsMap.get(key) || { wine: row.wine, bottles: 0, netSales: 0 };
       current.bottles += row.bottlesSold;
+      current.netSales += row.netSales;
       combinedProductsMap.set(key, current);
     }
   }
@@ -568,6 +574,7 @@ function combineSummaries(periods: TastingRoomSalesPeriodSummary[]): TastingRoom
     wine: value.wine,
     bottlesSold: round(value.bottles, 3),
     casesSold: round(value.bottles / 12),
+    netSales: round(value.netSales),
   })).sort((a, b) => b.bottlesSold - a.bottlesSold || a.wine.localeCompare(b.wine));
   const difference = round(categoryNetSales - overallNetSales);
 
@@ -645,9 +652,11 @@ function combinedWineProducts(periods: TastingRoomSalesPeriodSummary[]) {
         periods: {},
         combinedBottlesSold: 0,
         combinedCasesSold: 0,
+        combinedNetSales: 0,
       };
-      current.periods[period.id] = { bottlesSold: row.bottlesSold, casesSold: row.casesSold };
+      current.periods[period.id] = { bottlesSold: row.bottlesSold, casesSold: row.casesSold, netSales: row.netSales };
       current.combinedBottlesSold += row.bottlesSold;
+      current.combinedNetSales += row.netSales;
       current.wine = row.wine || current.wine;
       map.set(row.sku, current);
     }
@@ -656,15 +665,20 @@ function combinedWineProducts(periods: TastingRoomSalesPeriodSummary[]) {
     ...row,
     combinedBottlesSold: round(row.combinedBottlesSold, 3),
     combinedCasesSold: round(row.combinedBottlesSold / 12),
+    combinedNetSales: round(row.combinedNetSales),
   })).sort((a, b) => b.combinedBottlesSold - a.combinedBottlesSold || a.wine.localeCompare(b.wine));
 }
 
-export function buildTastingRoomSalesAnalysis(periodOrders: Array<{ input: SalesPeriodInput; orders: Commerce7Order[] }>): TastingRoomSalesAnalysis {
-  const periods = periodOrders.map(({ input, orders }) => periodSummary(input, orders));
+export function buildTastingRoomSalesAnalysisFromPeriods(periods: TastingRoomSalesPeriodSummary[]): TastingRoomSalesAnalysis {
   return {
     generatedAt: new Date().toISOString(),
     periods,
     combined: combineSummaries(periods),
     wineProducts: combinedWineProducts(periods),
   };
+}
+
+export function buildTastingRoomSalesAnalysis(periodOrders: Array<{ input: SalesPeriodInput; orders: Commerce7Order[] }>): TastingRoomSalesAnalysis {
+  const periods = periodOrders.map(({ input, orders }) => periodSummary(input, orders));
+  return buildTastingRoomSalesAnalysisFromPeriods(periods);
 }

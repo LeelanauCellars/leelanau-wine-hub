@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionRole } from '@/lib/auth';
 import { fetchCommerce7Orders, type Commerce7Order } from '@/lib/commerce7-server';
-import { buildTastingRoomSalesAnalysis, type SalesPeriodInput } from '@/lib/tasting-room-sales';
+import { buildTastingRoomSalesAnalysis, buildTastingRoomSalesAnalysisFromPeriods, type SalesPeriodInput, type TastingRoomSalesPeriodSummary } from '@/lib/tasting-room-sales';
+import { historicalTastingRoomSalesPeriod, isHistoricalSalesPeriod } from '@/lib/tasting-room-history';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -110,16 +111,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const periodOrders = [] as Array<{ input: SalesPeriodInput; orders: Commerce7Order[] }>;
+    const summaries: TastingRoomSalesPeriodSummary[] = [];
     for (const input of periods) {
-      periodOrders.push({ input, orders: await ordersForPeriod(input) });
+      const historical = isHistoricalSalesPeriod(input);
+      const crossesHistoricalBoundary = input.startDate <= '2025-12-31' && input.endDate >= '2026-01-01';
+      if (crossesHistoricalBoundary) {
+        return NextResponse.json({ error: 'A single reporting period cannot cross Dec. 31, 2025 / Jan. 1, 2026 because Central switches from historical Square exports to live Commerce7 data at that point. Split it into two comparison periods instead.' }, { status: 400 });
+      }
+      if (historical) {
+        summaries.push(historicalTastingRoomSalesPeriod(input));
+        continue;
+      }
+      const live = buildTastingRoomSalesAnalysis([{ input, orders: await ordersForPeriod(input) }]);
+      summaries.push(live.periods[0]);
     }
 
-    const analysis = buildTastingRoomSalesAnalysis(periodOrders);
+    const analysis = buildTastingRoomSalesAnalysisFromPeriods(summaries);
     return NextResponse.json({ analysis });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to analyze Commerce7 POS sales.';
-    const status = /rejected Order access|Commerce7 is not configured/i.test(message) ? 409 : 500;
+    const status = /Historical Tasting Room sales|historical Square export/i.test(message) ? 400 : /rejected Order access|Commerce7 is not configured/i.test(message) ? 409 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
