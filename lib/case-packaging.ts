@@ -35,63 +35,63 @@ export function casePackagingForWine(wine?: WineRecord): CasePackagingMatch | un
 
   // Product-specific packages.
   if (contains(name, 'summer sunset') && /bubbly|sparkling/.test(name)) {
-    return { src: '/cases/summer-sunset-bubbly-case.png', label: 'Summer Sunset Bubbly case' };
+    return { src: '/cases/summer-sunset-bubbly-case.webp', label: 'Summer Sunset Bubbly case' };
   }
   if (contains(name, 'winter white') && /bubbly|sparkling/.test(name)) {
-    return { src: '/cases/winter-white-bubbly-case.png', label: 'Winter White Bubbly case' };
+    return { src: '/cases/winter-white-bubbly-case.webp', label: 'Winter White Bubbly case' };
   }
   if (contains(name, 'great lakes red') && /bubbly|sparkling/.test(name)) {
-    return { src: '/cases/great-lakes-red-bubbly-case.png', label: 'Great Lakes Red Bubbly case' };
+    return { src: '/cases/great-lakes-red-bubbly-case.webp', label: 'Great Lakes Red Bubbly case' };
   }
   if (contains(name, 'great lakes red')) {
-    return { src: '/cases/great-lakes-red-case.png', label: 'Great Lakes Red case' };
+    return { src: '/cases/great-lakes-red-case.webp', label: 'Great Lakes Red case' };
   }
   if (contains(name, 'winter white')) {
-    return { src: '/cases/winter-white-case.png', label: 'Winter White case' };
+    return { src: '/cases/winter-white-case.webp', label: 'Winter White case' };
   }
   if (contains(name, 'festivus')) {
-    return { src: '/cases/festivus-case.png', label: 'Festivus case' };
+    return { src: '/cases/festivus-case.webp', label: 'Festivus case' };
   }
   if (contains(all, 'witches brew')) {
-    return { src: '/cases/witches-brew-case.png', label: 'Witches Brew case' };
+    return { src: '/cases/witches-brew-case.webp', label: 'Witches Brew case' };
   }
 
   // Farm Fresh has separate still/fruit and bubbly Moscato cases.
   if (brand === 'farm fresh' || contains(name, 'farm fresh')) {
     if (/bubbly|sparkling/.test(name) && contains(name, 'moscato')) {
-      return { src: '/cases/farm-fresh-bubbly-moscato-case.png', label: 'Farm Fresh Bubbly Moscato case' };
+      return { src: '/cases/farm-fresh-bubbly-moscato-case.webp', label: 'Farm Fresh Bubbly Moscato case' };
     }
-    return { src: '/cases/farm-fresh-fruit-moscato-case.png', label: 'Farm Fresh fruit wine & Moscato case' };
+    return { src: '/cases/farm-fresh-fruit-moscato-case.webp', label: 'Farm Fresh fruit wine & Moscato case' };
   }
 
   // Country Crush uses one shared case across the collection.
   if (brand === 'country crush' || contains(name, 'country crush')) {
-    return { src: '/cases/country-crush-case.png', label: 'Country Crush case' };
+    return { src: '/cases/country-crush-case.webp', label: 'Country Crush case' };
   }
 
   // Lakeshore Farms has separate sparkling Moscato and still fruit/Moscato cases.
   if (brand === 'lakeshore farms' || contains(name, 'lakeshore farms')) {
     if (/bubbly|sparkling/.test(name) && contains(name, 'moscato')) {
-      return { src: '/cases/lakeshore-farms-sparkling-moscato-case.png', label: 'Lakeshore Farms Sparkling Moscato case' };
+      return { src: '/cases/lakeshore-farms-sparkling-moscato-case.webp', label: 'Lakeshore Farms Sparkling Moscato case' };
     }
-    return { src: '/cases/lakeshore-farms-fruit-moscato-case.png', label: 'Lakeshore Farms fruit wine & Moscato case' };
+    return { src: '/cases/lakeshore-farms-fruit-moscato-case.webp', label: 'Lakeshore Farms fruit wine & Moscato case' };
   }
 
   if (brand === 'zilly' || contains(name, 'zilly')) {
-    return { src: '/cases/zilly-case.png', label: 'Zilly case' };
+    return { src: '/cases/zilly-case.webp', label: 'Zilly case' };
   }
 
   // Collection/general packages.
   if (contains(all, 'lakeshore collection')) {
-    return { src: '/cases/lakeshore-collection-case.png', label: 'Lakeshore Collection case' };
+    return { src: '/cases/lakeshore-collection-case.webp', label: 'Lakeshore Collection case' };
   }
   if (contains(all, 'chill')) {
-    return { src: '/cases/chill-wine-case.png', label: 'Chill Wine case' };
+    return { src: '/cases/chill-wine-case.webp', label: 'Chill Wine case' };
   }
 
   // One shared case for these core/seasonal products.
   if (['autumn harvest', 'spring splendor', 'summer sunset', 'red sangria', 'white sangria'].some((product) => contains(name, product))) {
-    return { src: '/cases/seasonal-sangria-case.png', label: 'Leelanau seasonal / sangria case' };
+    return { src: '/cases/seasonal-sangria-case.webp', label: 'Leelanau seasonal / sangria case' };
   }
 
   return undefined;

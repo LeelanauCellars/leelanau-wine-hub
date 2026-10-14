@@ -19,15 +19,15 @@ const WITCHES_BREW_DISPLAYS: PosDisplayAsset[] = [
   {
     id: 'witches-brew-three-case-display',
     label: 'Witches Brew 3-Case Display',
-    src: '/pos-displays/witches-brew-three-case-display.png',
-    jpegSrc: '/pos-displays/witches-brew-three-case-display.jpg',
+    src: '/pos-displays/witches-brew-three-case-display.webp',
+    jpegSrc: '/pos-displays/witches-brew-three-case-display.webp',
     description: 'Finished floor-display mockup with Witches Brew bottles loaded into the display.',
   },
   {
     id: 'witches-brew-case-card',
     label: 'Witches Brew Case Card',
-    src: '/pos-displays/witches-brew-case-card.png',
-    jpegSrc: '/pos-displays/witches-brew-case-card.jpg',
+    src: '/pos-displays/witches-brew-case-card.webp',
+    jpegSrc: '/pos-displays/witches-brew-case-card.webp',
     description: 'America’s Favorite Fall Wine case-card artwork with mounting legs.',
   },
 ];
@@ -36,8 +36,8 @@ const CHILL_DISPLAYS: PosDisplayAsset[] = [
   {
     id: 'chill-case-sleeve-display',
     label: 'Chill Case Sleeve Display',
-    src: '/pos-displays/chill-case-sleeve-display.png',
-    jpegSrc: '/pos-displays/chill-case-sleeve-display.jpg',
+    src: '/pos-displays/chill-case-sleeve-display.webp',
+    jpegSrc: '/pos-displays/chill-case-sleeve-display.webp',
     description: 'Chill floor display / case sleeve mockup with assorted Chill bottles.',
   },
 ];
@@ -46,15 +46,15 @@ const WINTER_WHITE_DISPLAYS: PosDisplayAsset[] = [
   {
     id: 'winter-white-holiday-case-card-painted',
     label: 'Winter White Holiday Case Card - Painted Snow',
-    src: '/pos-displays/winter-white-holiday-case-card-painted.png',
-    jpegSrc: '/pos-displays/winter-white-holiday-case-card-painted.jpg',
+    src: '/pos-displays/winter-white-holiday-case-card-painted.webp',
+    jpegSrc: '/pos-displays/winter-white-holiday-case-card-painted.webp',
     description: 'Blue painted-snow holiday case-card artwork.',
   },
   {
     id: 'winter-white-holiday-case-card-knit',
     label: 'Winter White Holiday Case Card - Knit Pattern',
-    src: '/pos-displays/winter-white-holiday-case-card-knit.png',
-    jpegSrc: '/pos-displays/winter-white-holiday-case-card-knit.jpg',
+    src: '/pos-displays/winter-white-holiday-case-card-knit.webp',
+    jpegSrc: '/pos-displays/winter-white-holiday-case-card-knit.webp',
     description: 'Blue knit-pattern holiday case-card artwork.',
   },
 ];
@@ -63,8 +63,8 @@ const LAKESHORE_FARMS_DISPLAYS: PosDisplayAsset[] = [
   {
     id: 'lakeshore-farms-holiday-case-card',
     label: 'Lakeshore Farms Holiday Case Card',
-    src: '/pos-displays/lakeshore-farms-holiday-case-card.png',
-    jpegSrc: '/pos-displays/lakeshore-farms-holiday-case-card.jpg',
+    src: '/pos-displays/lakeshore-farms-holiday-case-card.webp',
+    jpegSrc: '/pos-displays/lakeshore-farms-holiday-case-card.webp',
     description: 'Lakeshore Farms holiday case-card artwork from the supplied winter case-card file.',
   },
 ];

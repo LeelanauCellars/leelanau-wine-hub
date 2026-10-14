@@ -1698,11 +1698,11 @@ function PortalArrow() {
 }
 
 const WELCOME_PHOTOS = [
-  '/portal/welcome-bottling.jpg',
-  '/portal/welcome-barrels.jpg',
-  '/portal/welcome-vineyard.jpg',
-  '/portal/welcome-aerial.jpg',
-  '/portal/welcome-pour.jpg',
+  '/portal/welcome-bottling.webp',
+  '/portal/welcome-barrels.webp',
+  '/portal/welcome-vineyard.webp',
+  '/portal/welcome-aerial.webp',
+  '/portal/welcome-pour.webp',
 ];
 
 function WelcomePage({ onEnter }: { onEnter: () => void }) {
@@ -1729,10 +1729,10 @@ function WelcomePage({ onEnter }: { onEnter: () => void }) {
 
 function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => void; onBack: () => void }) {
   const options: { role: PortalRole; label: string; image: string }[] = [
-    { role: 'admin', label: 'Admin', image: '/portal/admin-original.png' },
-    { role: 'tasting', label: 'Tasting Room', image: '/portal/tasting-room.jpg' },
-    { role: 'sales', label: 'Sales', image: '/portal/sales.jpg' },
-    { role: 'distribution', label: 'Distributors', image: '/portal/distributors.jpg' },
+    { role: 'admin', label: 'Admin', image: '/portal/admin-original.webp' },
+    { role: 'tasting', label: 'Tasting Room', image: '/portal/tasting-room.webp' },
+    { role: 'sales', label: 'Sales', image: '/portal/sales.webp' },
+    { role: 'distribution', label: 'Distributors', image: '/portal/distributors.webp' },
   ];
   return <main className="central-chooser"><div className="central-chooser-content">
     <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-chooser-logo" />
@@ -1879,20 +1879,20 @@ function distributionItemForWine(wine: WineRecord, distributionWines: Distributi
 }
 
 const DISTRIBUTION_IMAGE_OVERRIDES: { pattern: RegExp; size: '1500'; src: string }[] = [
-  { pattern: /great\s*lakes\s*red/i, size: '1500', src: '/bottles/great-lakes-red-front.png' },
-  { pattern: /winter\s*white/i, size: '1500', src: '/bottles/winter-white-front.png' },
-  { pattern: /witches\s*brew/i, size: '1500', src: '/bottles/witches-brew-front.png' },
-  { pattern: /farm\s*fresh\s*blackberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-blackberry-moscato-front.png' },
-  { pattern: /farm\s*fresh\s*raspberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-raspberry-moscato-front.png' },
-  { pattern: /farm\s*fresh\s*cranberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-cranberry-moscato-front.png' },
-  { pattern: /farm\s*fresh\s*peach\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-peach-moscato-front.png' },
-  { pattern: /farm\s*fresh\s*can\s*variety\s*pack/i, size: '1500', src: '/cases/farm-fresh-can-variety-pack.png' },
+  { pattern: /great\s*lakes\s*red/i, size: '1500', src: '/bottles/great-lakes-red-front.webp' },
+  { pattern: /winter\s*white/i, size: '1500', src: '/bottles/winter-white-front.webp' },
+  { pattern: /witches\s*brew/i, size: '1500', src: '/bottles/witches-brew-front.webp' },
+  { pattern: /farm\s*fresh\s*blackberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-blackberry-moscato-front.webp' },
+  { pattern: /farm\s*fresh\s*raspberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-raspberry-moscato-front.webp' },
+  { pattern: /farm\s*fresh\s*cranberry\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-cranberry-moscato-front.webp' },
+  { pattern: /farm\s*fresh\s*peach\s*moscato/i, size: '1500', src: '/bottles/farm-fresh-peach-moscato-front.webp' },
+  { pattern: /farm\s*fresh\s*can\s*variety\s*pack/i, size: '1500', src: '/cases/farm-fresh-can-variety-pack.webp' },
 ];
 
 function distributionImageSrc(item: DistributionWine, match: WineRecord | undefined, wines: WineRecord[]) {
   const size = distributionSizeKey(item.specs.size);
   if (/farm\s*fresh\s*can\s*variety\s*pack/i.test(item.name)) {
-    return '/cases/farm-fresh-can-variety-pack.png';
+    return '/cases/farm-fresh-can-variety-pack.webp';
   }
   if (size === '1500') {
     const fromAssets = match ? wineImageAssets(match).find((asset) => asset.role === 'front' && /1\.5\s*l/i.test(asset.label || ''))?.src : undefined;
@@ -2732,12 +2732,12 @@ function RichTextEditor({ value, onChange, minHeight = 132, placeholder, mode = 
 }
 function AwardRow({ award, downloadable = false }: { award: Award; downloadable?: boolean }) {
   const graphic = award.graphicUrl || awardGraphicFor(award);
-  const jpeg = graphic?.startsWith('/awards/') && /\.png$/i.test(graphic) ? graphic.replace(/\.png$/i, '.jpg') : undefined;
+  const awardFilename = assetName(`${award.year}-${award.competition}-${award.result}`);
   return <div className="flex flex-col gap-3 rounded-xl bg-[#faf6ea] p-3 sm:flex-row sm:items-center">
     <div className="flex min-w-0 flex-1 items-center gap-3">{graphic ? <img src={graphic} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d7a33d] text-white"><AwardIcon className="h-4 w-4" /></span>}<div><p className="text-sm font-black">{award.result}</p><p className="text-[11px] leading-4 text-black/55">{award.year} · {award.competition}</p></div></div>
     {downloadable && graphic && <div className="flex shrink-0 gap-2">
-      <a href={graphic} download className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">PNG</a>
-      {jpeg && <a href={jpeg} download className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">JPEG</a>}
+      <button type="button" onClick={() => void downloadImageAsFormat(graphic, 'png', awardFilename)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">PNG</button>
+      <button type="button" onClick={() => void downloadImageAsFormat(graphic, 'jpeg', awardFilename)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.03]">JPEG</button>
     </div>}
   </div>;
 }

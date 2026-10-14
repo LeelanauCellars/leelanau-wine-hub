@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // files are available in Vercel Functions.
   serverExternalPackages: ["pdf-parse", "@napi-rs/canvas"],
   outputFileTracingIncludes: {
-    "/api/tasting-room/sales-analysis": ["./data/tasting-room-history/*.json"],
+    "/api/tasting-room/sales-analysis": ["./data/tasting-room-history/*.json.gz"],
   },
 };
 

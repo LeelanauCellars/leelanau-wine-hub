@@ -15,14 +15,14 @@ export const WINE_COLLECTIONS = [
 export type WineCollectionName = typeof WINE_COLLECTIONS[number];
 
 export const COLLECTION_ART: Partial<Record<WineCollectionName, string>> = {
-  'Country Crush': '/cases/country-crush-case.png',
-  'Farm Fresh': '/cases/farm-fresh-fruit-moscato-case.png',
-  'Lakeshore Farms': '/cases/lakeshore-farms-fruit-moscato-case.png',
-  'Lakeshore Collection': '/cases/lakeshore-collection-case.png',
+  'Country Crush': '/cases/country-crush-case.webp',
+  'Farm Fresh': '/cases/farm-fresh-fruit-moscato-case.webp',
+  'Lakeshore Farms': '/cases/lakeshore-farms-fruit-moscato-case.webp',
+  'Lakeshore Collection': '/cases/lakeshore-collection-case.webp',
   'Leelanau Cellars': '/lwc-logo.png',
-  'Zilly': '/cases/zilly-case.png',
-  'Witches Brew': '/cases/witches-brew-case.png',
-  'Seasonal Series': '/cases/seasonal-sangria-case.png',
+  'Zilly': '/cases/zilly-case.webp',
+  'Witches Brew': '/cases/witches-brew-case.webp',
+  'Seasonal Series': '/cases/seasonal-sangria-case.webp',
 };
 
 const COLLECTION_ALIASES: { pattern: RegExp; collection: WineCollectionName }[] = [

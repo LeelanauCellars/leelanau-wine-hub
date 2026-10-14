@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import type { SalesPeriodInput, TastingRoomSalesPeriodSummary } from '@/lib/tasting-room-sales';
 
 type HistoricalProduct = { sku: string; wine: string; bottlesSold: number; netSales: number };
@@ -56,8 +57,8 @@ function loadYear(year: number) {
   const cached = cache.get(year);
   if (cached) return cached;
   if (year < MIN_YEAR || year > MAX_YEAR) throw new Error(`Historical Tasting Room sales are available from ${MIN_YEAR} through ${MAX_YEAR}.`);
-  const file = path.join(process.cwd(), 'data', 'tasting-room-history', `${year}.json`);
-  const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as HistoricalYear;
+  const file = path.join(process.cwd(), 'data', 'tasting-room-history', `${year}.json.gz`);
+  const parsed = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8')) as HistoricalYear;
   cache.set(year, parsed);
   return parsed;
 }

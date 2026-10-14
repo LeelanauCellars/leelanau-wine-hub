@@ -124,76 +124,76 @@ function asAssets(...entries: { src: string; role?: 'front' | 'back' | 'addition
 
 const ADDITIONAL_IMAGE_OVERRIDES: Record<string, { fallbackBottleImage?: string; fallbackImageAssets?: WineImageAsset[]; extraImageAssets: WineImageAsset[] }> = {
   farmfreshblackberrymoscato: {
-    fallbackBottleImage: '/bottles/farm-fresh-blackberry-moscato-front.png',
+    fallbackBottleImage: '/bottles/farm-fresh-blackberry-moscato-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-blackberry-moscato-front.png', role: 'front', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-blackberry-moscato-back.png', role: 'back', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-blackberry-moscato-front.webp', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-blackberry-moscato-back.webp', role: 'back', label: '1.5L back bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-blackberry-moscato-front.png', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-blackberry-moscato-back.png', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-blackberry-moscato-front.webp', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-blackberry-moscato-back.webp', label: '1.5L back bottle image' },
     ),
   },
   farmfreshraspberrymoscato: {
-    fallbackBottleImage: '/bottles/farm-fresh-raspberry-moscato-front.png',
+    fallbackBottleImage: '/bottles/farm-fresh-raspberry-moscato-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-raspberry-moscato-front.png', role: 'front', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-raspberry-moscato-back.png', role: 'back', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-raspberry-moscato-front.webp', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-raspberry-moscato-back.webp', role: 'back', label: '1.5L back bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-raspberry-moscato-front.png', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-raspberry-moscato-back.png', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-raspberry-moscato-front.webp', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-raspberry-moscato-back.webp', label: '1.5L back bottle image' },
     ),
   },
   farmfreshcranberrymoscato: {
-    fallbackBottleImage: '/bottles/farm-fresh-cranberry-moscato-front.png',
+    fallbackBottleImage: '/bottles/farm-fresh-cranberry-moscato-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-cranberry-moscato-front.png', role: 'front', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-cranberry-moscato-back.png', role: 'back', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-cranberry-moscato-front.webp', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-cranberry-moscato-back.webp', role: 'back', label: '1.5L back bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-cranberry-moscato-front.png', label: '1.5L front bottle image' },
-      { src: '/bottles/farm-fresh-cranberry-moscato-back.png', label: '1.5L back bottle image' },
+      { src: '/bottles/farm-fresh-cranberry-moscato-front.webp', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-cranberry-moscato-back.webp', label: '1.5L back bottle image' },
     ),
   },
   farmfreshpeachmoscato: {
-    fallbackBottleImage: '/bottles/farm-fresh-peach-moscato-front.png',
+    fallbackBottleImage: '/bottles/farm-fresh-peach-moscato-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-peach-moscato-front.png', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-peach-moscato-front.webp', role: 'front', label: '1.5L front bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/farm-fresh-peach-moscato-front.png', label: '1.5L front bottle image' },
+      { src: '/bottles/farm-fresh-peach-moscato-front.webp', label: '1.5L front bottle image' },
     ),
   },
   greatlakesred: {
-    fallbackBottleImage: '/bottles/great-lakes-red-front.png',
+    fallbackBottleImage: '/bottles/great-lakes-red-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/great-lakes-red-front.png', role: 'front', label: '1.5L front bottle image' },
-      { src: '/bottles/great-lakes-red-back.png', role: 'back', label: '1.5L back bottle image' },
+      { src: '/bottles/great-lakes-red-front.webp', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/great-lakes-red-back.webp', role: 'back', label: '1.5L back bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/great-lakes-red-front.png', label: '1.5L front bottle image' },
-      { src: '/bottles/great-lakes-red-back.png', label: '1.5L back bottle image' },
+      { src: '/bottles/great-lakes-red-front.webp', label: '1.5L front bottle image' },
+      { src: '/bottles/great-lakes-red-back.webp', label: '1.5L back bottle image' },
     ),
   },
   winterwhite: {
-    fallbackBottleImage: '/bottles/winter-white-front.png',
+    fallbackBottleImage: '/bottles/winter-white-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/winter-white-front.png', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/winter-white-front.webp', role: 'front', label: '1.5L front bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/winter-white-front.png', label: '1.5L front bottle image' },
+      { src: '/bottles/winter-white-front.webp', label: '1.5L front bottle image' },
     ),
   },
   witchesbrew: {
-    fallbackBottleImage: '/bottles/witches-brew-front.png',
+    fallbackBottleImage: '/bottles/witches-brew-front.webp',
     fallbackImageAssets: asAssets(
-      { src: '/bottles/witches-brew-front.png', role: 'front', label: '1.5L front bottle image' },
-      { src: '/bottles/witches-brew-back.png', role: 'back', label: '1.5L back bottle image' },
+      { src: '/bottles/witches-brew-front.webp', role: 'front', label: '1.5L front bottle image' },
+      { src: '/bottles/witches-brew-back.webp', role: 'back', label: '1.5L back bottle image' },
     ),
     extraImageAssets: asAssets(
-      { src: '/bottles/witches-brew-front.png', label: '1.5L front bottle image' },
-      { src: '/bottles/witches-brew-back.png', label: '1.5L back bottle image' },
+      { src: '/bottles/witches-brew-front.webp', label: '1.5L front bottle image' },
+      { src: '/bottles/witches-brew-back.webp', label: '1.5L back bottle image' },
     ),
   },
 };

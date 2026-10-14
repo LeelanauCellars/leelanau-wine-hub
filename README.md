@@ -1,3 +1,12 @@
+## v103 Deployment storage optimization
+
+- Keeps the v102 interface, sales analysis, historical comparisons, rotating welcome page, Quick Facts, Awards, and Wine Library behavior unchanged.
+- Compresses the 2020–2025 historical tasting-room data as gzip files and decompresses it server-side on demand, reducing those deployed files from roughly 16 MB to about 4 MB without changing calculations.
+- Converts large bottle, case, lifestyle, POS-display, portal, and welcome imagery to WebP while preserving full image dimensions. Wine Hub still creates PNG/JPEG downloads on demand from those optimized sources.
+- Removes duplicate JPEG copies of award badges while preserving both PNG and JPEG download buttons through on-demand conversion.
+- Updates Next.js output tracing and Central's prebuild asset checks for the optimized files.
+- This release is intentionally storage-focused; it does not change the reporting formulas or page structure.
+
 ## v102 Comparison differences + rotating welcome + Quick Facts/Awards corrections
 
 - Replaces the Sales Analysis **Combined Total** comparison display with a **Difference** view: the newer selected period minus the prior period. Negative changes are shown in red; positive changes show the amount and percentage increase.
