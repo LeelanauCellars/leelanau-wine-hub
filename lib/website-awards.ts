@@ -1,160 +1,11 @@
 import type { Award } from './types';
 
-export type WebsiteAward = Award & { wineName: string };
-
-// Official source of truth for published Leelanau Cellars award results.
-const AWARDS_URL = 'https://www.lwc.wine/awards/';
-const RESULTS = ['Best of Class', 'Best in Class', 'Double Gold', 'Gold', 'Silver', 'Bronze'];
-
-const awardGraphicUrl = (year: number, result: string) => {
-  const normalized = result.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const aliases: Record<string, string> = {
-    'best of class': 'best-of-class',
-    'best in class': 'best-of-class',
-    'double gold': 'double-gold',
-    'gold': 'gold',
-    'silver': 'silver',
-    'bronze': 'bronze',
-    'sparkling sweepstake': 'sparkling-sweepstake',
-    'sparkling sweepstakes': 'sparkling-sweepstake',
-    'rose sweepstake': 'rose-sweepstake',
-    'rose sweepstakes': 'rose-sweepstake',
-    'rosé sweepstake': 'rose-sweepstake',
-    'rosé sweepstakes': 'rose-sweepstake',
-    'packaging sweepstake': 'packaging-sweepstake',
-    'packaging sweepstakes': 'packaging-sweepstake',
-    'specialty sweepstake': 'specialty-sweepstake',
-    'specialty sweepstakes': 'specialty-sweepstake',
-    'red sweepstake': 'red-sweepstake',
-    'red sweepstakes': 'red-sweepstake',
-    'white sweepstake': 'white-sweepstake',
-    'white sweepstakes': 'white-sweepstake',
-  };
-  const slug = aliases[normalized];
-  if (!slug) return undefined;
-  const supported: Record<number, string[]> = {
-    2023: ['best-of-class', 'gold', 'silver', 'bronze'],
-    2024: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
-    2025: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
-    2026: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze', 'sparkling-sweepstake', 'rose-sweepstake', 'packaging-sweepstake', 'specialty-sweepstake', 'red-sweepstake', 'white-sweepstake'],
-  };
-  return supported[year]?.includes(slug) ? `/awards/${year}/${slug}.png` : undefined;
+export type WebsiteAward = Award & {
+  wineName: string;
+  brand: 'Leelanau Cellars' | 'Farm Fresh' | 'Lakeshore Farms' | 'Country Crush' | 'Zilly';
 };
 
-
-const FALLBACK_BY_YEAR: Record<number, Array<[string, string]>> = {
-  2023: [
-    ['Lakeshore Collection Moscato', 'Gold'],
-    ['Lakeshore Collection Riesling', 'Gold'],
-    ['2021 Late Harvest Riesling', 'Gold'],
-    ['Lakeshore Collection Pinot Grigio', 'Silver'],
-    ['2021 Dry Riesling', 'Silver'],
-    ['Sweet Peach Chill', 'Silver'],
-    ['Pinot Noir Rosé', 'Bronze'],
-    ['Lakeshore Collection Red Blend', 'Bronze'],
-    ['Blackberry Chill', 'Bronze'],
-    ['Mango Chill', 'Bronze'],
-    ['2021 Riesling', 'Bronze'],
-    ['Raspberry Sparkling Moscato', 'Best of Class'],
-    ['Blackberry Sparkling Moscato', 'Gold'],
-    ['Raspberry Moscato', 'Gold'],
-    ['Mango Sparkling Moscato', 'Silver'],
-    ['Peach Moscato', 'Silver'],
-    ['Blackberry Moscato', 'Silver'],
-    ['Peach Sparkling Moscato', 'Bronze'],
-    ['Mango Moscato', 'Best of Class'],
-    ['Mango Bubbly Moscato', 'Silver'],
-    ['Mango Fruit Wine', 'Bronze'],
-  ],
-  2024: [
-    ['2022 Gewürztraminer', 'Double Gold'],
-    ['Blueberry Dessert Wine', 'Gold'],
-    ['Cherry Dessert Wine', 'Gold'],
-    ['Raspberry Dessert Wine', 'Gold'],
-    ['2022 Semi-Dry Riesling', 'Silver'],
-    ['2022 Vignoles', 'Silver'],
-    ['2022 Pinot Noir Rosé', 'Bronze'],
-    ['2022 Sauvignon Blanc', 'Bronze'],
-    ['Peach Sparkling Moscato', 'Best of Class'],
-    ['Blackberry Fruit Wine', 'Bronze'],
-    ['Cherry Fruit Wine', 'Bronze'],
-    ['Peach Fruit Wine', 'Bronze'],
-  ],
-  2025: [
-    ['2023 Merlot', 'Silver'],
-    ['2022 Pinot Grigio', 'Silver'],
-    ['2023 Pleasant Hill Pinot Grigio', 'Silver'],
-    ['Cherry Cordial', 'Bronze'],
-    ['Zilly Cabernet Sauvignon', 'Silver'],
-    ['Zilly Pinot Grigio', 'Silver'],
-    ['Zilly Chardonnay', 'Bronze'],
-    ['Zilly Sauvignon Blanc', 'Bronze'],
-  ],
-  2026: [
-    ['Cherries Galore', 'Double Gold'],
-    ['2023 Late Harvest Riesling', 'Double Gold'],
-    ['2023 Late Harvest Pinot Grigio', 'Double Gold'],
-    ['Chocolate Cherry Dessert', 'Double Gold'],
-    ['Cold Duck', 'Gold'],
-    ['2024 Blanc de Noir', 'Silver'],
-    ['2024 Brüt Sur Lie', 'Silver'],
-    ['Spring Splendor', 'Silver'],
-    ['Summer Sunset', 'Silver'],
-    ['Winter White Bubbly', 'Silver'],
-    ['Witches Brew', 'Silver'],
-    ['Witches Brew Spiced Apple', 'Silver'],
-    ['Festivus', 'Bronze'],
-    ['2023 Pinot Grigio', 'Bronze'],
-    ['Winter White', 'Bronze'],
-    ['Witches Brew Pumpkin Spice', 'Bronze'],
-    ['Cranberry Moscato', 'Best of Class'],
-    ['Raspberry Bubbly Moscato', 'Double Gold'],
-    ['Cranberry Fruit Wine', 'Silver'],
-    ['2023 Zilly Pinot Grigio', 'Gold'],
-    ['2023 Zilly Chardonnay', 'Gold'],
-    ['Zilly Sauvignon Blanc', 'Bronze'],
-    ['2023 Zilly Cabernet Sauvignon', 'Bronze'],
-  ],
-};
-
-const fallbackAwards = (year?: number): WebsiteAward[] => {
-  const years = year ? [year] : Object.keys(FALLBACK_BY_YEAR).map(Number).sort((a, b) => b - a);
-  return years.flatMap((awardYear) => (FALLBACK_BY_YEAR[awardYear] || []).map(([wineName, result]) => ({
-    id: `website-${awardYear}-${normalize(wineName)}-${normalize(result)}`,
-    wineName,
-    year: awardYear,
-    competition: 'San Francisco Chronicle Wine Competition',
-    result,
-    graphicUrl: awardGraphicUrl(awardYear, result),
-  })));
-};
-
-const AWARD_ENTITIES: Record<string, string> = {
-  nbsp: ' ', amp: '&', apos: "'", quot: '"', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
-  ndash: '–', mdash: '—', hellip: '…', uuml: 'ü', ouml: 'ö', eacute: 'é', auml: 'ä',
-};
-
-const decode = (value: string) => value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (match, entity: string) => {
-  if (entity[0] === '#') {
-    const isHex = entity[1]?.toLowerCase() === 'x';
-    const parsed = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10);
-    if (Number.isFinite(parsed)) {
-      try { return String.fromCodePoint(parsed); } catch { return match; }
-    }
-    return match;
-  }
-  return AWARD_ENTITIES[entity.toLowerCase()] ?? match;
-});
-
-const htmlToLines = (html: string) => decode(html)
-  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-  .replace(/<br\s*\/?\s*>/gi, '\n')
-  .replace(/<\/(p|li|div|h[1-6]|span)>/gi, '\n')
-  .replace(/<[^>]+>/g, ' ')
-  .split('\n')
-  .map((line) => line.replace(/\s+/g, ' ').trim())
-  .filter(Boolean);
+type OfficialAwardRow = [WebsiteAward['brand'], string, string];
 
 const normalize = (value: string) => value
   .toLowerCase()
@@ -162,56 +13,122 @@ const normalize = (value: string) => value
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]/g, '');
 
+const awardGraphicUrl = (year: number, result: string) => {
+  const normalized = result.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const aliases: Record<string, string> = {
+    'best of class': 'best-of-class',
+    'best in class': 'best-of-class',
+    'double gold': 'double-gold',
+    gold: 'gold',
+    silver: 'silver',
+    bronze: 'bronze',
+  };
+  const slug = aliases[normalized];
+  if (!slug) return undefined;
+  const supported: Record<number, string[]> = {
+    2023: ['best-of-class', 'gold', 'silver', 'bronze'],
+    2024: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+    2025: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+    2026: ['best-of-class', 'double-gold', 'gold', 'silver', 'bronze'],
+  };
+  return supported[year]?.includes(slug) ? `/awards/${year}/${slug}.png` : undefined;
+};
+
+// Transcribed from the Leelanau Cellars 2023–2026 San Francisco Chronicle
+// Wine Competition reference sheets. Brand is intentionally part of the key:
+// names such as Peach Fruit Wine and Mango Moscato exist in multiple families.
+const OFFICIAL_BY_YEAR: Record<number, OfficialAwardRow[]> = {
+  2026: [
+    ['Leelanau Cellars', 'Cherries Galore', 'Double Gold'],
+    ['Leelanau Cellars', '2023 Late Harvest Riesling', 'Double Gold'],
+    ['Leelanau Cellars', '2023 Late Harvest Pinot Grigio', 'Double Gold'],
+    ['Leelanau Cellars', 'Chocolate Cherry Dessert', 'Double Gold'],
+    ['Leelanau Cellars', 'Cold Duck', 'Gold'],
+    ['Leelanau Cellars', '2024 Blanc de Noir', 'Silver'],
+    ['Leelanau Cellars', '2024 Brüt Sur Lie', 'Silver'],
+    ['Leelanau Cellars', 'Spring Splendor', 'Silver'],
+    ['Leelanau Cellars', 'Summer Sunset', 'Silver'],
+    ['Leelanau Cellars', 'Winter White Bubbly', 'Silver'],
+    ['Leelanau Cellars', 'Witches Brew', 'Silver'],
+    ['Leelanau Cellars', 'Witches Brew Spiced Apple', 'Silver'],
+    ['Leelanau Cellars', 'Festivus', 'Bronze'],
+    ['Leelanau Cellars', '2023 Pinot Grigio', 'Bronze'],
+    ['Leelanau Cellars', 'Winter White', 'Bronze'],
+    ['Leelanau Cellars', 'Witches Brew Pumpkin Spice', 'Bronze'],
+    ['Farm Fresh', 'Cranberry Moscato', 'Best of Class'],
+    ['Farm Fresh', 'Raspberry Bubbly Moscato', 'Double Gold'],
+    ['Farm Fresh', 'Cranberry Fruit Wine', 'Silver'],
+    ['Zilly', '2023 Zilly Pinot Grigio', 'Gold'],
+    ['Zilly', '2023 Zilly Chardonnay', 'Gold'],
+    ['Zilly', '2023 Zilly Sauvignon Blanc', 'Bronze'],
+    ['Zilly', '2023 Zilly Cabernet Sauvignon', 'Bronze'],
+  ],
+  2025: [
+    ['Leelanau Cellars', '2023 Merlot', 'Silver'],
+    ['Leelanau Cellars', '2022 Pinot Grigio', 'Silver'],
+    ['Leelanau Cellars', '2023 Pleasant Hill Pinot Grigio', 'Silver'],
+    ['Leelanau Cellars', 'Cherry Cordial', 'Bronze'],
+    ['Zilly', 'Zilly Cabernet Sauvignon', 'Silver'],
+    ['Zilly', 'Zilly Pinot Grigio', 'Silver'],
+    ['Zilly', 'Zilly Chardonnay', 'Bronze'],
+    ['Zilly', 'Zilly Sauvignon Blanc', 'Bronze'],
+  ],
+  2024: [
+    ['Leelanau Cellars', '2022 Gewürztraminer', 'Double Gold'],
+    ['Leelanau Cellars', 'Blueberry Dessert Wine', 'Gold'],
+    ['Leelanau Cellars', 'Cherry Dessert Wine', 'Gold'],
+    ['Leelanau Cellars', 'Raspberry Dessert Wine', 'Gold'],
+    ['Leelanau Cellars', '2022 Semi-Dry Riesling', 'Silver'],
+    ['Leelanau Cellars', '2022 Vignoles', 'Silver'],
+    ['Leelanau Cellars', '2022 Pinot Noir Rosé', 'Bronze'],
+    ['Leelanau Cellars', '2022 Sauvignon Blanc', 'Bronze'],
+    ['Lakeshore Farms', 'Peach Sparkling Moscato', 'Best of Class'],
+    ['Lakeshore Farms', 'Blackberry Fruit Wine', 'Bronze'],
+    ['Lakeshore Farms', 'Cherry Fruit Wine', 'Bronze'],
+    ['Country Crush', 'Peach Fruit Wine', 'Bronze'],
+  ],
+  2023: [
+    ['Leelanau Cellars', 'Lakeshore Collection Moscato', 'Gold'],
+    ['Leelanau Cellars', 'Lakeshore Collection Riesling', 'Gold'],
+    ['Leelanau Cellars', '2021 Late Harvest Riesling', 'Gold'],
+    ['Leelanau Cellars', 'Lakeshore Collection Pinot Grigio', 'Silver'],
+    ['Leelanau Cellars', '2021 Dry Riesling', 'Silver'],
+    ['Leelanau Cellars', 'Sweet Peach Chill', 'Silver'],
+    ['Leelanau Cellars', 'Pinot Noir Rosé', 'Bronze'],
+    ['Leelanau Cellars', 'Lakeshore Collection Red Blend', 'Bronze'],
+    ['Leelanau Cellars', 'Blackberry Chill', 'Bronze'],
+    ['Leelanau Cellars', 'Mango Chill', 'Bronze'],
+    ['Leelanau Cellars', '2021 Riesling', 'Bronze'],
+    ['Lakeshore Farms', 'Raspberry Sparkling Moscato', 'Best of Class'],
+    ['Lakeshore Farms', 'Blackberry Sparkling Moscato', 'Gold'],
+    ['Lakeshore Farms', 'Raspberry Moscato', 'Gold'],
+    ['Lakeshore Farms', 'Mango Sparkling Moscato', 'Silver'],
+    ['Lakeshore Farms', 'Peach Moscato', 'Silver'],
+    ['Lakeshore Farms', 'Blackberry Moscato', 'Silver'],
+    ['Lakeshore Farms', 'Peach Sparkling Moscato', 'Bronze'],
+    ['Farm Fresh', 'Mango Moscato', 'Best of Class'],
+    ['Farm Fresh', 'Mango Bubbly Moscato', 'Silver'],
+    ['Farm Fresh', 'Mango Fruit Wine', 'Bronze'],
+  ],
+};
+
+function officialAwards(): WebsiteAward[] {
+  return Object.keys(OFFICIAL_BY_YEAR)
+    .map(Number)
+    .sort((a, b) => b - a)
+    .flatMap((year) => OFFICIAL_BY_YEAR[year].map(([brand, wineName, result]) => ({
+      id: `official-${year}-${normalize(brand)}-${normalize(wineName)}-${normalize(result)}`,
+      wineName,
+      brand,
+      year,
+      competition: 'San Francisco Chronicle Wine Competition',
+      result,
+      graphicUrl: awardGraphicUrl(year, result),
+    })));
+}
+
 export async function loadCurrentWebsiteAwards(): Promise<WebsiteAward[]> {
-  const year = new Date().getFullYear();
-  try {
-    const response = await fetch(AWARDS_URL, { next: { revalidate: 21600 } });
-    if (!response.ok) return fallbackAwards();
-    const html = await response.text();
-
-    // The awards page groups the current competition around image assets named with the current year.
-    // Isolating that window prevents a wine from accidentally inheriting an older award farther down the page.
-    const marker = new RegExp(`${year}[^"'<>]{0,100}Award-Badges`, 'i');
-    const markerMatch = marker.exec(html);
-    if (!markerMatch) return fallbackAwards();
-    const start = Math.max(0, markerMatch.index - 18000);
-    let end = html.length;
-    for (let previousYear = year - 1; previousYear >= year - 4; previousYear -= 1) {
-      const idx = html.search(new RegExp(`${previousYear}[^"'<>]{0,100}Award`, 'i'));
-      if (idx > markerMatch.index && idx < end) end = idx;
-    }
-    const lines = htmlToLines(html.slice(start, end));
-    const resultPattern = RESULTS.join('|').replace(/ /g, '\\s+');
-    const linePattern = new RegExp(`^(.{2,120}?)\\s*\\|\\s*(${resultPattern})\\s*$`, 'i');
-    const seen = new Set<string>();
-    const awards: WebsiteAward[] = [];
-
-    for (const line of lines) {
-      const match = line.match(linePattern);
-      if (!match) continue;
-      const wineName = match[1].trim();
-      const rawResult = match[2].replace(/\s+/g, ' ').trim();
-      const result = RESULTS.find((candidate) => candidate.toLowerCase() === rawResult.toLowerCase()) || rawResult;
-      const key = `${normalize(wineName)}-${normalize(result)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      awards.push({
-        id: `website-${year}-${normalize(wineName)}-${normalize(result)}`,
-        wineName,
-        year,
-        competition: 'San Francisco Chronicle Wine Competition',
-        result,
-        graphicUrl: awardGraphicUrl(year, result),
-      });
-    }
-    const currentAwards = awards.length ? awards : fallbackAwards(year);
-    const historicalAwards = fallbackAwards().filter((award) => award.year !== year);
-    const combined = [...currentAwards, ...historicalAwards];
-    return combined.filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result && normalize(candidate.wineName) === normalize(award.wineName)) === index);
-  } catch (error) {
-    console.warn('Unable to refresh awards from lwc.wine', error);
-    return fallbackAwards();
-  }
+  return officialAwards();
 }
 
 const stripBrand = (value: string, brand: string) => {
@@ -224,24 +141,42 @@ const stripBrand = (value: string, brand: string) => {
   return output.trim();
 };
 
+function familyBrand(value: string): WebsiteAward['brand'] {
+  const normalized = value.toLowerCase();
+  if (normalized.includes('farm fresh')) return 'Farm Fresh';
+  if (normalized.includes('lakeshore farms')) return 'Lakeshore Farms';
+  if (normalized.includes('country crush')) return 'Country Crush';
+  if (normalized.includes('zilly')) return 'Zilly';
+  // Estate, Lakeshore Collection, Witches Brew and Seasonal Series all roll up
+  // to Leelanau Cellars on the competition reference sheets.
+  return 'Leelanau Cellars';
+}
+
 export function matchWebsiteAwards(title: string, vintage: string, brand: string, awards: WebsiteAward[]): Award[] {
   const base = stripBrand(title, brand);
-  const candidates = new Set([
+  const productFamily = familyBrand(`${brand} ${title}`);
+  const productCandidates = new Set([
     normalize(title),
     normalize(base),
+    normalize(`${brand} ${title}`),
+    normalize(`${brand} ${base}`),
     normalize(`${vintage} ${title}`),
     normalize(`${vintage} ${base}`),
+    normalize(`${vintage} ${brand} ${title}`),
+    normalize(`${vintage} ${brand} ${base}`),
   ]);
 
   return awards
     .filter((award) => {
-      const vintagePrefix = award.wineName.match(/^(20\d{2})\s+/)?.[1];
-      // If Commerce7 has a real vintage, never let a differently-vintaged award
-      // attach just because the base wine name is the same.
-      if (vintagePrefix && /^20\d{2}$/.test(vintage) && vintagePrefix !== vintage) return false;
+      if (award.brand !== productFamily) return false;
+      const awardVintage = award.wineName.match(/^(20\d{2})\s+/)?.[1];
+      if (awardVintage && /^20\d{2}$/.test(vintage) && awardVintage !== vintage) return false;
+
       const awardName = normalize(award.wineName);
       const noYearAwardName = normalize(award.wineName.replace(/^20\d{2}\s+/, ''));
-      return candidates.has(awardName) || candidates.has(noYearAwardName);
+      return productCandidates.has(awardName) || productCandidates.has(noYearAwardName);
     })
-    .map(({ wineName: _wineName, ...award }) => award);
+    .map(({ wineName: _wineName, brand: _brand, ...award }) => award)
+    .filter((award, index, list) => list.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index)
+    .sort((a, b) => b.year - a.year || a.result.localeCompare(b.result));
 }

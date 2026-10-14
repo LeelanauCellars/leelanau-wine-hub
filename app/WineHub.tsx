@@ -1697,15 +1697,34 @@ function PortalArrow() {
   return <span aria-hidden="true" className="central-arrow"><svg viewBox="0 0 32 32" fill="none"><path d="M7 16h18M17 8l8 8-8 8" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
 }
 
+const WELCOME_PHOTOS = [
+  '/portal/welcome-bottling.jpg',
+  '/portal/welcome-barrels.jpg',
+  '/portal/welcome-vineyard.jpg',
+  '/portal/welcome-aerial.jpg',
+  '/portal/welcome-pour.jpg',
+];
+
 function WelcomePage({ onEnter }: { onEnter: () => void }) {
-  return <main className="central-entry"><div className="central-entry-content">
-    <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
-    <div className="central-entry-copy">
-      <h1>Leelanau Cellars Central</h1>
-      <p>Wine information, sales tools, resources, and more.</p>
+  const [photoIndex, setPhotoIndex] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setPhotoIndex((current) => (current + 1) % WELCOME_PHOTOS.length), 6000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return <main className="central-entry">
+    <div className="central-entry-photos" aria-hidden="true">
+      {WELCOME_PHOTOS.map((src, index) => <img key={src} src={src} alt="" className={`central-entry-photo ${index === photoIndex ? 'central-entry-photo-active' : ''}`} />)}
     </div>
-    <button onClick={onEnter} className="central-enter-button"><span>Enter Central</span><PortalArrow /></button>
-  </div></main>;
+    <div className="central-entry-content">
+      <img src="/portal/logo.svg" alt="Leelanau Cellars" width="972" height="1017" className="central-entry-logo" />
+      <div className="central-entry-copy">
+        <h1>Leelanau Cellars Central</h1>
+        <p>Wine information, sales tools, resources, and more.</p>
+      </div>
+      <button onClick={onEnter} className="central-enter-button"><span>Enter Central</span><PortalArrow /></button>
+    </div>
+  </main>;
 }
 
 function PortalChooser({ onChoose, onBack }: { onChoose: (role: PortalRole) => void; onBack: () => void }) {
@@ -2727,47 +2746,60 @@ function AwardEditor({ award, onChange, onRemove }: { award: Award; onChange: (p
 
 function QuickFactsView() {
   const downloadButton = 'flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black shadow-sm hover:bg-black/[.03]';
-  return <div className="mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
+  return <div className="quickfacts-page mx-auto max-w-[1500px] p-5 md:p-8 xl:p-10">
     <PageHeader
       title="Leelanau Cellars Quick Facts"
+      description="The winery, the region, the vineyards and the growing seasons — all in one staff reference."
       right={<div className="flex flex-wrap gap-2">
         <a href="/tasting-room/quick-facts.pdf" download="Leelanau Cellars Quick Facts for Tasting Room Staff.pdf" className={downloadButton}><Download className="h-4 w-4" /> Download PDF</a>
         <a href="/tasting-room/quick-facts.docx" download="Leelanau Cellars Quick Facts for Tasting Room Staff.docx" className={downloadButton}><Download className="h-4 w-4" /> Download Word</a>
       </div>}
     />
 
-    <div className="grid gap-5 xl:grid-cols-[1.08fr_.92fr]">
-      <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-        <h2 className="text-2xl font-black">{QUICK_FACTS.story.title}</h2>
-        <ul className="mt-5 space-y-3.5 text-[15px] leading-7 text-black/75">{QUICK_FACTS.story.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-black" /><span>{item}</span></li>)}</ul>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">{QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-[15px] font-black">{brand}</p><p className="mt-1.5 text-[13px] leading-5 text-black/68">{detail}</p></div>)}</div>
-      </section>
-
-      <div className="grid gap-5">
-        {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">{section.title}</h2><ul className="mt-4 space-y-3 text-[15px] leading-7 text-black/72">{section.bullets.map((item) => <li key={item} className="flex gap-3"><span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#5BA3F8]" /><span>{item}</span></li>)}</ul></section>)}
+    <section className="quickfacts-intro">
+      <div className="quickfacts-story">
+        <p className="quickfacts-kicker">Our Story</p>
+        <h2>{QUICK_FACTS.story.title}</h2>
+        <ul>{QUICK_FACTS.story.bullets.map((item) => <li key={item}>{item}</li>)}</ul>
       </div>
+      <aside className="quickfacts-brands">
+        <p className="quickfacts-kicker">Our Brands</p>
+        {QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="quickfacts-brand-row"><strong>{brand}</strong><span>{detail}</span></div>)}
+      </aside>
+    </section>
+
+    <div className="quickfacts-two-up">
+      {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="quickfacts-section">
+        <p className="quickfacts-kicker">Reference</p>
+        <h2>{section.title}</h2>
+        <ul className="quickfacts-bullets">{section.bullets.map((item) => <li key={item}>{item}</li>)}</ul>
+      </section>)}
     </div>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-      <h2 className="text-2xl font-black">Our Vineyard Sites</h2>
-      <div className="mt-3 rounded-xl bg-[#f2f7fc] px-4 py-3 text-[15px] leading-6 text-black/75"><strong className="text-[#326eac]">Leelanau Cellars has 68.5 total vineyard acres.</strong> A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</div>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-[15px]"><thead><tr className="border-b border-black/10 text-[11px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Site</th><th className="pb-3 pr-4">Key Features</th><th className="pb-3">Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site} className="border-b border-black/[.06] last:border-0"><td className="py-3.5 pr-4 font-black">{item.site}</td><td className="py-3.5 pr-4 text-black/70">{item.features}</td><td className="py-3.5 font-bold">{item.vineyards}</td></tr>)}</tbody></table></div>
+    <section className="quickfacts-section">
+      <div className="quickfacts-section-heading"><div><p className="quickfacts-kicker">Vineyards</p><h2>Our Vineyard Sites</h2></div><div className="quickfacts-acreage"><strong>68.5</strong><span>total vineyard acres</span></div></div>
+      <p className="quickfacts-definition">A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</p>
+      <div className="quickfacts-table-wrap"><table className="quickfacts-table"><thead><tr><th>Site</th><th>Key Features</th><th>Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site}><td><strong>{item.site}</strong></td><td>{item.features}</td><td>{item.vineyards}</td></tr>)}</tbody></table></div>
     </section>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7">
-      <h2 className="text-2xl font-black">Grape Varieties Grown</h2>
-      <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-[13px]"><thead><tr className="border-b border-black/10 text-[10px] font-black uppercase tracking-[.12em] text-black/60"><th className="pb-3 pr-4">Variety</th><th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Acreage</th><th className="pb-3 pr-4">Location(s)</th><th className="pb-3">Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety} className="border-b border-black/[.06] align-top last:border-0"><td className="py-3.5 pr-4 text-[14px] font-black">{item.variety}</td><td className="py-3.5 pr-4 text-black/68">{item.type}</td><td className="py-3.5 pr-4 font-bold">{item.acreage}</td><td className="py-3.5 pr-4 text-black/68">{item.locations}</td><td className="py-3.5 text-black/68">{item.notes}</td></tr>)}</tbody></table></div>
-      <div className="mt-5 grid gap-3 lg:grid-cols-3"><FactMini title="Hilltop white hybrid trial" text={QUICK_FACTS.trials.white} /><FactMini title="Hilltop red hybrid trial" text={QUICK_FACTS.trials.red} /><FactMini title="Coming Soon" text={QUICK_FACTS.trials.comingSoon} /></div>
+    <section className="quickfacts-section">
+      <p className="quickfacts-kicker">Plantings</p>
+      <h2>Grape Varieties Grown</h2>
+      <div className="quickfacts-table-wrap"><table className="quickfacts-table quickfacts-variety-table"><thead><tr><th>Variety</th><th>Type</th><th>Acreage</th><th>Location(s)</th><th>Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety}><td><strong>{item.variety}</strong></td><td>{item.type}</td><td><strong>{item.acreage}</strong></td><td>{item.locations}</td><td>{item.notes}</td></tr>)}</tbody></table></div>
+      <div className="quickfacts-trials">
+        <div><span>Hilltop white hybrid trial</span><p>{QUICK_FACTS.trials.white}</p></div>
+        <div><span>Hilltop red hybrid trial</span><p>{QUICK_FACTS.trials.red}</p></div>
+        <div><span>Coming Soon</span><p>{QUICK_FACTS.trials.comingSoon}</p></div>
+      </div>
     </section>
 
-    <section className="mt-5 rounded-2xl border border-black/10 bg-white p-6 shadow-sm md:p-7"><h2 className="text-2xl font-black">Vintage Vineyard Summaries</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{QUICK_FACTS.vintages.map((vintage) => <div key={vintage.year} className="rounded-xl bg-[#f6f7f8] p-4"><p className="text-xl font-black">{vintage.year}</p><ul className="mt-2.5 space-y-2 text-[13px] leading-5 text-black/68">{vintage.bullets.map((item) => <li key={item}>• {item}</li>)}</ul></div>)}</div></section>
+    <section className="quickfacts-section">
+      <p className="quickfacts-kicker">Growing Seasons</p>
+      <h2>Vintage Vineyard Summaries</h2>
+      <div className="quickfacts-vintages">{QUICK_FACTS.vintages.map((vintage) => <article key={vintage.year} className="quickfacts-vintage-row"><div className="quickfacts-vintage-year">{vintage.year}</div><ul>{vintage.bullets.map((item) => <li key={item}>{item}</li>)}</ul></article>)}</div>
+    </section>
   </div>;
 }
-
-function FactMini({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-xl border border-black/[.07] bg-[#fafafa] p-4"><p className="text-sm font-black">{title}</p><p className="mt-1.5 text-[13px] leading-5 text-black/65">{text}</p></div>;
-}
-
 
 function menuCandidates(wine: WineRecord) {
   const withoutBrand = wine.name.replace(/^(Leelanau Cellars|Farm Fresh|Country Crush|Lakeshore Farms|Zilly)\s+/i, '').trim();
@@ -3996,79 +4028,18 @@ function awardHistoryGraphic(year: number, result: AwardHistoryResult) {
 }
 
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
-  const [selectedYear, setSelectedYear] = useState<AwardHistoryYear['year']>(2026);
-  const active = AWARD_HISTORY.find((entry) => entry.year === selectedYear) || AWARD_HISTORY[0];
-  const total = active.brands.reduce((sum, brand) => sum + brand.items.length, 0);
-  const summary = AWARD_RESULT_ORDER.map((result) => ({
-    result,
-    count: active.brands.reduce((sum, brand) => sum + brand.items.filter((item) => item.result === result).length, 0),
-  })).filter((entry) => entry.count > 0);
-
-  return <div className="no-print mx-auto max-w-[1380px] p-5 md:p-8 xl:p-10">
-    <PageHeader title="Awards" description="San Francisco Chronicle Wine Competition results, organized by year and brand." right={<Stat value={total} label={`${selectedYear} awards`} />} />
-
-    <div className="awards-year-tabs" role="tablist" aria-label="Award year">
-      {AWARD_HISTORY.map((entry) => <button key={entry.year} type="button" role="tab" aria-selected={selectedYear === entry.year} onClick={() => setSelectedYear(entry.year)} className={`awards-year-tab ${selectedYear === entry.year ? 'awards-year-tab-active' : ''}`}>{entry.year}</button>)}
+  const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => a.name.localeCompare(b.name));
+  const total = withAwards.reduce((sum, wine) => sum + wine.awards.length, 0);
+  return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
+    <PageHeader title="Awards Library" description="Award badges are tied directly to the correct wine and can be downloaded for sales, marketing and retailer use." right={<Stat value={total} label="awards" />} />
+    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#326eac]/15 bg-[#f4f9fe] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <span><strong className="block text-sm font-black text-[#1d4f82]">San Francisco Chronicle Wine Competition · 2023–2026</strong><span className="mt-0.5 block text-xs font-semibold text-black/50">Results are matched from the year-by-year Leelanau Cellars award reference and grouped by wine below.</span></span>
+      <a href="https://www.lwc.wine/awards/" target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-2 text-xs font-black text-[#326eac]">Official awards page <ExternalLink className="h-4 w-4" /></a>
     </div>
-
-    <div className="awards-showcase">
-      <section className="awards-competition-card">
-        <div className="awards-year-mark"><span>{String(selectedYear).slice(0, 2)}</span><span>{String(selectedYear).slice(2)}</span></div>
-        <div className="awards-competition-title">
-          <p>San Francisco Chronicle</p>
-          <h2>Wine Competition</h2>
-          <span>Largest competition of North American wines</span>
-        </div>
-        <div className="awards-summary-strip">
-          {summary.map((entry) => {
-            const src = awardHistoryGraphic(selectedYear, entry.result);
-            return <div key={entry.result} className="awards-summary-medal">
-              {src ? <img src={src} alt="" /> : <AwardIcon />}
-              <span>{entry.count}</span>
-              <small>{entry.result}</small>
-            </div>;
-          })}
-        </div>
-      </section>
-
-      <div className={`awards-brand-grid ${active.brands.length === 2 ? 'awards-brand-grid-two' : ''}`}>
-        {active.brands.map((brand) => {
-        const brandSummary = AWARD_RESULT_ORDER.map((result) => ({
-          result,
-          count: brand.items.filter((item) => item.result === result).length,
-        })).filter((entry) => entry.count > 0);
-
-        return <article key={`${selectedYear}-${brand.brand}`} className="awards-brand-card">
-          <div className="awards-brand-heading">
-            <div className="awards-brand-logo-wrap"><AwardsBrandMark brand={brand.brand} /></div>
-            <div><h2>{brand.brand}</h2><p>{brand.items.length} award{brand.items.length === 1 ? '' : 's'}</p></div>
-          </div>
-
-          <div className="awards-brand-medals">
-            {brandSummary.map((entry) => {
-              const src = awardHistoryGraphic(selectedYear, entry.result);
-              return <div key={entry.result} className="awards-brand-medal">
-                {src ? <img src={src} alt={`${entry.result} award`} /> : <AwardIcon />}
-                <span>{entry.count}</span>
-              </div>;
-            })}
-          </div>
-
-          <div className="awards-history-list">
-            {brand.items.map((item) => {
-              const wine = matchWineByName(item.name, wines);
-              const row = <><strong>{item.name}</strong><span className="awards-history-separator">|</span><span>{item.result}</span></>;
-              return wine
-                ? <button type="button" key={`${item.name}-${item.result}`} onClick={() => openWine(wine)} className="awards-history-row awards-history-link">{row}</button>
-                : <div key={`${item.name}-${item.result}`} className="awards-history-row">{row}</div>;
-            })}
-          </div>
-        </article>;
-        })}
-      </div>
-    </div>
-
-    <p className="awards-reference-note">Award history transcribed from Leelanau Cellars’ San Francisco Chronicle Wine Competition reference sheets for 2023–2026.</p>
+    <div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <article key={wine.id} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <button type="button" onClick={() => openWine(wine)} className="mb-4 block w-full text-left"><h2 className="text-xl font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></button>
+      <div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} downloadable />)}</div>
+    </article>)}</div>
   </div>;
 }
 

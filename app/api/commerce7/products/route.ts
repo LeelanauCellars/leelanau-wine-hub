@@ -261,7 +261,10 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
     productionNotes: metaValue(meta, ['production_notes', 'winemaker_notes']) || undefined,
     vineyardNotes: metaValue(meta, ['vineyard_notes', 'vintage_notes']) || undefined,
     awards: (() => {
-      const saved = awardsMeta(meta);
+      // The 2023–2026 San Francisco Chronicle results are controlled by the
+      // verified year-by-year reference in website-awards.ts. Ignore stale C7
+      // copies of that competition so an old mistaken match cannot survive.
+      const saved = awardsMeta(meta).filter((award) => !award.competition.toLowerCase().includes('san francisco chronicle'));
       const website = matchWebsiteAwards(product.title, vintage, brand, websiteAwards);
       const combined = [...website, ...saved];
       return combined

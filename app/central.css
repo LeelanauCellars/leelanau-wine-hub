@@ -27,14 +27,33 @@
     radial-gradient(circle at 8% 12%, rgba(91,163,248,.13), transparent 30%),
     linear-gradient(135deg, #f8fafb 0%, #eef2f4 100%);
 }
-.central-entry::after {
-  content: '';
+.central-entry-photos {
   position: absolute;
   z-index: -2;
-  inset: 0 0 0 48%;
-  background:
-    linear-gradient(90deg, #f2f5f6 0%, rgba(242,245,246,.18) 17%, rgba(10,25,42,.08) 100%),
-    url('/portal/tasting-room.jpg') center / cover no-repeat;
+  inset: 0 0 0 44%;
+  overflow: hidden;
+  background: #dfe5e8;
+}
+.central-entry-photos::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #f2f5f6 0%, rgba(242,245,246,.16) 17%, rgba(10,25,42,.10) 100%);
+  pointer-events: none;
+}
+.central-entry-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.015);
+  transition: opacity 1.15s ease, transform 7s ease;
+}
+.central-entry-photo-active {
+  opacity: 1;
+  transform: scale(1.045);
 }
 .central-entry::before {
   content: '';
@@ -316,7 +335,7 @@
 }
 @media (max-width: 900px) {
   .central-entry { justify-content: center; }
-  .central-entry::after { inset: 0; opacity: .20; }
+  .central-entry-photos { inset: 0; opacity: .24; }
   .central-entry::before { background: rgba(241,245,247,.62); }
   .central-entry-content { width: min(100%, 560px); }
   .central-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 660px; gap: 16px; margin-top: 32px; }
@@ -811,6 +830,156 @@
 .central-stat strong { display: block; color: var(--central-ink); font-size: 17px; font-weight: 750; line-height: 1.05; }
 .central-stat span { display: block; margin-top: 4px; color: rgba(16,32,51,.40); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 
+
+
+/* Quick Facts — editorial reference layout */
+.quickfacts-page { color: var(--central-ink); }
+.quickfacts-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+  gap: clamp(36px, 6vw, 88px);
+  padding: 12px 0 54px;
+  border-bottom: 1px solid var(--central-line);
+}
+.quickfacts-kicker {
+  margin: 0 0 10px;
+  color: #3976b7;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.quickfacts-story h2,
+.quickfacts-section h2 {
+  margin: 0;
+  color: var(--central-ink);
+  font-size: clamp(27px, 2.5vw, 36px);
+  font-weight: 760;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+.quickfacts-story > ul,
+.quickfacts-bullets {
+  display: grid;
+  gap: 13px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(16,32,51,.68);
+  font-size: 15px;
+  line-height: 1.72;
+}
+.quickfacts-story > ul li,
+.quickfacts-bullets li {
+  position: relative;
+  padding-left: 18px;
+}
+.quickfacts-story > ul li::before,
+.quickfacts-bullets li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: .78em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #3976b7;
+}
+.quickfacts-brands { padding-top: 3px; }
+.quickfacts-brand-row {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(16,32,51,.08);
+}
+.quickfacts-brand-row:first-of-type { border-top: 1px solid rgba(16,32,51,.08); }
+.quickfacts-brand-row strong { font-size: 14px; font-weight: 800; }
+.quickfacts-brand-row span { color: rgba(16,32,51,.59); font-size: 13px; line-height: 1.55; }
+.quickfacts-two-up {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(34px, 6vw, 84px);
+}
+.quickfacts-section {
+  padding: 48px 0;
+  border-bottom: 1px solid var(--central-line);
+}
+.quickfacts-two-up .quickfacts-section { border-bottom: 1px solid var(--central-line); }
+.quickfacts-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+}
+.quickfacts-acreage {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
+}
+.quickfacts-acreage strong {
+  color: #3976b7;
+  font-size: 38px;
+  font-weight: 780;
+  letter-spacing: -.045em;
+}
+.quickfacts-acreage span { color: rgba(16,32,51,.46); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.quickfacts-definition { max-width: 820px; margin: 18px 0 0; color: rgba(16,32,51,.56); font-size: 13px; line-height: 1.65; }
+.quickfacts-table-wrap { margin-top: 28px; overflow-x: auto; }
+.quickfacts-table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; font-size: 14px; }
+.quickfacts-table th {
+  padding: 0 18px 11px 0;
+  border-bottom: 1px solid rgba(16,32,51,.13);
+  color: rgba(16,32,51,.42);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.quickfacts-table td {
+  padding: 16px 18px 16px 0;
+  border-bottom: 1px solid rgba(16,32,51,.07);
+  color: rgba(16,32,51,.65);
+  line-height: 1.55;
+  vertical-align: top;
+}
+.quickfacts-table tbody tr:last-child td { border-bottom: 0; }
+.quickfacts-table td strong { color: rgba(16,32,51,.90); font-weight: 800; }
+.quickfacts-variety-table { min-width: 980px; }
+.quickfacts-trials {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid rgba(16,32,51,.09);
+}
+.quickfacts-trials span { color: rgba(16,32,51,.85); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
+.quickfacts-trials p { margin: 8px 0 0; color: rgba(16,32,51,.60); font-size: 13px; line-height: 1.6; }
+.quickfacts-vintages { margin-top: 20px; }
+.quickfacts-vintage-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 30px;
+  padding: 23px 0;
+  border-top: 1px solid rgba(16,32,51,.08);
+}
+.quickfacts-vintage-year { color: var(--central-ink); font-size: 27px; font-weight: 780; letter-spacing: -.035em; }
+.quickfacts-vintage-row ul { display: grid; gap: 7px; margin: 2px 0 0; padding: 0; list-style: none; color: rgba(16,32,51,.62); font-size: 13.5px; line-height: 1.55; }
+.quickfacts-vintage-row li::before { content: '—'; margin-right: 8px; color: rgba(57,118,183,.65); }
+@media (max-width: 900px) {
+  .quickfacts-intro, .quickfacts-two-up { grid-template-columns: 1fr; gap: 34px; }
+  .quickfacts-intro { padding-bottom: 42px; }
+  .quickfacts-two-up { gap: 0; }
+  .quickfacts-section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .quickfacts-trials { grid-template-columns: 1fr; gap: 18px; }
+}
+@media (max-width: 620px) {
+  .quickfacts-brand-row { grid-template-columns: 1fr; gap: 5px; }
+  .quickfacts-vintage-row { grid-template-columns: 72px 1fr; gap: 18px; }
+  .quickfacts-acreage { white-space: normal; }
+}
 
 /* Awards library */
 .awards-year-tabs {

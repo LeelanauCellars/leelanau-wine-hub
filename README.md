@@ -1,3 +1,13 @@
+## v102 Comparison differences + rotating welcome + Quick Facts/Awards corrections
+
+- Replaces the Sales Analysis **Combined Total** comparison display with a **Difference** view: the newer selected period minus the prior period. Negative changes are shown in red; positive changes show the amount and percentage increase.
+- Applies the same difference logic to **Wine Sales by Product** for Bottles, Cases, and Net Sales while leaving the underlying current-year Commerce7 calculations unchanged.
+- Rotates the Welcome page through the five supplied winery/tasting-room photos with a soft crossfade while keeping the existing Leelanau Cellars Central entry layout.
+- Reworks **Quick Facts** into a more editorial, open reference layout with fewer cards/boxes, lighter dividers, cleaner tables, and a vintage timeline.
+- Restores the downloadable **Awards Library** workflow, including PNG/JPEG badge downloads.
+- Rebuilds San Francisco Chronicle award matching from the supplied 2023–2026 reference sheets and makes matching brand-aware so similarly named Farm Fresh, Lakeshore Farms, Country Crush, Zilly, and Leelanau Cellars wines do not inherit one another’s awards.
+- Ignores stale San Francisco Chronicle award copies saved in Commerce7 metadata; the verified year-by-year reference now controls those awards on wine pages.
+
 ## v101 Historical Sales Analysis + product Net Sales
 
 - Keeps the existing **2026+ Commerce7 Tasting Room Sales Analysis calculations and report layout intact**.

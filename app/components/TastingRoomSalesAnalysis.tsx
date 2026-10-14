@@ -116,32 +116,72 @@ function dateLabel(summary: TastingRoomSalesPeriodSummary) {
   return summary.startDate === summary.endDate ? start : `${start} – ${end}`;
 }
 
+type ComparisonPair = { older: TastingRoomSalesPeriodSummary; newer: TastingRoomSalesPeriodSummary };
+
+function comparisonPair(periods: TastingRoomSalesPeriodSummary[]): ComparisonPair | null {
+  if (periods.length < 2) return null;
+  const ordered = [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.endDate.localeCompare(b.endDate));
+  return { older: ordered[ordered.length - 2], newer: ordered[ordered.length - 1] };
+}
+
+
+function comparisonHeading(pair: ComparisonPair) {
+  const olderYear = Number(pair.older.startDate.slice(0, 4));
+  const newerYear = Number(pair.newer.startDate.slice(0, 4));
+  return newerYear - olderYear === 1 ? 'YOY Difference' : 'Difference';
+}
+
+function signedMetric(value: number, format: MetricRow['format']) {
+  const sign = value > 0 ? '+' : '';
+  if (format === 'percent') return `${sign}${value.toFixed(2)} pts`;
+  if (format === 'currency') return `${sign}${formatMetric(value, 'currency')}`;
+  if (format === 'decimal') return `${sign}${value.toFixed(2)}`;
+  return `${sign}${formatQuantity(value)}`;
+}
+
+function DifferenceValue({ current, previous, format }: { current: number | null; previous: number | null; format: MetricRow['format'] }) {
+  if (current === null || previous === null || !Number.isFinite(current) || !Number.isFinite(previous)) return <span className="text-black/35">—</span>;
+  const difference = current - previous;
+  const color = difference < -0.000001 ? 'text-red-600' : difference > 0.000001 ? 'text-emerald-700' : 'text-black/55';
+  const percentChange = Math.abs(previous) > 0.000001 ? (difference / Math.abs(previous)) * 100 : null;
+  return <div className={`font-black ${color}`}>
+    <span className="block">{signedMetric(difference, format)}</span>
+    {format !== 'percent' && percentChange !== null && <span className="mt-0.5 block text-[10px] font-bold opacity-65">{percentChange > 0 ? '+' : ''}{percentChange.toFixed(1)}%</span>}
+  </div>;
+}
+
 function SummaryTable({ analysis }: { analysis: Analysis }) {
-  const columns = analysis.combined ? [...analysis.periods, analysis.combined] : analysis.periods;
+  const pair = comparisonPair(analysis.periods);
   return <div className="overflow-x-auto rounded-3xl border border-black/[.08] bg-white shadow-sm">
     <table className="min-w-[880px] w-full border-collapse text-sm">
       <thead>
         <tr className="bg-[#f7f9fb] text-left">
           <th className="sticky left-0 z-10 min-w-[300px] bg-[#f7f9fb] px-5 py-4 text-xs font-black uppercase tracking-[.12em] text-black/50">Tasting Room Sales Summary</th>
-          {columns.map((column) => {
-            const autoShortLabel = column.id === 'combined' ? '' : dateLabel(column).replace(/, \d{4}/g, '');
-            const hasCustomLabel = column.id !== 'combined' && column.label !== autoShortLabel;
+          {analysis.periods.map((column) => {
+            const autoShortLabel = dateLabel(column).replace(/, \d{4}/g, '');
+            const hasCustomLabel = column.label !== autoShortLabel;
             return <th key={column.id} className="min-w-[180px] px-5 py-4 text-right align-bottom">
-              <span className="block text-sm font-black text-black">{column.id === 'combined' ? column.label : (hasCustomLabel ? column.label : dateLabel(column))}</span>
-              {(column.id === 'combined' || hasCustomLabel) && <span className="mt-1 block text-[11px] font-bold text-black/40">{column.id === 'combined' ? `${column.calendarDays} calendar days` : dateLabel(column)}</span>}
+              <span className="block text-sm font-black text-black">{hasCustomLabel ? column.label : dateLabel(column)}</span>
+              {hasCustomLabel && <span className="mt-1 block text-[11px] font-bold text-black/40">{dateLabel(column)}</span>}
             </th>;
           })}
+          {pair && <th className="min-w-[190px] bg-[#f3f8fd] px-5 py-4 text-right align-bottom">
+            <span className="block text-sm font-black text-[#326eac]">{comparisonHeading(pair)}</span>
+            <span className="mt-1 block text-[11px] font-bold text-black/40">{pair.newer.label} vs {pair.older.label}</span>
+          </th>}
         </tr>
       </thead>
       <tbody>
         {sections.flatMap((section) => [
           <tr key={`${section.title}-heading`} className="border-t border-black/[.08] bg-[#edf4fb]">
             <th className="sticky left-0 z-[1] bg-[#edf4fb] px-5 py-3 text-left text-xs font-black uppercase tracking-[.13em] text-[#326eac]">{section.title}</th>
-            {columns.map((column) => <td key={column.id} className="px-5 py-3" />)}
+            {analysis.periods.map((column) => <td key={column.id} className="px-5 py-3" />)}
+            {pair && <td className="bg-[#edf4fb] px-5 py-3" />}
           </tr>,
           ...section.rows.map((row) => <tr key={`${section.title}-${row.label}`} className="border-t border-black/[.06]">
             <th className="sticky left-0 z-[1] bg-white px-5 py-3 text-left font-bold text-black/65">{row.label}</th>
-            {columns.map((column) => <td key={column.id} className={`px-5 py-3 text-right font-black ${column.id === 'combined' ? 'bg-[#fbfcfd]' : ''}`}>{formatMetric(row.value(column), row.format)}</td>)}
+            {analysis.periods.map((column) => <td key={column.id} className="px-5 py-3 text-right font-black">{formatMetric(row.value(column), row.format)}</td>)}
+            {pair && <td className="bg-[#fbfdff] px-5 py-3 text-right"><DifferenceValue current={row.value(pair.newer)} previous={row.value(pair.older)} format={row.format} /></td>}
           </tr>),
         ])}
       </tbody>
@@ -150,11 +190,12 @@ function SummaryTable({ analysis }: { analysis: Analysis }) {
 }
 
 function WineProductTable({ analysis }: { analysis: Analysis }) {
-  const showCombined = analysis.periods.length > 1;
+  const pair = comparisonPair(analysis.periods);
+  const pairLabel = pair ? `${pair.newer.label} vs ${pair.older.label}` : '';
   return <section className="mt-6 rounded-3xl border border-black/[.08] bg-white p-6 shadow-sm md:p-7">
     <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
       <div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#326eac]">Product Detail</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Wine Sales by Product</h2></div>
-      <p className="text-sm font-bold text-black/45">Sorted by combined bottles sold · bottle-equivalent cases · Net Sales</p>
+      <p className="text-sm font-bold text-black/45">Bottles · bottle-equivalent cases · Net Sales{pair ? ' · difference is newer minus prior' : ''}</p>
     </div>
     <div className="mt-5 overflow-x-auto rounded-2xl border border-black/[.08]">
       <table className="min-w-[1320px] w-full border-collapse text-sm">
@@ -163,15 +204,15 @@ function WineProductTable({ analysis }: { analysis: Analysis }) {
             <th rowSpan={2} className="px-4 py-3 text-left font-black">Wine</th>
             <th rowSpan={2} className="px-4 py-3 text-left font-black">SKU</th>
             {analysis.periods.map((period) => <th key={period.id} colSpan={3} className="border-l border-black/[.06] px-4 py-3 text-center font-black">{period.label}</th>)}
-            {showCombined && <th colSpan={3} className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-center font-black text-[#326eac]">Combined Total</th>}
+            {pair && <th colSpan={3} className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-center font-black text-[#326eac]">{comparisonHeading(pair)} · {pairLabel}</th>}
           </tr>
           <tr className="border-t border-black/[.06]">
             {analysis.periods.flatMap((period) => [<th key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-2 text-right font-black">Bottles</th>, <th key={`${period.id}-c`} className="px-4 py-2 text-right font-black">Cases</th>, <th key={`${period.id}-n`} className="px-4 py-2 text-right font-black">Net Sales</th>])}
-            {showCombined && <><th className="border-l border-black/[.06] bg-[#f7fbff] px-4 py-2 text-right font-black">Bottles</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Cases</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Net Sales</th></>}
+            {pair && <><th className="border-l border-black/[.06] bg-[#f7fbff] px-4 py-2 text-right font-black">Bottles</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Cases</th><th className="bg-[#f7fbff] px-4 py-2 text-right font-black">Net Sales</th></>}
           </tr>
         </thead>
         <tbody>
-          {analysis.wineProducts.map((row) => <WineProductRow key={row.sku} row={row} periods={analysis.periods} showCombined={showCombined} />)}
+          {analysis.wineProducts.map((row) => <WineProductRow key={row.sku} row={row} periods={analysis.periods} pair={pair} />)}
           <tr className="border-t-2 border-black/15 bg-[#f7f9fb] font-black">
             <td className="px-4 py-3">TOTAL</td><td className="px-4 py-3">—</td>
             {analysis.periods.flatMap((period) => [
@@ -179,7 +220,11 @@ function WineProductTable({ analysis }: { analysis: Analysis }) {
               <td key={`${period.id}-tc`} className="px-4 py-3 text-right">{period.wine.casesSold.toFixed(2)}</td>,
               <td key={`${period.id}-tn`} className="px-4 py-3 text-right">{formatMetric(period.wine.netSales, 'currency')}</td>,
             ])}
-            {showCombined && analysis.combined && <><td className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-right">{formatQuantity(analysis.combined.wine.bottlesSold)}</td><td className="bg-[#edf4fb] px-4 py-3 text-right">{analysis.combined.wine.casesSold.toFixed(2)}</td><td className="bg-[#edf4fb] px-4 py-3 text-right">{formatMetric(analysis.combined.wine.netSales, 'currency')}</td></>}
+            {pair && <>
+              <td className="border-l border-black/[.06] bg-[#edf4fb] px-4 py-3 text-right"><DifferenceValue current={pair.newer.wine.bottlesSold} previous={pair.older.wine.bottlesSold} format="number" /></td>
+              <td className="bg-[#edf4fb] px-4 py-3 text-right"><DifferenceValue current={pair.newer.wine.casesSold} previous={pair.older.wine.casesSold} format="decimal" /></td>
+              <td className="bg-[#edf4fb] px-4 py-3 text-right"><DifferenceValue current={pair.newer.wine.netSales} previous={pair.older.wine.netSales} format="currency" /></td>
+            </>}
           </tr>
         </tbody>
       </table>
@@ -187,14 +232,20 @@ function WineProductTable({ analysis }: { analysis: Analysis }) {
   </section>;
 }
 
-function WineProductRow({ row, periods, showCombined }: { row: CombinedWineProductSales; periods: TastingRoomSalesPeriodSummary[]; showCombined: boolean }) {
+function WineProductRow({ row, periods, pair }: { row: CombinedWineProductSales; periods: TastingRoomSalesPeriodSummary[]; pair: ComparisonPair | null }) {
+  const newer = pair ? (row.periods[pair.newer.id] || { bottlesSold: 0, casesSold: 0, netSales: 0 }) : null;
+  const older = pair ? (row.periods[pair.older.id] || { bottlesSold: 0, casesSold: 0, netSales: 0 }) : null;
   return <tr className="border-t border-black/[.06]">
     <td className="px-4 py-3 font-black">{row.wine}</td><td className="px-4 py-3 font-mono text-xs font-bold text-black/55">{row.sku}</td>
     {periods.flatMap((period) => {
       const value = row.periods[period.id] || { bottlesSold: 0, casesSold: 0, netSales: 0 };
       return [<td key={`${period.id}-b`} className="border-l border-black/[.06] px-4 py-3 text-right font-black">{formatQuantity(value.bottlesSold)}</td>, <td key={`${period.id}-c`} className="px-4 py-3 text-right font-bold">{value.casesSold.toFixed(2)}</td>, <td key={`${period.id}-n`} className="px-4 py-3 text-right font-black">{formatMetric(value.netSales, 'currency')}</td>];
     })}
-    {showCombined && <><td className="border-l border-black/[.06] bg-[#fbfcfd] px-4 py-3 text-right font-black">{formatQuantity(row.combinedBottlesSold)}</td><td className="bg-[#fbfcfd] px-4 py-3 text-right font-black">{row.combinedCasesSold.toFixed(2)}</td><td className="bg-[#fbfcfd] px-4 py-3 text-right font-black">{formatMetric(row.combinedNetSales, 'currency')}</td></>}
+    {pair && newer && older && <>
+      <td className="border-l border-black/[.06] bg-[#fbfdff] px-4 py-3 text-right"><DifferenceValue current={newer.bottlesSold} previous={older.bottlesSold} format="number" /></td>
+      <td className="bg-[#fbfdff] px-4 py-3 text-right"><DifferenceValue current={newer.casesSold} previous={older.casesSold} format="decimal" /></td>
+      <td className="bg-[#fbfdff] px-4 py-3 text-right"><DifferenceValue current={newer.netSales} previous={older.netSales} format="currency" /></td>
+    </>}
   </tr>;
 }
 
@@ -264,7 +315,7 @@ export default function TastingRoomSalesAnalysis() {
     </div>
 
     <section className="mt-7 rounded-3xl border border-black/[.08] bg-white p-6 shadow-sm md:p-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="text-xl font-black">Reporting periods</h2><p className="mt-1 text-sm font-semibold text-black/50">Use one range for a normal report, or add non-overlapping ranges to compare weeks/months and create a Combined Total.</p></div><button type="button" onClick={addPeriod} disabled={periods.length >= 4} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black disabled:opacity-40">+ Add comparison period</button></div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="text-xl font-black">Reporting periods</h2><p className="mt-1 text-sm font-semibold text-black/50">Use one range for a normal report, or add comparison ranges to see exactly how much the newer period moved up or down versus the prior period.</p></div><button type="button" onClick={addPeriod} disabled={periods.length >= 4} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black disabled:opacity-40">+ Add comparison period</button></div>
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         {periods.map((period, index) => <div key={period.key} className="rounded-2xl border border-black/[.08] bg-[#f8f9fb] p-4">
           <div className="flex items-center justify-between gap-3"><span className="text-xs font-black uppercase tracking-[.13em] text-black/45">Period {index + 1}</span>{periods.length > 1 && <button type="button" onClick={() => setPeriods((current) => current.filter((item) => item.key !== period.key))} className="text-xs font-black text-red-600">Remove</button>}</div>
