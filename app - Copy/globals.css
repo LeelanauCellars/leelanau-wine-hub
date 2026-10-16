@@ -1,0 +1,524 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+:root {
+  --background: #f4f6f7;
+  --foreground: #171717;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body {
+  margin: 0;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
+}
+button, input, textarea, select { font-family: inherit; }
+button { cursor: pointer; }
+
+.field-label {
+  display: block;
+  margin-bottom: .4rem;
+  font-size: 10px;
+  line-height: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .11em;
+  color: rgba(0,0,0,.42);
+}
+.field-input {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: .65rem;
+  background: white;
+  padding: .65rem .75rem;
+  color: #171717;
+  font-size: .875rem;
+  outline: none;
+}
+.field-input:focus { border-color: rgba(0,0,0,.38); box-shadow: 0 0 0 3px rgba(57,118,183,.10); }
+.profile-copy { font-size: .9rem; line-height: 1.7; color: rgba(0,0,0,.68); white-space: pre-line; }
+
+.tech-sheet-paper {
+  width: 816px;
+  height: 1056px;
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  @page { size: letter portrait; margin: 0; }
+  html, body { width: auto; min-height: 0; background: white !important; }
+  .no-print { display: none !important; }
+  .print-root { display: block !important; }
+  .app-shell, main { min-height: 0 !important; background: white !important; padding: 0 !important; margin: 0 !important; }
+  .tech-builder { background: white !important; min-height: 0 !important; }
+  .tech-sheet-paper { width: 8.5in !important; height: 11in !important; margin: 0 !important; box-shadow: none !important; }
+  .tasting-guide-page { break-inside: avoid; }
+}
+
+/* Print-first tasting room guide */
+.staff-note-lines > div {
+  height: 22px;
+  border-bottom: 1px solid rgba(0,0,0,.28);
+}
+.tasting-category + .tasting-category { margin-top: 1rem; }
+
+@media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .tech-sheet-paper,
+  .tech-sheet-paper *,
+  .tasting-guide,
+  .tasting-guide * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .tasting-guide {
+    padding: .26in !important;
+    width: 8.5in !important;
+    min-height: 11in !important;
+  }
+  .tasting-guide-header { padding: .12in .16in !important; }
+  .tasting-guide-header img { width: .43in !important; height: .43in !important; }
+  .tasting-guide-header h2 { font-size: 16pt !important; line-height: 1.05 !important; }
+  .tasting-guide-subhead { padding: .05in .16in !important; font-size: 7.5pt !important; }
+  .tasting-guide-body { padding-top: .12in !important; }
+  .tasting-category { margin: 0 0 .11in !important; break-inside: auto; }
+  .tasting-category + .tasting-category { margin-top: .13in !important; }
+  .tasting-category-header {
+    break-after: avoid;
+    padding: .045in .10in !important;
+    border-radius: .06in !important;
+  }
+  .tasting-category-header h3 { font-size: 8pt !important; }
+  .tasting-category-header span { font-size: 7pt !important; }
+  .tasting-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: .10in !important;
+    margin-top: .07in !important;
+  }
+  .tasting-card {
+    break-inside: avoid;
+    min-height: 1.92in;
+    padding: .10in .12in !important;
+    border-top-width: 3px !important;
+    border-radius: .08in !important;
+  }
+  .tasting-card-title { margin-bottom: .055in !important; }
+  .tasting-card-title h4 { font-size: 10pt !important; line-height: 1.12 !important; }
+  .tasting-card-title p { font-size: 8.5pt !important; line-height: 1.1 !important; }
+  .tasting-highlights {
+    margin: 0 !important;
+    padding-left: .16in !important;
+    font-size: 7.7pt !important;
+    line-height: 1.32 !important;
+  }
+  .tasting-highlights li + li { margin-top: .035in !important; }
+  .tasting-award { margin-top: .055in !important; font-size: 6.7pt !important; line-height: 1.2 !important; }
+  .staff-notes { margin-top: .07in !important; }
+  .staff-note-lines { margin-top: .025in !important; }
+  .staff-note-lines > div { height: .18in !important; border-bottom-color: rgba(0,0,0,.38) !important; }
+}
+
+
+
+/* v7 tasting-room field guide: cleaner two-column staff-reference layout */
+.tech-sheet-paper { page: techSheet; }
+.field-guide-page { page: tastingGuide; }
+
+.field-guide-page {
+  width: min(1056px, 100%);
+  aspect-ratio: 11 / 8.5;
+  margin: 0 auto;
+}
+.field-guide-body { min-height: 0; }
+.field-guide-note-lines > div {
+  height: 19px;
+  border-bottom: 1px solid rgba(0,0,0,.32);
+}
+.field-guide-highlights li {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@page techSheet { size: letter portrait; margin: 0; }
+@page tastingGuide { size: letter landscape; margin: 0; }
+
+@media print {
+  .field-guide-pages { margin: 0 !important; padding: 0 !important; }
+  .field-guide-page {
+    width: 11in !important;
+    height: 8.5in !important;
+    min-height: 8.5in !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .field-guide-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  .field-guide-header {
+    height: .78in !important;
+    padding: .10in .22in !important;
+    border-bottom-width: .055in !important;
+  }
+  .field-guide-header img {
+    width: .48in !important;
+    height: .48in !important;
+  }
+  .field-guide-header h2 {
+    font-size: 16.5pt !important;
+    line-height: 1 !important;
+  }
+  .field-guide-body {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    height: 7.34in !important;
+  }
+  .field-guide-column {
+    display: grid !important;
+    grid-template-rows: repeat(5, minmax(0, 1fr)) !important;
+    padding: .08in .18in !important;
+  }
+  .field-guide-wine {
+    min-height: 0 !important;
+    padding: .065in .03in .06in .12in !important;
+    overflow: hidden !important;
+  }
+  .field-guide-wine > div.absolute {
+    top: .06in !important;
+    bottom: .06in !important;
+    width: .025in !important;
+  }
+  .field-guide-category { font-size: 5.8pt !important; line-height: 1 !important; }
+  .field-guide-name { font-size: 9.4pt !important; line-height: 1.04 !important; }
+  .field-guide-price { font-size: 8.4pt !important; }
+  .field-guide-highlights {
+    margin: 0 !important;
+    padding-left: .13in !important;
+    font-size: 6.25pt !important;
+    line-height: 1.24 !important;
+  }
+  .field-guide-highlights li + li { margin-top: .02in !important; }
+  .field-guide-award { margin-top: .025in !important; font-size: 5.5pt !important; line-height: 1 !important; }
+  .field-guide-notes { margin-top: .04in !important; }
+  .field-guide-note-lines { margin-top: .015in !important; }
+  .field-guide-note-lines > div {
+    height: .14in !important;
+    border-bottom-color: rgba(0,0,0,.40) !important;
+  }
+  .field-guide-footer {
+    height: .38in !important;
+    padding: .06in .22in !important;
+    font-size: 5.6pt !important;
+  }
+}
+
+/* Batch tech-sheet printing */
+.batch-tech-page {
+  break-after: page;
+  page-break-after: always;
+}
+.batch-tech-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+@media print {
+  .batch-tech-print { margin: 0 !important; padding: 0 !important; }
+  .batch-tech-page {
+    width: 8.5in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+/* v40 current wine guide: report-style online reference + condensed landscape print layout */
+.wine-report-mobile-label { display: none; }
+.staff-report-page {
+  width: min(1056px, 100%);
+  aspect-ratio: 11 / 8.5;
+  margin: 0 auto;
+  border: 1px solid rgba(0,0,0,.08);
+}
+.staff-report-header { min-height: 78px; }
+.staff-report-columns {
+  min-height: 36px;
+  align-items: center;
+}
+.staff-report-grid {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  height: calc(100% - 142px);
+  min-height: 600px;
+}
+.staff-report-row,
+.staff-report-empty { min-height: 0; }
+.staff-report-cell {
+  min-width: 0;
+  padding: 9px 12px 7px 12px;
+}
+.staff-report-category {
+  display: block;
+  font-size: 6.5px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.staff-report-name {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -.015em;
+}
+.staff-report-vintage {
+  margin-top: 2px;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  color: rgba(0,0,0,.38);
+}
+.staff-report-specs,
+.staff-report-context {
+  font-size: 8.5px;
+  line-height: 1.36;
+  color: rgba(0,0,0,.58);
+}
+.staff-report-blend {
+  margin-top: 3px;
+  font-size: 7.2px;
+  line-height: 1.25;
+  color: rgba(0,0,0,.4);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.staff-report-flavor {
+  font-size: 9px;
+  line-height: 1.38;
+  color: rgba(0,0,0,.72);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.staff-report-context {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.staff-report-price {
+  text-align: right;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+.staff-report-footer { min-height: 28px; }
+
+@media (max-width: 1023px) {
+  .wine-report-mobile-label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,.35);
+  }
+}
+
+@media print {
+  .staff-report-pages { margin: 0 !important; padding: 0 !important; }
+  .staff-report-page {
+    width: 11in !important;
+    height: 8.5in !important;
+    min-height: 8.5in !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  .staff-report-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  .staff-report-header {
+    height: .70in !important;
+    min-height: .70in !important;
+    padding: .09in .27in !important;
+  }
+  .staff-report-header img { width: .42in !important; height: .42in !important; }
+  .staff-report-header h2 { font-size: 16.5pt !important; line-height: 1 !important; }
+  .staff-report-columns {
+    height: .32in !important;
+    min-height: .32in !important;
+    padding: 0 !important;
+    font-size: 6.3pt !important;
+  }
+  .staff-report-columns > div { padding-left: .13in !important; }
+  .staff-report-columns > div:last-child { padding-left: 0 !important; padding-right: .15in !important; }
+  .staff-report-grid {
+    display: grid !important;
+    grid-template-rows: repeat(7, 1.0257in) !important;
+    height: 7.18in !important;
+    min-height: 0 !important;
+  }
+  .staff-report-row,
+  .staff-report-empty {
+    height: 1.0257in !important;
+    min-height: 1.0257in !important;
+    max-height: 1.0257in !important;
+    overflow: hidden !important;
+  }
+  .staff-report-cell { padding: .09in .12in .055in .12in !important; }
+  .staff-report-row > .staff-report-cell:first-of-type { padding-left: .18in !important; }
+  .staff-report-category { font-size: 5.8pt !important; }
+  .staff-report-name { margin-top: .025in !important; font-size: 9.5pt !important; line-height: 1.05 !important; }
+  .staff-report-vintage { margin-top: .02in !important; font-size: 6.3pt !important; }
+  .staff-report-specs { font-size: 7.2pt !important; line-height: 1.28 !important; }
+  .staff-report-blend { margin-top: .025in !important; font-size: 6.2pt !important; line-height: 1.22 !important; -webkit-line-clamp: 2 !important; }
+  .staff-report-flavor { font-size: 8.3pt !important; line-height: 1.32 !important; -webkit-line-clamp: 4 !important; }
+  .staff-report-context { font-size: 7.35pt !important; line-height: 1.3 !important; -webkit-line-clamp: 4 !important; }
+  .staff-report-price { padding-right: .15in !important; font-size: 8.8pt !important; }
+  .staff-report-footer {
+    height: .30in !important;
+    min-height: .30in !important;
+    padding: 0 .27in !important;
+    font-size: 5.7pt !important;
+  }
+}
+
+
+/* Merch/Apparel DYMO 30334 label printing
+   DYMO/Windows is rotating the 2.25in × 1.25in browser page 90° on the physical stock.
+   Send the inverse orientation (1.25in × 2.25in) and rotate the actual label design clockwise
+   so the printer driver's rotation lands correctly on the horizontal 30334 label. */
+.merch-print-root { display: none; }
+.merch-label-page {
+  page: merchLabel;
+  position: relative;
+  width: 1.25in;
+  height: 2.25in;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  break-after: page;
+  page-break-after: always;
+}
+.merch-label-page:last-child { break-after: auto; page-break-after: auto; }
+.merch-label-design {
+  position: absolute;
+  top: 0;
+  left: 1.25in;
+  width: 2.25in;
+  height: 1.25in;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
+  transform: rotate(90deg);
+  transform-origin: top left;
+}
+.merch-label-price {
+  position: absolute;
+  top: .045in;
+  left: .06in;
+  right: .06in;
+  height: .29in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20pt;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+.merch-label-barcode {
+  position: absolute;
+  top: .34in;
+  left: .18in;
+  right: .18in;
+  height: .43in;
+}
+.merch-label-barcode img { width: 100%; height: 100%; display: block; object-fit: fill; }
+.merch-label-upc {
+  position: absolute;
+  top: .79in;
+  left: .05in;
+  right: .05in;
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.2pt;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.merch-label-sku {
+  position: absolute;
+  left: .05in;
+  right: .05in;
+  bottom: .055in;
+  overflow: hidden;
+  text-align: center;
+  font-size: 8.3pt;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@page merchLabel { size: 1.25in 2.25in; margin: 0; }
+
+@media print {
+  body.merch-label-printing { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body.merch-label-printing .no-print { display: none !important; }
+  body.merch-label-printing .merch-print-root { display: block !important; margin: 0 !important; padding: 0 !important; }
+  body.merch-label-printing .merch-label-page {
+    display: block !important;
+    width: 1.25in !important;
+    height: 2.25in !important;
+    min-width: 1.25in !important;
+    min-height: 2.25in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.merch-label-printing .merch-label-design {
+    position: absolute !important;
+    top: 0 !important;
+    left: 1.25in !important;
+    width: 2.25in !important;
+    height: 1.25in !important;
+    transform: rotate(90deg) !important;
+    transform-origin: top left !important;
+  }
+}

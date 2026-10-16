@@ -1,0 +1,100 @@
+[
+  {
+    "slug": "late-harvest-vignoles",
+    "name": "Late Harvest Vignoles",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Late-Harvest-Vignoles-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Late-Harvest-Vignoles-f-v2-250902.pdf"
+  },
+  {
+    "slug": "late-harvest-pinot-grigio",
+    "name": "Late Harvest Pinot Grigio",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Late-Harvest-Pinot-Grigio-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Late-Harvest-Pinot-Grigio-f-v2-250902.pdf"
+  },
+  {
+    "slug": "sweet-baco-noir",
+    "name": "Sweet Baco  Noir",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Sweet-Baco-Noir-v1.ai",
+    "pdf": "0118-0042-PC-NewGen-Sweet-Baco-Noir-v1.pdf"
+  },
+  {
+    "slug": "limited-batch-vignoles",
+    "name": "Limited Batch Vignoles",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Limited-Batch-Vignoles-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Limited-Batch-Vignoles-f-v2-250902.pdf"
+  },
+  {
+    "slug": "rose-bubbly",
+    "name": "Rose Bubbly",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Rose-Bubbly-v3.ai",
+    "pdf": "0118-0042-PC-NewGen-Rose-Bubbly-v3.pdf"
+  },
+  {
+    "slug": "gewurztraminer",
+    "name": "Gewurztraminer",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Gewurztraminer-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Gewurztraminer-f-v2-250902.pdf"
+  },
+  {
+    "slug": "blanc-de-noir",
+    "name": "Blanc De Noir",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Blanc-De-Noir-v1.ai",
+    "pdf": "0118-0042-PC-NewGen-Blanc-De-Noir-v1.pdf"
+  },
+  {
+    "slug": "limited-batch-chardonnay",
+    "name": "Limited Batch Chardonnay",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Limited-Batch-Chardonnay-v2.ai",
+    "pdf": "0118-0042-PC-NewGen-Limited-Batch-Chardonnay-v2.pdf"
+  },
+  {
+    "slug": "cuvee-blanc",
+    "name": "Cuvee Blanc",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Cuvee-Blanc-v2.ai",
+    "pdf": "0118-0042-PC-NewGen-Cuvee-Blanc-v2.pdf"
+  },
+  {
+    "slug": "late-harvest-gewurztraminer",
+    "name": "Late Harvest Gewurztraminer",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Late-Harvest-Gewurztraminer-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Late-Harvest-Gewurztraminer-f-v2-250902.pdf"
+  },
+  {
+    "slug": "limited-batch-riesling",
+    "name": "Limited Batch Riesling",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Limited-Batch-Riesling-v2.ai",
+    "pdf": "0118-0042-PC-NewGen-Limited-Batch-Riesling-v2.pdf"
+  },
+  {
+    "slug": "sweet-pinot-grigio",
+    "name": "Sweet Pinot Grigio",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Sweet-Pinot-Grigio-v1.ai",
+    "pdf": "0118-0042-PC-NewGen-Sweet-Pinot-Grigio-v1.pdf"
+  },
+  {
+    "slug": "dry-riesling",
+    "name": "Dry Riesling",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Dry-Riesling-f-v2-250902.ai",
+    "pdf": "0118-0042-PC-NewGen-Dry-Riesling-f-v2-250902.pdf"
+  },
+  {
+    "slug": "brut",
+    "name": "Brut",
+    "vintage": "2024",
+    "ai": "0118-0042-PC-NewGen-Brut-v2.ai",
+    "pdf": "0118-0042-PC-NewGen-Brut-v2.pdf"
+  }
+]
