@@ -127,6 +127,10 @@ function officialAwards(): WebsiteAward[] {
     })));
 }
 
+export function currentWebsiteAwards(): WebsiteAward[] {
+  return officialAwards();
+}
+
 export async function loadCurrentWebsiteAwards(): Promise<WebsiteAward[]> {
   return officialAwards();
 }

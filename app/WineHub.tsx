@@ -18,9 +18,11 @@ import MerchApparel from '@/app/components/MerchApparel';
 import Labels from '@/app/components/Labels';
 import TastingRoomSalesAnalysis from '@/app/components/TastingRoomSalesAnalysis';
 import ProductImagePrep from '@/app/components/ProductImagePrep';
+import ShelfTags from '@/app/components/ShelfTags';
 import { WINE_COLLECTIONS, canonicalWineCollection, collectionForWine, distributionFamilyFallback, type WineCollectionName } from '@/lib/wine-collections';
 import type { CaseSalesGoalMetrics, CaseSalesSummary } from '@/lib/case-sales';
 import { CENTRAL_PROJECTS, projectBySlug, type CentralProject, type CentralProjectFile } from '@/lib/projects';
+import { currentWebsiteAwards, matchWebsiteAwards } from '@/lib/website-awards';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 const Icon = ({ children, ...props }: IconProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>;
@@ -57,18 +59,18 @@ type AccessRole = 'admin' | 'sales' | 'tasting';
 type PortalRole = 'admin' | 'tasting' | 'sales' | 'distribution';
 type EntryStage = 'welcome' | 'roles' | 'hub';
 type AdminNavGroup = 'sales' | 'tasting' | 'projects' | null;
-type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
+type View = 'library' | 'profile' | 'distribution' | 'distribution-profile' | 'projects' | 'project' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'shelf-tags' | 'quickfacts' | 'tech-library' | 'tech' | 'awards' | 'ask' | 'assets';
 type ProfileTab = 'overview' | 'specs' | 'assets';
 
 type CentralRoute =
-  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
+  | { kind: 'section'; view: 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'shelf-tags' | 'quickfacts' | 'tech-library' | 'awards' | 'ask' }
   | { kind: 'wine'; slug: string; tab: ProfileTab }
   | { kind: 'project'; slug: string }
   | { kind: 'tech'; slug: string }
   | { kind: 'distribution'; slug: string };
 
 const CENTRAL_PATH_PREFIX = (process.env.NEXT_PUBLIC_CENTRAL_PATH_PREFIX || '').replace(/\/+$/, '');
-const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'labels', 'tasting-menu', 'tasting-notes', 'case-sales', 'sales-analysis', 'image-upload', 'merch-apparel', 'quick-facts', 'awards', 'ask']);
+const CENTRAL_ROUTE_SEGMENTS = new Set(['wine-library', 'tech-sheets', 'distribution-wines', 'projects', 'labels', 'tasting-menu', 'tasting-notes', 'case-sales', 'sales-analysis', 'image-upload', 'merch-apparel', 'shelf-tags', 'quick-facts', 'awards', 'ask']);
 
 function routeSlug(value = '') {
   return value
@@ -144,7 +146,7 @@ function projectPath(project: CentralProject) {
   return centralPath(`/projects/${project.slug}`);
 }
 
-type SectionView = 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
+type SectionView = 'library' | 'distribution' | 'projects' | 'labels' | 'tasting' | 'tasting-notes' | 'case-sales' | 'sales-analysis' | 'image-upload' | 'merch' | 'shelf-tags' | 'quickfacts' | 'tech-library' | 'awards' | 'ask';
 
 function sectionPath(view: SectionView) {
   const map: Record<string, string> = {
@@ -158,6 +160,7 @@ function sectionPath(view: SectionView) {
     'sales-analysis': '/sales-analysis',
     'image-upload': '/image-upload',
     merch: '/merch-apparel',
+    'shelf-tags': '/shelf-tags',
     quickfacts: '/quick-facts',
     'tech-library': '/tech-sheets',
     awards: '/awards',
@@ -187,6 +190,7 @@ function parseCentralRoute(pathname: string): CentralRoute | null {
   if (section === 'sales-analysis') return { kind: 'section', view: 'sales-analysis' };
   if (section === 'image-upload') return { kind: 'section', view: 'image-upload' };
   if (section === 'merch-apparel') return { kind: 'section', view: 'merch' };
+  if (section === 'shelf-tags') return { kind: 'section', view: 'shelf-tags' };
   if (section === 'quick-facts') return { kind: 'section', view: 'quickfacts' };
   if (section === 'awards') return { kind: 'section', view: 'awards' };
   if (section === 'ask') return { kind: 'section', view: 'ask' };
@@ -208,7 +212,7 @@ function preferredPortalForRoute(route: CentralRoute, accessRole: AccessRole | n
   if (accessRole === 'admin') return 'admin';
   if (route.kind === 'tech' || route.kind === 'project' || (route.kind === 'section' && (route.view === 'tech-library' || route.view === 'awards' || route.view === 'projects'))) return 'sales';
   if (route.kind === 'distribution' || (route.kind === 'section' && route.view === 'distribution')) return 'distribution';
-  if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'sales-analysis' || route.view === 'image-upload' || route.view === 'merch')) return 'tasting';
+  if (route.kind === 'section' && (route.view === 'tasting' || route.view === 'case-sales' || route.view === 'sales-analysis' || route.view === 'image-upload' || route.view === 'merch' || route.view === 'shelf-tags')) return 'tasting';
   if (route.kind === 'section' && route.view === 'quickfacts') return accessRole === 'sales' ? 'sales' : 'tasting';
   return accessRole === 'tasting' ? 'tasting' : 'sales';
 }
@@ -868,9 +872,25 @@ function draftFromWine(wine: WineRecord, distributionWines: DistributionWine[] =
   };
 }
 
+const OFFICIAL_WEBSITE_AWARDS = currentWebsiteAwards();
+
+function normalizeWineCatalog(records: WineRecord[]) {
+  return applyWineHubOverrides(records.map((wine) => {
+    const official = matchWebsiteAwards(wine.name, wine.vintage, wine.brand, OFFICIAL_WEBSITE_AWARDS);
+    const saved = (wine.awards || []).filter((award) => !award.competition.toLowerCase().includes('san francisco chronicle'));
+    const combined = [...official, ...saved];
+    return {
+      ...wine,
+      awards: combined
+        .filter((award, index) => combined.findIndex((candidate) => candidate.year === award.year && candidate.competition === award.competition && candidate.result === award.result) === index)
+        .sort((a, b) => b.year - a.year || a.result.localeCompare(b.result)),
+    };
+  }));
+}
+
 export default function WineHub() {
   const [view, setView] = useState<View>('library');
-  const [wines, setWines] = useState<WineRecord[]>(applyWineHubOverrides(SEED_WINES));
+  const [wines, setWines] = useState<WineRecord[]>(normalizeWineCatalog(SEED_WINES));
   const [activeWineId, setActiveWineId] = useState(SEED_WINES[0].id);
   const [activeDistributionId, setActiveDistributionId] = useState(DISTRIBUTION_WINES[0]?.id || '');
   const [activeProjectSlug, setActiveProjectSlug] = useState(CENTRAL_PROJECTS[0]?.slug || '');
@@ -914,7 +934,7 @@ export default function WineHub() {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) setWines(applyWineHubOverrides(JSON.parse(saved)));
+      if (saved) setWines(normalizeWineCatalog(JSON.parse(saved)));
       const savedDistributionEdits = window.localStorage.getItem(DISTRIBUTION_EDITS_KEY);
       if (savedDistributionEdits) setDistributionEdits(JSON.parse(savedDistributionEdits));
       const menu = window.localStorage.getItem(MENU_KEY);
@@ -1054,7 +1074,7 @@ export default function WineHub() {
     const allowed =
       route.view === 'library' ? role === 'admin' || role === 'tasting' || role === 'sales' :
       route.view === 'distribution' ? role === 'admin' || role === 'sales' || role === 'distribution' :
-      route.view === 'tasting' || route.view === 'case-sales' || route.view === 'image-upload' || route.view === 'merch' ? role === 'admin' || role === 'tasting' :
+      route.view === 'tasting' || route.view === 'case-sales' || route.view === 'image-upload' || route.view === 'merch' || route.view === 'shelf-tags' ? role === 'admin' || role === 'tasting' :
       route.view === 'tasting-notes' || route.view === 'sales-analysis' ? role === 'admin' :
       route.view === 'quickfacts' ? role === 'admin' || role === 'tasting' || role === 'sales' :
       route.view === 'labels' ? role === 'admin' :
@@ -1156,7 +1176,7 @@ export default function WineHub() {
       if (!response.ok) throw new Error(data.error || 'Unable to sync');
       const remoteWines = data.wines as WineRecord[];
       const nextWines = applyWineHubOverrides(mergeCommerce7(wines, remoteWines));
-      setWines(nextWines);
+      setWines(normalizeWineCatalog(nextWines));
       const currentMenuMatches = matchMenuText(CURRENT_TASTING_MENU_TEXT, nextWines);
       if (currentMenuMatches.length) {
         setTastingIds(currentMenuMatches.map((wine) => wine.id));
@@ -1242,7 +1262,7 @@ export default function WineHub() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Unable to save to Commerce7');
       }
-      setWines((current) => applyWineHubOverrides(current.map((wine) => wine.id === saved.id ? saved : wine))); 
+      setWines((current) => normalizeWineCatalog(current.map((wine) => wine.id === saved.id ? saved : wine))); 
       setEditingWine(null);
       setSaveNotice(saved.source === 'commerce7' ? 'Saved to Commerce7.' : 'Saved in this Wine Hub.');
       window.setTimeout(() => setSaveNotice(''), 2400);
@@ -1331,7 +1351,7 @@ export default function WineHub() {
                     <NavButton active={view === 'ask'} icon={<Sparkles />} label="Ask Central" onClick={() => navigateSection('ask')} />
                     <NavButton active={view === 'library' || view === 'profile'} icon={<Library />} label="Wine Library" onClick={() => navigateSection('library')} />
                     <NavButton active={view === 'distribution' || view === 'distribution-profile' || view === 'tech-library' || view === 'tech'} icon={<Package />} label="Sales" onClick={() => setAdminNavGroup('sales')} />
-                    <NavButton active={view === 'tasting' || view === 'tasting-notes' || view === 'merch' || view === 'case-sales' || view === 'sales-analysis' || view === 'image-upload'} icon={<ClipboardList />} label="Tasting Room" onClick={() => setAdminNavGroup('tasting')} />
+                    <NavButton active={view === 'tasting' || view === 'tasting-notes' || view === 'merch' || view === 'shelf-tags' || view === 'case-sales' || view === 'sales-analysis' || view === 'image-upload'} icon={<ClipboardList />} label="Tasting Room" onClick={() => setAdminNavGroup('tasting')} />
                     <NavButton active={view === 'projects' || view === 'project' || view === 'labels'} icon={<Briefcase />} label="Projects" onClick={() => setAdminNavGroup('projects')} />
                     <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />
                     <NavButton active={view === 'awards'} icon={<AwardIcon />} label="Awards" onClick={() => navigateSection('awards')} />
@@ -1351,6 +1371,7 @@ export default function WineHub() {
                       <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu" onClick={() => navigateSection('tasting')} />
                       <NavButton active={view === 'tasting-notes'} icon={<BookOpen />} label="Tasting Notes" onClick={() => navigateSection('tasting-notes')} />
                       <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />
+                      <NavButton active={view === 'shelf-tags'} icon={<Printer />} label="Shelf Price Tags" onClick={() => navigateSection('shelf-tags')} />
                       <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />
                       <NavButton active={view === 'sales-analysis'} icon={<BarChart3 />} label="Sales Analysis" onClick={() => navigateSection('sales-analysis')} />
                       <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Product Image Prep" onClick={() => navigateSection('image-upload')} />
@@ -1372,6 +1393,7 @@ export default function WineHub() {
                 {canUseDistribution && <NavButton active={view === 'distribution' || view === 'distribution-profile'} icon={<Package />} label="Distribution Wines" onClick={() => navigateSection('distribution')} />}
                 {canUseTastingRoom && <NavButton active={view === 'tasting'} icon={<ClipboardList />} label="Tasting Menu" onClick={() => navigateSection('tasting')} />}
                 {canUseMerch && <NavButton active={view === 'merch'} icon={<Package />} label="Merch/Apparel" onClick={() => navigateSection('merch')} />}
+                {canUseTastingRoom && <NavButton active={view === 'shelf-tags'} icon={<Printer />} label="Shelf Price Tags" onClick={() => navigateSection('shelf-tags')} />}
                 {canUseTastingRoom && <NavButton active={view === 'case-sales'} icon={<BarChart3 />} label="Case Sales Tracker" onClick={() => navigateSection('case-sales')} />}
                 {canUseTastingRoom && <NavButton active={view === 'image-upload'} icon={<ImageIcon />} label="Product Image Prep" onClick={() => navigateSection('image-upload')} />}
                 {canUseQuickFacts && <NavButton active={view === 'quickfacts'} icon={<BookOpen />} label="Quick Facts" onClick={() => navigateSection('quickfacts')} />}
@@ -1433,6 +1455,7 @@ export default function WineHub() {
           <DistributionWineDetail item={activeDistributionWine} wines={wines} back={() => navigateSection('distribution')} canEdit={isPortalAdmin} saveItem={saveDistributionWine} />
         )}
         {view === 'merch' && canUseMerch && <MerchApparel isAdmin={isPortalAdmin} />}
+        {view === 'shelf-tags' && canUseTastingRoom && <ShelfTags wines={wines} />}
         {view === 'tasting' && canUseTastingRoom && (
           <TastingMenu role={(isPortalAdmin ? 'admin' : 'tasting') as AccessRole} />
         )}
@@ -3678,7 +3701,7 @@ type BrandLogo = { src: string; alt: string; mode: 'square' | 'natural-white' | 
 
 const BRAND_LOGOS: Record<string, BrandLogo> = {
   'Leelanau Cellars': { src: '/lwc-logo.png', mode: 'square', alt: 'Leelanau Cellars' },
-  'Farm Fresh': { src: 'https://farmfresh.wine/wp-content/uploads/2021/02/farm-fresh-logo-full-white-03.png', mode: 'natural-white', alt: 'Farm Fresh Wine Company', className: 'max-h-[108px] max-w-[220px]' },
+  'Farm Fresh': { src: '/farm-fresh-logo-white.png', mode: 'natural-white', alt: 'Farm Fresh Wine Company', className: 'max-h-[108px] max-w-[220px]' },
   'Country Crush': { src: 'https://lwc.wine/wp-content/uploads/2022/01/Country-Crush-With-Brand_Logo.png', mode: 'screen-white', alt: 'Country Crush Fruit Wine Company', className: 'max-h-[104px] max-w-[245px]' },
   'Zilly': { src: 'https://lwc.wine/wp-content/uploads/2025/04/Zilly-Black-Logo-bigger.png', mode: 'screen-white', alt: 'Zilly', className: 'max-h-[122px] max-w-[305px] scale-[1.12]' },
   'Lakeshore Farms': { src: 'https://lwc.wine/wp-content/uploads/2021/05/Website_Logo-03.png', mode: 'screen-white', alt: 'Lakeshore Farms Trading Company', className: 'max-h-[104px] max-w-[215px]' },
@@ -4030,12 +4053,49 @@ function awardHistoryGraphic(year: number, result: AwardHistoryResult) {
 function AwardsView({ wines, openWine }: { wines: WineRecord[]; openWine: (wine: WineRecord) => void }) {
   const withAwards = wines.filter((wine) => wine.awards.length).sort((a, b) => a.name.localeCompare(b.name));
   const total = withAwards.reduce((sum, wine) => sum + wine.awards.length, 0);
+  const badgeYears = [2026, 2025, 2024, 2023];
   return <div className="no-print mx-auto max-w-[1320px] p-5 md:p-8 xl:p-10">
-    <PageHeader title="Awards Library" description="Award badges are tied directly to the correct wine and can be downloaded for sales, marketing and retailer use." right={<Stat value={total} label="awards" />} />
+    <PageHeader title="Awards Library" description="Award badges stay downloadable, and each wine below is matched to the verified 2023–2026 San Francisco Chronicle reference." right={<Stat value={total} label="awards" />} />
+
+    <section className="mb-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black text-black">Download award graphics</p>
+          <p className="mt-1 text-xs leading-5 text-black/55">Quick access to the official award badge artwork by year. Download PNG or JPEG without opening each wine.</p>
+        </div>
+        <a href="https://www.lwc.wine/awards/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs font-black text-[#326eac]">Official awards page <ExternalLink className="h-4 w-4" /></a>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">{badgeYears.map((year) => {
+        const results = AWARD_RESULT_ORDER.filter((result) => Boolean(awardHistoryGraphic(year, result)));
+        return <div key={year} className="rounded-2xl border border-black/10 bg-[#fafbfc] p-4">
+          <p className="text-lg font-black">{year}</p>
+          <div className="mt-3 space-y-3">{results.map((result) => {
+            const graphic = awardHistoryGraphic(year, result);
+            if (!graphic) return null;
+            return <div key={`${year}-${result}`} className="rounded-xl border border-black/10 bg-white p-3">
+              <div className="flex items-center gap-3">
+                <img src={graphic} alt={`${year} ${result}`} className="h-14 w-14 rounded-lg object-contain" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black leading-5">{result}</p>
+                  <p className="text-[11px] font-semibold text-black/45">San Francisco Chronicle Wine Competition</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => void downloadImageAsFormat(graphic, 'png', `award-${year}-${routeSlug(result)}`)} className="flex-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black text-[#326eac] hover:bg-[#eef5fc]">PNG</button>
+                <button onClick={() => void downloadImageAsFormat(graphic, 'jpeg', `award-${year}-${routeSlug(result)}`)} className="flex-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-black text-[#326eac] hover:bg-[#eef5fc]">JPEG</button>
+              </div>
+            </div>;
+          })}</div>
+        </div>;
+      })}</div>
+    </section>
+
     <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#326eac]/15 bg-[#f4f9fe] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <span><strong className="block text-sm font-black text-[#1d4f82]">San Francisco Chronicle Wine Competition · 2023–2026</strong><span className="mt-0.5 block text-xs font-semibold text-black/50">Results are matched from the year-by-year Leelanau Cellars award reference and grouped by wine below.</span></span>
-      <a href="https://www.lwc.wine/awards/" target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-2 text-xs font-black text-[#326eac]">Official awards page <ExternalLink className="h-4 w-4" /></a>
+      <span><strong className="block text-sm font-black text-[#1d4f82]">Verified 2023–2026 reference</strong><span className="mt-0.5 block text-xs font-semibold text-black/50">Wine pages ignore stale San Francisco Chronicle entries from Commerce7 and use the curated year-by-year reference instead.</span></span>
+      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[.12em] text-[#1d4f82]">Per-wine awards below</span>
     </div>
+
     <div className="grid gap-4 lg:grid-cols-2">{withAwards.map((wine) => <article key={wine.id} className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition hover:shadow-md">
       <button type="button" onClick={() => openWine(wine)} className="mb-4 block w-full text-left"><h2 className="text-xl font-black">{wine.name} <span className="font-semibold text-black/35">{wine.vintage === 'NV' ? '' : wine.vintage}</span></h2></button>
       <div className="space-y-2">{wine.awards.map((award) => <AwardRow key={award.id} award={award} downloadable />)}</div>

@@ -6,7 +6,7 @@ import { deleteUploadedLabel, listUploadedLabels, uploadLabelEntry } from '@/lib
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_EXTENSIONS = new Set(['ai', 'pdf', 'png', 'jpg', 'jpeg', 'svg']);
+const ALLOWED_EXTENSIONS = new Set(['ai', 'pdf', 'eps', 'indd', 'idml', 'png', 'jpg', 'jpeg', 'svg']);
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_FILES = 8;
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   if (files.length > MAX_FILES) return NextResponse.json({ error: `Upload up to ${MAX_FILES} files for one label entry.` }, { status: 400 });
   for (const file of files) {
     const ext = file.name.toLowerCase().split('.').pop() || '';
-    if (!ALLOWED_EXTENSIONS.has(ext)) return NextResponse.json({ error: `${file.name} is not a supported label file. Use AI, PDF, PNG, JPG or SVG.` }, { status: 415 });
+    if (!ALLOWED_EXTENSIONS.has(ext)) return NextResponse.json({ error: `${file.name} is not a supported label file. Use AI, PDF, EPS, INDD, IDML, PNG, JPG or SVG.` }, { status: 415 });
     if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: `${file.name} is larger than 25 MB.` }, { status: 413 });
   }
 
