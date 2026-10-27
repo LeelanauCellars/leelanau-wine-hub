@@ -114,7 +114,7 @@ export default function Labels({ isAdmin }: { isAdmin: boolean }) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[.18em] text-[#3976b7]">Creative Library</p>
           <h1 className="mt-2 text-4xl font-black tracking-[-.045em] md:text-5xl">Labels</h1>
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-black/50">Keep original label files in one place, then open any label in Studio when you want to experiment without touching the original artwork.</p>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-black/50">Keep production label files in one place. Seasonal Series and Witches Brew stay download-only, while selected labels can still open in Studio for internal experimentation.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={blankStudio} className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-black shadow-sm hover:bg-black/[.03]"><PlusIcon className="h-4 w-4" /> Blank Studio</button>
@@ -124,10 +124,10 @@ export default function Labels({ isAdmin }: { isAdmin: boolean }) {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-          <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><FileIcon className="h-5 w-5" /></span><div><p className="text-sm font-black">Label Library</p><p className="mt-1 text-xs font-semibold leading-5 text-black/45">Original production artwork lives here. AI/PDF files and bundled source packages can be downloaded directly without opening Studio.</p></div></div>
+          <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3976b7]/10 text-[#3976b7]"><FileIcon className="h-5 w-5" /></span><div><p className="text-sm font-black">Label Library</p><p className="mt-1 text-xs font-semibold leading-5 text-black/45">Production artwork lives here. Download-only labels keep the original workflow simple: preview the art, then download the supplied production package or PDF.</p></div></div>
         </div>
         <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5 shadow-sm">
-          <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><SparklesIcon className="h-5 w-5" /></span><div><p className="text-sm font-black">Label Studio + Vector Trace</p><p className="mt-1 text-xs font-semibold leading-5 text-black/50">Open a sandbox copy, edit layers with Gemini, or trace a PNG/JPG into SVG vector artwork. The original library file stays untouched.</p></div></div>
+          <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><SparklesIcon className="h-5 w-5" /></span><div><p className="text-sm font-black">Label Studio + Vector Trace</p><p className="mt-1 text-xs font-semibold leading-5 text-black/50">Studio remains available for labels set up as editable. Seasonal Series and Witches Brew intentionally stay out of Studio and download as production files instead.</p></div></div>
         </div>
       </div>
 
@@ -143,21 +143,25 @@ export default function Labels({ isAdmin }: { isAdmin: boolean }) {
           const pdf = label.files.find((file) => file.kind === 'pdf');
           const ai = label.files.find((file) => file.kind === 'ai');
           const sourcePackage = label.files.find((file) => file.kind === 'zip');
+          const canOpenStudio = !label.downloadOnly;
+          const preview = <>
+            <div className="relative flex h-[250px] items-center justify-center overflow-hidden bg-[#f4f4f2] p-5">
+              {label.preview ? <div className={`flex h-full w-full items-center justify-center gap-2 ${label.previewBack ? '' : 'max-w-[190px]'}`}><img src={label.preview} alt={`${label.name} front label preview`} className="min-w-0 h-full flex-1 object-contain transition duration-300 group-hover:scale-[1.015]" />{label.previewBack && <img src={label.previewBack} alt={`${label.name} back label preview`} className="min-w-0 h-full flex-1 object-contain transition duration-300 group-hover:scale-[1.015]" />}</div> : <div className="flex h-28 w-24 items-center justify-center rounded-xl border border-black/10 bg-white text-black/25 shadow-sm"><FileIcon className="h-9 w-9" /></div>}
+              <div className="absolute left-3 top-3 flex flex-wrap gap-1.5"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.08em] text-black/55 shadow-sm">{label.source === 'bundled' ? (label.downloadOnly ? 'Production' : 'Original') : 'Uploaded'}</span>{label.downloadOnly && <span className="rounded-full bg-black/80 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.08em] text-white shadow-sm">Download Only</span>}{label.vintage && <span className="rounded-full bg-black/75 px-2.5 py-1 text-[9px] font-black text-white shadow-sm">{label.vintage}</span>}</div>
+            </div>
+            <div className="p-4 pb-3"><h2 className="text-lg font-black tracking-[-.025em]">{label.name}</h2><div className="mt-2 flex flex-wrap gap-1.5">{label.files.map((file) => <span key={file.url} className="rounded-md bg-[#f1f3f5] px-2 py-1 text-[9px] font-black uppercase tracking-[.08em] text-black/45">{file.kind}{file.size ? ` · ${bytes(file.size)}` : ''}</span>)}</div></div>
+          </>;
           return <article key={label.id} className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <button type="button" onClick={() => setActiveLabel(label)} className="block w-full text-left">
-              <div className="relative flex h-[250px] items-center justify-center overflow-hidden bg-[#f4f4f2] p-5">
-                {label.preview ? <div className={`flex h-full w-full items-center justify-center gap-2 ${label.previewBack ? '' : 'max-w-[190px]'}`}><img src={label.preview} alt={`${label.name} front label preview`} className="min-w-0 h-full flex-1 object-contain transition duration-300 group-hover:scale-[1.015]" />{label.previewBack && <img src={label.previewBack} alt={`${label.name} back label preview`} className="min-w-0 h-full flex-1 object-contain transition duration-300 group-hover:scale-[1.015]" />}</div> : <div className="flex h-28 w-24 items-center justify-center rounded-xl border border-black/10 bg-white text-black/25 shadow-sm"><FileIcon className="h-9 w-9" /></div>}
-                <div className="absolute left-3 top-3 flex gap-1.5"><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.08em] text-black/55 shadow-sm">{label.source === 'bundled' ? 'Original' : 'Uploaded'}</span>{label.vintage && <span className="rounded-full bg-black/75 px-2.5 py-1 text-[9px] font-black text-white shadow-sm">{label.vintage}</span>}</div>
-              </div>
-              <div className="p-4 pb-3"><h2 className="text-lg font-black tracking-[-.025em]">{label.name}</h2><div className="mt-2 flex flex-wrap gap-1.5">{label.files.map((file) => <span key={file.url} className="rounded-md bg-[#f1f3f5] px-2 py-1 text-[9px] font-black uppercase tracking-[.08em] text-black/45">{file.kind}{file.size ? ` · ${bytes(file.size)}` : ''}</span>)}</div></div>
-            </button>
+            {canOpenStudio ? <button type="button" onClick={() => setActiveLabel(label)} className="block w-full text-left">{preview}</button> : <div>{preview}</div>}
             <div className="flex flex-wrap items-center gap-2 border-t border-black/8 px-4 py-3">
-              <button type="button" onClick={() => setActiveLabel(label)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#3976b7] px-3 py-2 text-[10px] font-black text-white"><SparklesIcon className="h-3.5 w-3.5" /> Open Studio</button>
+              {canOpenStudio && <button type="button" onClick={() => setActiveLabel(label)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#3976b7] px-3 py-2 text-[10px] font-black text-white"><SparklesIcon className="h-3.5 w-3.5" /> Open Studio</button>}
+              {label.downloadOnly && sourcePackage && <a href={sourcePackage.downloadUrl || sourcePackage.url} download={sourcePackage.name} className="rounded-lg bg-[#3976b7] px-3 py-2 text-[10px] font-black text-white hover:bg-[#2f669f]">Download Files</a>}
+              {label.downloadOnly && !sourcePackage && pdf && <a href={pdf.downloadUrl || pdf.url} download={pdf.name} className="rounded-lg bg-[#3976b7] px-3 py-2 text-[10px] font-black text-white hover:bg-[#2f669f]">Download PDF</a>}
               {pdf && <a href={pdf.url} target="_blank" rel="noreferrer" className="rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black text-black/60 hover:bg-black/[.03]">View PDF</a>}
-              {sourcePackage && <a href={sourcePackage.downloadUrl || sourcePackage.url} download={sourcePackage.name} className="rounded-lg border border-black/10 bg-[#f7f9fb] px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.04]">Download Source Package</a>}
-              {!sourcePackage && ai && <a href={ai.downloadUrl || ai.url} download={ai.name} className="rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black text-black/60 hover:bg-black/[.03]">AI File</a>}
-              {label.files.length > 0 && <details className="relative">
-                <summary className="cursor-pointer list-none rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black text-black/60 hover:bg-black/[.03]">Original Files</summary>
+              {!label.downloadOnly && sourcePackage && <a href={sourcePackage.downloadUrl || sourcePackage.url} download={sourcePackage.name} className="rounded-lg border border-black/10 bg-[#f7f9fb] px-3 py-2 text-[10px] font-black text-black/70 hover:bg-black/[.04]">Download Source Package</a>}
+              {!label.downloadOnly && !sourcePackage && ai && <a href={ai.downloadUrl || ai.url} download={ai.name} className="rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black text-black/60 hover:bg-black/[.03]">AI File</a>}
+              {label.files.length > 1 && <details className="relative">
+                <summary className="cursor-pointer list-none rounded-lg border border-black/10 px-3 py-2 text-[10px] font-black text-black/60 hover:bg-black/[.03]">Files</summary>
                 <div className="absolute bottom-full left-0 z-30 mb-2 w-[280px] rounded-xl border border-black/10 bg-white p-2 shadow-xl">
                   {label.files.map((file) => <a key={`${label.id}-${file.url}`} href={file.downloadUrl || file.url} download={file.name} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-[10px] font-bold text-black/65 hover:bg-[#f4f6f8]"><span className="min-w-0 truncate">{file.name}</span><span className="shrink-0 uppercase text-black/35">{file.kind}</span></a>)}
                 </div>

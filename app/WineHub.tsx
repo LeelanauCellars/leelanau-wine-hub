@@ -2781,32 +2781,28 @@ function QuickFactsView() {
 
     <section className="quickfacts-intro">
       <div className="quickfacts-story">
-        <p className="quickfacts-kicker">Our Story</p>
         <h2>{QUICK_FACTS.story.title}</h2>
         <ul>{QUICK_FACTS.story.bullets.map((item) => <li key={item}>{item}</li>)}</ul>
       </div>
       <aside className="quickfacts-brands">
-        <p className="quickfacts-kicker">Our Brands</p>
         {QUICK_FACTS.story.brands.map(([brand, detail]) => <div key={brand} className="quickfacts-brand-row"><strong>{brand}</strong><span>{detail}</span></div>)}
       </aside>
     </section>
 
     <div className="quickfacts-two-up">
       {[QUICK_FACTS.region, QUICK_FACTS.growing].map((section) => <section key={section.title} className="quickfacts-section">
-        <p className="quickfacts-kicker">Reference</p>
         <h2>{section.title}</h2>
         <ul className="quickfacts-bullets">{section.bullets.map((item) => <li key={item}>{item}</li>)}</ul>
       </section>)}
     </div>
 
     <section className="quickfacts-section">
-      <div className="quickfacts-section-heading"><div><p className="quickfacts-kicker">Vineyards</p><h2>Our Vineyard Sites</h2></div><div className="quickfacts-acreage"><strong>68.5</strong><span>total vineyard acres</span></div></div>
+      <div className="quickfacts-section-heading"><div><h2>Our Vineyard Sites</h2></div><div className="quickfacts-acreage"><strong>68.5</strong><span>total vineyard acres</span></div></div>
       <p className="quickfacts-definition">A vineyard is defined as a set of vines distinct from others by planting time, variety/rootstock, or location within a site.</p>
       <div className="quickfacts-table-wrap"><table className="quickfacts-table"><thead><tr><th>Site</th><th>Key Features</th><th>Vineyards</th></tr></thead><tbody>{QUICK_FACTS.vineyards.map((item) => <tr key={item.site}><td><strong>{item.site}</strong></td><td>{item.features}</td><td>{item.vineyards}</td></tr>)}</tbody></table></div>
     </section>
 
     <section className="quickfacts-section">
-      <p className="quickfacts-kicker">Plantings</p>
       <h2>Grape Varieties Grown</h2>
       <div className="quickfacts-table-wrap"><table className="quickfacts-table quickfacts-variety-table"><thead><tr><th>Variety</th><th>Type</th><th>Acreage</th><th>Location(s)</th><th>Notes</th></tr></thead><tbody>{QUICK_FACTS.varieties.map((item) => <tr key={item.variety}><td><strong>{item.variety}</strong></td><td>{item.type}</td><td><strong>{item.acreage}</strong></td><td>{item.locations}</td><td>{item.notes}</td></tr>)}</tbody></table></div>
       <div className="quickfacts-trials">
@@ -2817,7 +2813,6 @@ function QuickFactsView() {
     </section>
 
     <section className="quickfacts-section">
-      <p className="quickfacts-kicker">Growing Seasons</p>
       <h2>Vintage Vineyard Summaries</h2>
       <div className="quickfacts-vintages">{QUICK_FACTS.vintages.map((vintage) => <article key={vintage.year} className="quickfacts-vintage-row"><div className="quickfacts-vintage-year">{vintage.year}</div><ul>{vintage.bullets.map((item) => <li key={item}>{item}</li>)}</ul></article>)}</div>
     </section>

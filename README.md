@@ -1,3 +1,11 @@
+## v107 Download-only Seasonal, Witches Brew + Fruit Chill labels
+
+- Adds Seasonal Series production label entries for **Autumn Harvest, Spring Splendor, Summer Sunset, Winter White, and Winter White 1L**.
+- Seasonal cards are intentionally **download-only** and no longer open Label Studio. Each download contains the supplied Illustrator artwork, an optimized production PDF, the package report, and a short README. Packaged font files and very large linked PSD support artwork are not included in Central.
+- Changes the existing **Witches Brew Original, Pumpkin Spice, Spiced Apple, and Stelvin** entries to download-only so staff can retrieve the production files without trying to edit them inside Central.
+- Adds the supplied legacy **Mango, Watermelon, Peach, and Blackberry Fruit Chill** artwork as download-only production PDFs. The original Fruit Chill Illustrator archive is roughly 400 MB, so Central uses compact production PDFs instead of embedding those oversized AI binaries in the Vercel deployment.
+- Editable Peninsula Collection labels continue to use Label Studio exactly as before.
+
 ## v103 Deployment storage optimization
 
 - Keeps the v102 interface, sales analysis, historical comparisons, rotating welcome page, Quick Facts, Awards, and Wine Library behavior unchanged.
