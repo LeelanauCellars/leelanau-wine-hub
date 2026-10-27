@@ -9,6 +9,7 @@ export type AskWine = {
   brand?: string;
   category?: string;
   collection?: string;
+  collections?: string[];
   status?: string;
   varietal?: string;
   appellation?: string;
@@ -58,7 +59,7 @@ export type AskDistributionWine = {
 
 export type AskCentralSource = {
   id: string;
-  type: 'wine' | 'distribution' | 'quick-facts' | 'tasting-menu' | 'case-sales' | 'merch';
+  type: 'wine' | 'catalog' | 'distribution' | 'quick-facts' | 'tasting-menu' | 'case-sales' | 'merch';
   title: string;
   path: string;
   summary: string;
@@ -116,15 +117,132 @@ function scoreText(question: string, title: string, body: string) {
   let score = 0;
   if (titleN && q.includes(titleN)) score += 40;
   if (q && titleN.includes(q) && q.length > 3) score += 25;
+  const titleTokens = titleN.split(' ').filter(Boolean);
   for (const token of tokens(question)) {
-    if (titleN.split(' ').includes(token)) score += 8;
+    if (titleTokens.includes(token)) score += 8;
     else if (titleN.includes(token)) score += 5;
+    else {
+      const fuzzyTitle = Math.max(0, ...titleTokens.map((candidate) => fuzzyTokenScore(token, candidate)));
+      if (fuzzyTitle >= 0.72) score += 6;
+    }
     if (bodyN.includes(token)) score += 1;
   }
   for (const digits of numericTokens(question)) {
     if (`${title} ${body}`.replace(/\D/g, '').includes(digits)) score += 30;
   }
   return score;
+}
+
+
+function levenshtein(a: string, b: string) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let previous = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const held = row[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + cost);
+      previous = held;
+    }
+  }
+  return row[b.length];
+}
+
+function fuzzyTokenScore(queryToken: string, candidateToken: string) {
+  if (queryToken === candidateToken) return 1;
+  if (queryToken.length < 4 || candidateToken.length < 4) return 0;
+  const maxDistance = Math.max(queryToken.length, candidateToken.length) >= 8 ? 2 : 1;
+  const distance = levenshtein(queryToken, candidateToken);
+  return distance <= maxDistance ? 1 - (distance / Math.max(queryToken.length, candidateToken.length)) : 0;
+}
+
+const CATALOG_FILLER = new Set(['wine','wines','collection','collections','brand','brands','category','categories','type','types','products','product']);
+
+function catalogKey(value = '') {
+  return normalize(value).split(' ').filter((token) => token.length > 1 && !CATALOG_FILLER.has(token)).join(' ');
+}
+
+function phraseMatchScore(question: string, candidate: string) {
+  const q = normalize(question);
+  const candidateN = normalize(candidate);
+  const key = catalogKey(candidate);
+  if (!key) return 0;
+  if (q.includes(candidateN) || q.includes(key)) return 100;
+  const qTokens = q.split(' ').filter(Boolean);
+  const cTokens = key.split(' ').filter(Boolean);
+  let total = 0;
+  for (const cToken of cTokens) {
+    let best = 0;
+    for (const qToken of qTokens) best = Math.max(best, fuzzyTokenScore(qToken, cToken));
+    if (best < 0.72) return 0;
+    total += best;
+  }
+  return Math.round((total / cTokens.length) * 85);
+}
+
+export type CatalogFacetMatch = {
+  kind: 'collection' | 'brand' | 'category' | 'varietal';
+  label: string;
+  score: number;
+  corrected: boolean;
+};
+
+export function matchCatalogFacet(question: string, wines: AskWine[]): CatalogFacetMatch | null {
+  const expandedQuestion = question.replace(/\bbubbl(?:y|ies)\b/gi, ' sparkling ');
+  const groups: Array<{ kind: CatalogFacetMatch['kind']; values: string[] }> = [
+    { kind: 'collection', values: wines.flatMap((wine) => wine.collections?.length ? wine.collections : (wine.collection ? [wine.collection] : [])) },
+    { kind: 'brand', values: wines.map((wine) => wine.brand || '') },
+    { kind: 'category', values: wines.map((wine) => wine.category || '') },
+    { kind: 'varietal', values: wines.map((wine) => wine.varietal || '') },
+  ];
+  const seen = new Set<string>();
+  const candidates: CatalogFacetMatch[] = [];
+  for (const group of groups) {
+    for (const value of group.values) {
+      const label = value.trim();
+      if (!label) continue;
+      const id = `${group.kind}:${normalize(label)}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const score = phraseMatchScore(expandedQuestion, label);
+      if (score >= 70) {
+        const exact = normalize(question).includes(normalize(label)) || normalize(question).includes(catalogKey(label));
+        candidates.push({ kind: group.kind, label, score, corrected: !exact });
+      }
+    }
+  }
+  return candidates.sort((a, b) => b.score - a.score || (a.kind === 'collection' ? -1 : b.kind === 'collection' ? 1 : 0) || a.label.localeCompare(b.label))[0] || null;
+}
+
+export function wineMatchesCatalogFacet(wine: AskWine, facet: CatalogFacetMatch) {
+  const target = normalize(facet.label);
+  if (facet.kind === 'collection') return (wine.collections?.length ? wine.collections : (wine.collection ? [wine.collection] : [])).some((value) => normalize(value) === target);
+  if (facet.kind === 'brand') return normalize(wine.brand || '') === target;
+  if (facet.kind === 'category') return normalize(wine.category || '') === target;
+  return normalize(wine.varietal || '') === target;
+}
+
+export function catalogCollections(wines: AskWine[]) {
+  const counts = new Map<string, { label: string; total: number; available: number }>();
+  for (const wine of wines) {
+    const labels = Array.from(new Set((wine.collections?.length ? wine.collections : (wine.collection ? [wine.collection] : [])).filter(Boolean)));
+    for (const label of labels) {
+      const key = normalize(label);
+      const current = counts.get(key) || { label, total: 0, available: 0 };
+      current.total += 1;
+      if (wine.status === 'Available') current.available += 1;
+      counts.set(key, current);
+    }
+  }
+  return Array.from(counts.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function catalogQuestion(question: string) {
+  return /\b(how many|number of|count|list|show|which|what|all|do we have|have we got|do we carry|are there|available|collections?)\b/i.test(question);
 }
 
 function priceRange(question: string) {
@@ -140,7 +258,7 @@ function priceRange(question: string) {
 
 function wineBody(wine: AskWine) {
   return [
-    wine.vintage, wine.brand, wine.collection, wine.category, wine.status, wine.varietal, wine.appellation, wine.region,
+    wine.vintage, wine.brand, wine.collection, ...(wine.collections || []), wine.category, wine.status, wine.varietal, wine.appellation, wine.region,
     wine.price === undefined ? '' : `$${wine.price}`,
     wine.upc, wine.volumeMl, wine.abv, wine.rs, wine.ta, wine.ph, wine.casePack, wine.casesProduced, wine.sweetness,
     wine.tastingNotes, wine.shortDescription, wine.staffPitch, wine.pairings,
@@ -165,6 +283,8 @@ function compactWine(wine: AskWine) {
     vintage: wine.vintage,
     brand: wine.brand,
     category: wine.category,
+    collection: wine.collection,
+    collections: wine.collections,
     status: wine.status,
     varietal: wine.varietal,
     appellation: wine.appellation,
@@ -214,7 +334,7 @@ export function retrieveWineSources(question: string, wines: AskWine[], limit = 
     if (/\bcurrent|available\b/.test(q) && wine.status === 'Available') score += 3;
     if (/\btasting menu|tasting room|on the menu\b/.test(q) && wine.onTastingMenu) score += 4;
     return { wine, score };
-  }).filter(({ wine, score }) => score > 0 && (!range || wine.price === undefined || ((range.min === undefined || wine.price >= range.min) && (range.max === undefined || wine.price <= range.max))));
+  }).filter(({ wine, score }) => score >= 2 && (!range || wine.price === undefined || ((range.min === undefined || wine.price >= range.min) && (range.max === undefined || wine.price <= range.max))));
 
   if (range) {
     for (const wine of wines) {

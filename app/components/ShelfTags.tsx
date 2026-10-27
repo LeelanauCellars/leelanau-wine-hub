@@ -160,8 +160,8 @@ function tagSvgMarkup(tag: ShelfTagDraft, origin: string) {
   const { lines, lineCount, titleSize } = tagLineConfig(tag.lines);
   const logoSrc = `${origin}${tag.logo === 'farm-fresh' ? '/farm-fresh-logo-white.png' : '/lwc-logo.png'}`;
   const logo = tag.logo === 'farm-fresh'
-    ? { x: 11.5, y: 15.2, width: 56.5, height: 56.5, plate: false }
-    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true };
+    ? { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#111', inset: 3.2 }
+    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#fff', inset: 3.4 };
   const baselines = nameBaselines(lineCount);
   const priceRows = [
     { y: 29.0, value: tag.regularPrice, copy: 'Regular Price' },
@@ -171,10 +171,10 @@ function tagSvgMarkup(tag: ShelfTagDraft, origin: string) {
 
   return `<svg class="shelf-tag-svg" xmlns="http://www.w3.org/2000/svg" width="${LABEL_WIDTH_IN}in" height="${LABEL_HEIGHT_IN}in" viewBox="0 0 ${TAG_WIDTH_PT} ${TAG_HEIGHT_PT}" role="img" aria-label="Shelf price tag">
     <rect width="${TAG_WIDTH_PT}" height="${TAG_HEIGHT_PT}" fill="${TAG_BLUE}" />
-    ${logo.plate ? `<rect x="${logo.x}" y="${logo.y}" width="${logo.width}" height="${logo.height}" fill="#fff" stroke="#111" stroke-width="1.15"/>` : ''}
-    <image href="${logoSrc}" x="${logo.x + (logo.plate ? 3.4 : 0)}" y="${logo.y + (logo.plate ? 3.4 : 0)}" width="${logo.width - (logo.plate ? 6.8 : 0)}" height="${logo.height - (logo.plate ? 6.8 : 0)}" preserveAspectRatio="xMidYMid meet" />
-    ${lines.map((line, index) => `<text x="${NAME_X_PT}" y="${baselines[index]}" fill="#fff" stroke="#111" stroke-width="1.35" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="900" letter-spacing="-.55">${escapeHtml(line)}</text>`).join('')}
-    ${priceRows.map((row) => `<text x="${PRICE_RIGHT_X_PT}" y="${row.y}" text-anchor="end" fill="#fff" stroke="#111" stroke-width="1.15" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="17.8" font-weight="900" letter-spacing="-.35">${escapeHtml(money(row.value))}</text><text x="${COPY_X_PT}" y="${row.y - 1.1}" fill="#fff" stroke="#111" stroke-width=".75" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="9.9" font-weight="800">${row.copy}</text>`).join('')}
+    ${logo.plate ? `<rect x="${logo.x}" y="${logo.y}" width="${logo.width}" height="${logo.height}" fill="${logo.plateFill}" stroke="#111" stroke-width="1.0"/>` : ''}
+    <image href="${logoSrc}" x="${logo.x + logo.inset}" y="${logo.y + logo.inset}" width="${logo.width - (logo.inset * 2)}" height="${logo.height - (logo.inset * 2)}" preserveAspectRatio="xMidYMid meet" />
+    ${lines.map((line, index) => `<text x="${NAME_X_PT}" y="${baselines[index]}" fill="#fff" stroke="#111" stroke-width=".9" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="900" letter-spacing="-.55">${escapeHtml(line)}</text>`).join('')}
+    ${priceRows.map((row) => `<text x="${PRICE_RIGHT_X_PT}" y="${row.y}" text-anchor="end" fill="#fff" stroke="#111" stroke-width=".78" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="17.8" font-weight="900" letter-spacing="-.35">${escapeHtml(money(row.value))}</text><text x="${COPY_X_PT}" y="${row.y - 1.1}" fill="#fff" stroke="#111" stroke-width=".48" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="9.9" font-weight="800">${row.copy}</text>`).join('')}
   </svg>`;
 }
 
@@ -183,8 +183,8 @@ function PreviewTag({ tag }: { tag: ShelfTagDraft }) {
   const baselines = nameBaselines(lineCount);
   const logoChoice = logoChoices.find((item) => item.value === tag.logo) || logoChoices[0];
   const logo = tag.logo === 'farm-fresh'
-    ? { x: 11.5, y: 15.2, width: 56.5, height: 56.5, plate: false }
-    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true };
+    ? { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#111', inset: 3.2 }
+    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#fff', inset: 3.4 };
   const priceRows = [
     { y: 29.0, value: tag.regularPrice, copy: 'Regular Price' },
     { y: 51.5, value: tag.clubPrice, copy: 'Wine Club' },
@@ -193,12 +193,12 @@ function PreviewTag({ tag }: { tag: ShelfTagDraft }) {
 
   return <svg viewBox={`0 0 ${TAG_WIDTH_PT} ${TAG_HEIGHT_PT}`} className="block w-full overflow-hidden border border-black/10 shadow-sm" role="img" aria-label="Shelf tag preview">
     <rect width={TAG_WIDTH_PT} height={TAG_HEIGHT_PT} fill={TAG_BLUE} />
-    {logo.plate && <rect x={logo.x} y={logo.y} width={logo.width} height={logo.height} fill="#fff" stroke="#111" strokeWidth="1.15" />}
-    <image href={logoChoice.src} x={logo.x + (logo.plate ? 3.4 : 0)} y={logo.y + (logo.plate ? 3.4 : 0)} width={logo.width - (logo.plate ? 6.8 : 0)} height={logo.height - (logo.plate ? 6.8 : 0)} preserveAspectRatio="xMidYMid meet" />
-    {lines.map((line, index) => <text key={`${line}-${index}`} x={NAME_X_PT} y={baselines[index]} fill="#fff" stroke="#111" strokeWidth="1.35" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize={titleSize} fontWeight="900" letterSpacing="-.55">{line}</text>)}
+    {logo.plate && <rect x={logo.x} y={logo.y} width={logo.width} height={logo.height} fill={logo.plateFill} stroke="#111" strokeWidth="1.0" />}
+    <image href={logoChoice.src} x={logo.x + logo.inset} y={logo.y + logo.inset} width={logo.width - (logo.inset * 2)} height={logo.height - (logo.inset * 2)} preserveAspectRatio="xMidYMid meet" />
+    {lines.map((line, index) => <text key={`${line}-${index}`} x={NAME_X_PT} y={baselines[index]} fill="#fff" stroke="#111" strokeWidth=".9" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize={titleSize} fontWeight="900" letterSpacing="-.55">{line}</text>)}
     {priceRows.flatMap((row) => [
-      <text key={`${row.copy}-price`} x={PRICE_RIGHT_X_PT} y={row.y} textAnchor="end" fill="#fff" stroke="#111" strokeWidth="1.15" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="17.8" fontWeight="900" letterSpacing="-.35">{money(row.value)}</text>,
-      <text key={`${row.copy}-copy`} x={COPY_X_PT} y={row.y - 1.1} fill="#fff" stroke="#111" strokeWidth=".75" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="9.9" fontWeight="800">{row.copy}</text>,
+      <text key={`${row.copy}-price`} x={PRICE_RIGHT_X_PT} y={row.y} textAnchor="end" fill="#fff" stroke="#111" strokeWidth=".78" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="17.8" fontWeight="900" letterSpacing="-.35">{money(row.value)}</text>,
+      <text key={`${row.copy}-copy`} x={COPY_X_PT} y={row.y - 1.1} fill="#fff" stroke="#111" strokeWidth=".48" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="9.9" fontWeight="800">{row.copy}</text>,
     ])}
   </svg>;
 }
@@ -437,7 +437,7 @@ export default function ShelfTags({ wines }: { wines: WineRecord[] }) {
 
             <button disabled={!totalQueue} onClick={() => startPrint(queueExpanded)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#326eac] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#285a8b] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} TAG{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
-            <p className="mt-4 text-[11px] leading-5 text-black/60">Tags now render as vector SVG using the uploaded master layout, including the original #1f628e blue and fixed column positions. Print at 100% scale with headers and footers off so each tag remains exactly 6&quot; × 1.25&quot;.</p>
+            <p className="mt-4 text-[11px] leading-5 text-black/60">Tags use the uploaded master SVG geometry, including the original #1f628e blue, fixed columns, logo blocks, and lighter type outlines from the source design. Print at 100% scale with headers and footers off so each tag remains exactly 6&quot; × 1.25&quot;.</p>
           </div>
 
           {queue[0] && <div className="mt-5 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">

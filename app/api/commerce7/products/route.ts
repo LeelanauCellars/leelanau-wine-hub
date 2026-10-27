@@ -226,6 +226,7 @@ const toWine = (product: C7Product, websiteAwards: Awaited<ReturnType<typeof loa
     vendorId: product.vendorId || product.vendor?.id || undefined,
     category,
     collection: product.collections?.[0]?.title ? decodeHtmlEntities(product.collections[0].title || '') : undefined,
+    collections: (product.collections || []).map((collection) => decodeHtmlEntities(collection.title || '')).filter(Boolean),
     status: product.webStatus === 'Retired' ? 'Retired' : product.webStatus === 'Available' ? 'Available' : 'Not Available',
     varietal: product.wine?.varietal ? decodeHtmlEntities(product.wine.varietal) : undefined,
     appellation: product.wine?.appellation ? decodeHtmlEntities(product.wine.appellation) : undefined,

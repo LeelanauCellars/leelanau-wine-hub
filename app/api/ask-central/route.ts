@@ -14,6 +14,10 @@ import {
   questionNeedsTastingMenu,
   retrieveDistributionSources,
   retrieveWineSources,
+  catalogQuestion,
+  catalogCollections,
+  matchCatalogFacet,
+  wineMatchesCatalogFacet,
 } from '@/lib/ask-central';
 
 export const runtime = 'nodejs';
@@ -299,6 +303,93 @@ function retrievalFallbackAnswer(question: string, sources: AskCentralSource[], 
   return `Central found matching information in **${sources[0].title}**. Open Sources below to view it. [${sources[0].id}]`;
 }
 
+
+function directNavigation(question: string, portalRole: AskPortalRole) {
+  if (!/^\s*(?:open|go to|take me to|bring me to|navigate to|launch)\b/i.test(question)) return null;
+  const targets: Array<{ pattern: RegExp; path: string; label: string; allowed: AskPortalRole[] }> = [
+    { pattern: /shelf\s*(?:price\s*)?tags?|price\s*tags?/i, path: '/shelf-tags', label: 'Shelf Price Tags', allowed: ['admin', 'tasting'] },
+    { pattern: /wine\s*library/i, path: '/wine-library', label: 'Wine Library', allowed: ['admin', 'tasting', 'sales'] },
+    { pattern: /tech\s*sheets?/i, path: '/tech-sheets', label: 'Tech Sheets', allowed: ['admin', 'sales'] },
+    { pattern: /awards?/i, path: '/awards', label: 'Awards', allowed: ['admin', 'tasting', 'sales'] },
+    { pattern: /projects?/i, path: '/projects', label: 'Projects', allowed: ['admin', 'sales'] },
+    { pattern: /labels?/i, path: '/labels', label: 'Labels', allowed: ['admin', 'sales'] },
+    { pattern: /quick\s*facts?/i, path: '/quick-facts', label: 'Quick Facts', allowed: ['admin', 'tasting', 'sales'] },
+    { pattern: /case\s*sales?/i, path: '/case-sales', label: 'Case Sales Tracker', allowed: ['admin', 'tasting'] },
+    { pattern: /sales\s*analysis/i, path: '/sales-analysis', label: 'Sales Analysis', allowed: ['admin'] },
+    { pattern: /tasting\s*(?:room\s*)?menu/i, path: '/tasting-menu', label: 'Tasting Room Menu', allowed: ['admin', 'tasting', 'sales'] },
+    { pattern: /merch|apparel/i, path: '/merch-apparel', label: 'Merch/Apparel', allowed: ['admin', 'tasting'] },
+    { pattern: /distribution/i, path: '/distribution-wines', label: 'Distribution Wines', allowed: ['admin', 'sales', 'distribution'] },
+  ];
+  const target = targets.find((item) => item.pattern.test(question));
+  if (!target || !target.allowed.includes(portalRole)) return null;
+  return { path: target.path, label: target.label };
+}
+
+function catalogDirectAnswer(question: string, wines: AskWine[]) {
+  if (!wines.length) return null;
+  const facet = matchCatalogFacet(question, wines);
+  const shortFacetQuery = Boolean(facet) && question.trim().split(/\s+/).filter(Boolean).length <= 6;
+  if (!catalogQuestion(question) && !shortFacetQuery) return null;
+  const collectionsOverview = /\b(?:what|which|list|show|how many)\b[^?]*\bcollections?\b/i.test(question) && !facet;
+  const broadWineCount = !facet && /\bhow many\s+(?:current(?:ly)?\s+|available\s+)?wines?\b/i.test(question);
+  if (broadWineCount) {
+    const onlyAvailable = /\b(?:current(?:ly)?|available)\b/i.test(question);
+    const available = wines.filter((wine) => wine.status === 'Available').length;
+    const count = onlyAvailable ? available : wines.length;
+    const source: AskCentralSource = { id: 'S1', type: 'catalog', title: 'Commerce7 Wine Catalog', path: '/wine-library', summary: JSON.stringify({ total: wines.length, available }) };
+    const answer = onlyAvailable
+      ? `Central currently has **${count} available wines** synced from Commerce7. [S1]`
+      : `Central currently has **${count} wines** synced from Commerce7 (**${available} available**). [S1]`;
+    return { answer, source };
+  }
+  if (collectionsOverview) {
+    const collections = catalogCollections(wines);
+    if (!collections.length) return null;
+    const wantsCount = /\bhow many\b|\bnumber of\b|\bcount\b/i.test(question);
+    const source: AskCentralSource = {
+      id: 'S1',
+      type: 'catalog',
+      title: 'Commerce7 Collections',
+      path: '/wine-library',
+      summary: JSON.stringify({ collections }),
+    };
+    const answer = wantsCount
+      ? `Commerce7 currently has **${collections.length} collections** represented in Central. [S1]`
+      : `These Commerce7 collections are currently represented in Central:\n\n${collections.map((item) => `• **${item.label}** — ${item.total} product${item.total === 1 ? '' : 's'}${item.available !== item.total ? ` (${item.available} available)` : ''}`).join('\n')} [S1]`;
+    return { answer, source };
+  }
+
+  if (!facet) return null;
+  let matches = wines.filter((wine) => wineMatchesCatalogFacet(wine, facet));
+  if (!matches.length) return null;
+  const onlyAvailable = /\b(?:currently\s+)?available\b|\bin stock\b/i.test(question);
+  const total = matches.length;
+  const available = matches.filter((wine) => wine.status === 'Available').length;
+  const notAvailable = total - available;
+  if (onlyAvailable) matches = matches.filter((wine) => wine.status === 'Available');
+  const wantsCount = /\bhow many\b|\bnumber of\b|\bcount\b/i.test(question);
+  const wantsList = /\b(?:list|show|which|what|all|do we have|have we got)\b/i.test(question) && !wantsCount;
+  const correction = facet.corrected ? `I interpreted your question as referring to **${facet.label}**.\n\n` : '';
+  const descriptor = facet.kind === 'collection' ? `Commerce7's **${facet.label}** collection` : `**${facet.label}**`;
+  let answer: string;
+  if (wantsCount) {
+    const count = onlyAvailable ? matches.length : total;
+    const breakdown = onlyAvailable ? '' : (notAvailable > 0 ? ` (**${available} available**, ${notAvailable} not currently available)` : ' — all currently available');
+    answer = `${correction}${descriptor} contains **${count} wine${count === 1 ? '' : 's'}**${breakdown}. [S1]`;
+  } else {
+    const sorted = [...matches].sort((a, b) => a.name.localeCompare(b.name));
+    answer = `${correction}${descriptor}${onlyAvailable ? ' has these currently available wines' : ' includes'}:\n\n${sorted.map((wine) => `• ${wine.name}${wine.vintage && wine.vintage !== 'NV' && !wine.name.includes(wine.vintage) ? ` ${wine.vintage}` : ''}`).join('\n')} [S1]`;
+  }
+  const source: AskCentralSource = {
+    id: 'S1',
+    type: 'catalog',
+    title: facet.kind === 'collection' ? `${facet.label} · Commerce7 Collection` : `${facet.label} · Commerce7 Catalog`,
+    path: '/wine-library',
+    summary: JSON.stringify({ facet, total, available, notAvailable, wines: matches.map((wine) => ({ name: wine.name, vintage: wine.vintage, status: wine.status, collections: wine.collections || (wine.collection ? [wine.collection] : []) })) }),
+  };
+  return { answer, source };
+}
+
 export async function POST(request: NextRequest) {
   const session = await sessionRole();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -317,6 +408,29 @@ export async function POST(request: NextRequest) {
 
   const wines = portalRole === 'distribution' ? [] : safeWineArray(body.wines);
   const distributionWines = portalRole === 'tasting' ? [] : safeDistributionArray(body.distributionWines);
+
+  const navigation = directNavigation(question, portalRole);
+  if (navigation) {
+    return NextResponse.json({
+      answer: `Opening **${navigation.label}**.`,
+      sources: [],
+      action: { type: 'navigate', path: navigation.path },
+      model: 'central-direct',
+      provider: 'central-actions',
+      fallbackUsed: false,
+    });
+  }
+
+  const catalog = catalogDirectAnswer(question, wines);
+  if (catalog) {
+    return NextResponse.json({
+      answer: catalog.answer,
+      sources: publicSources(catalog.answer, [catalog.source]),
+      model: 'central-direct',
+      provider: 'central-catalog',
+      fallbackUsed: false,
+    });
+  }
   const history = safeHistory(body.history);
   const useHistoryContext = shouldUseHistoryContext(question, history);
   const lastUserContext = [...history].reverse().find((item) => item.role === 'user')?.content || '';
@@ -438,6 +552,16 @@ export async function POST(request: NextRequest) {
   }
 
   selectedSources = selectedSources.slice(0, 8).map((source, index) => ({ ...source, id: `S${index + 1}` }));
+
+  if (!selectedSources.length) {
+    return NextResponse.json({
+      answer: "I couldn't match that to anything in Central. Try the wine, collection, brand, project, or tool name — close misspellings are okay.",
+      sources: [],
+      model: 'central-direct',
+      provider: 'central-retrieval',
+      fallbackUsed: false,
+    });
+  }
 
   // Operational questions are deterministic and do not need a model round trip.
   // This makes first-turn answers both faster and more reliable.

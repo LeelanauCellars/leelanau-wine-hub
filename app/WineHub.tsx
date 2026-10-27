@@ -1567,7 +1567,7 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
       ? ['What is the GTIN for Witches Brew?', 'What are the case dimensions for Farm Fresh Peach Moscato?', 'Which Farm Fresh products are 750 mL?']
       : portalRole === 'sales'
         ? ['What is the GTIN and case size for Witches Brew?', 'Which wines have won Double Gold?', 'Give me the specs for Farm Fresh Peach Moscato.']
-        : ['How are we doing on the case sales goal?', 'What is the GTIN and case weight for Witches Brew?', 'Which Rieslings are on the current tasting menu?'];
+        : ['How many sparkling wines do we have?', 'How are we doing on the case sales goal?', 'Open Shelf Price Tags'];
 
   const compactWines = useMemo(() => wines.map((wine) => ({
     id: wine.id,
@@ -1576,6 +1576,7 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
     brand: wine.brand,
     category: wine.category,
     collection: wine.collection,
+    collections: wine.collections,
     status: wine.status,
     varietal: wine.varietal,
     appellation: wine.appellation,
@@ -1640,9 +1641,12 @@ function AskCentral({ wines, distributionWines, portalRole, openPath, embedded =
           history: messages.slice(-4).map(({ role, content }) => ({ role, content })),
         }),
       });
-      const payload = await response.json() as { answer?: string; sources?: AskMessage['sources']; error?: string; hint?: string };
+      const payload = await response.json() as { answer?: string; sources?: AskMessage['sources']; action?: { type?: string; path?: string }; error?: string; hint?: string };
       if (!response.ok || !payload.answer) throw new Error([payload.error, payload.hint].filter(Boolean).join(' ') || 'Ask Central could not answer that question.');
       setMessages([...nextMessages, { id: `a-${Date.now()}`, role: 'assistant', content: payload.answer, sources: payload.sources || [] }]);
+      if (payload.action?.type === 'navigate' && payload.action.path) {
+        window.setTimeout(() => openPath(payload.action?.path || '/ask'), 250);
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setError('Ask Central took too long to answer. Please try that question again.');

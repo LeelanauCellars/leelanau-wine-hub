@@ -25,6 +25,7 @@ export type WineRecord = {
   vendorId?: string;
   category: string;
   collection?: string;
+  collections?: string[];
   status: 'Available' | 'Not Available' | 'Retired' | 'Draft';
   varietal?: string;
   appellation?: string;

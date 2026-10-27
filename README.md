@@ -1,3 +1,11 @@
+## v111 Ask Central catalog intelligence + shelf tag refinement
+
+- Ask Central now keeps **all Commerce7 collection memberships** for each wine instead of only the first collection.
+- Catalog/count questions such as **“How many sparkling wines do we have?”** are calculated directly from the full synced Commerce7 catalog rather than sending a handful of search results to Gemini.
+- Adds typo-tolerant matching for collections and wine names, including close misspellings such as “sparking” for “sparkling.” Low-confidence questions no longer fall through to a random wine answer.
+- Adds a first action layer to Ask Central: commands such as **“Open Shelf Price Tags”** can navigate directly to supported Central tools.
+- Refines Shelf Price Tags against the supplied master SVG and print sample: restores the black Farm Fresh logo block, removes the stray crop artifact, and uses lighter text outlines closer to the source artwork while keeping the exact 6 in × 1.25 in geometry and print spacing.
+
 ## v107 Download-only Seasonal, Witches Brew + Fruit Chill labels
 
 - Adds Seasonal Series production label entries for **Autumn Harvest, Spring Splendor, Summer Sunset, Winter White, and Winter White 1L**.
