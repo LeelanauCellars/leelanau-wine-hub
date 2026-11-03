@@ -402,3 +402,11 @@ Removed the bundled `onnxruntime-web` dependency that could cause the Vercel/Nex
 - Redesigns the Ask Central drawer with a dark Central Intelligence header, grounded-source status, richer empty state, role-specific prompt cards, upgraded composer, response bubbles, source buttons, and a more visual searching state.
 - Gives the full Ask Central page the same premium visual system so the feature feels consistent whether it is opened from navigation or the floating launcher.
 - Keeps all Ask Central retrieval/source behavior unchanged; this update is presentation and layout only.
+
+## v113: Inventory stock-status PDF importer
+
+The **Inventory** page appears under **Tasting Room** in the Admin sidebar and in the Tasting Room portal. Upload a searchable **Stock Status by CC and LOC** PDF with the columns `PRODUCT CODE`, `LOT NUMBER`, `DEST DOC`, `DEST REL`, `RECEIPT DATE`, and `STKQTY`. Central uses positioned PDF text so that the report's sideways/landscape pages are read by their actual columns. It sums `STKQTY` per exact product code only when a lot number is present **and** `DEST DOC` is empty. Rows excluded for either reason appear in a review panel.
+
+The Excel download includes the computed **Stock by Product** totals, the **Included Rows** audit (one row per lot), and the **Excluded Rows** audit with reasons. The totals are backed by SUMIF formulas and cached numeric results. The page does **not** modify Commerce7, and the uploaded PDF is **not stored**: the report and extracted data are retained only in the staff member's current browser session until the page is closed. The API is restricted to Admin and Tasting Room roles when PIN access is enabled. Normal Vercel function upload size limit: 4 MB for this feature.
+
+Dependencies added: `pdfjs-dist` (positioned PDF text) and `exceljs` (Excel workbook export). `pdf-parse/worker` is imported first to initialize server-side canvas polyfills; Vercel output tracing includes PDF.js worker code. Validate the next live report by spot-checking several lots after each format change. A photographed/scanned PDF without a selectable text layer needs OCR and will be rejected rather than guessed.

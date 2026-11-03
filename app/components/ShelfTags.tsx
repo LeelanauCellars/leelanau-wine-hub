@@ -38,14 +38,17 @@ const LABEL_WIDTH_IN = 6;
 const LABEL_HEIGHT_IN = 1.25;
 const TAG_WIDTH_PT = 432;
 const TAG_HEIGHT_PT = 90;
-const NAME_X_PT = 72.648;
-const PRICE_RIGHT_X_PT = 315;
-const COPY_X_PT = 321.552;
+const NAME_X_PT = 77;
+const NAME_RIGHT_X_PT = 270;
+const NAME_WIDTH_PT = NAME_RIGHT_X_PT - NAME_X_PT;
+const NAME_CENTER_X_PT = (NAME_X_PT + NAME_RIGHT_X_PT) / 2;
+const PRICE_RIGHT_X_PT = 323;
+const COPY_X_PT = 330;
 const LABELS_PER_PAGE = 4;
 const MASTER_SVG_PATH = '/shelf-tags/price-tag-master.svg';
 
 const logoChoices: { value: ShelfTagLogo; label: string; src: string; alt: string }[] = [
-  { value: 'lwc', label: 'LWC', src: '/lwc-logo.png', alt: 'Leelanau Cellars' },
+  { value: 'lwc', label: 'LWC', src: '/lwc-shelf-tag-logo.png', alt: 'Leelanau Cellars' },
   { value: 'farm-fresh', label: 'Farm Fresh', src: '/farm-fresh-logo-white.png', alt: 'Farm Fresh' },
 ];
 
@@ -66,47 +69,66 @@ function labelName(wine: WineRecord) {
   return `${wine.name}${vintage}`.trim();
 }
 
+function titleWidthUnits(value: string) {
+  let units = 0;
+  for (const character of value) {
+    if (character === ' ') units += 0.32;
+    else if ('ilI1'.includes(character)) units += 0.30;
+    else if ('mwMWQO0'.includes(character)) units += 0.82;
+    else if ('rtfj'.includes(character)) units += 0.43;
+    else units += 0.60;
+  }
+  return Math.max(units, 1);
+}
+
+function balancedPartitions(words: string[], lineCount: number) {
+  if (lineCount <= 1) return [[words.join(' ')]];
+  const output: string[][] = [];
+  const visit = (start: number, remaining: number, lines: string[]) => {
+    if (remaining === 1) {
+      const tail = words.slice(start).join(' ');
+      if (tail) output.push([...lines, tail]);
+      return;
+    }
+    for (let end = start + 1; end <= words.length - remaining + 1; end += 1) {
+      visit(end, remaining - 1, [...lines, words.slice(start, end).join(' ')]);
+    }
+  };
+  visit(0, lineCount, []);
+  return output;
+}
+
+function requiredTitleSize(lines: string[], baseSize: number) {
+  const widestUnits = Math.max(...lines.map(titleWidthUnits));
+  return Math.min(baseSize, NAME_WIDTH_PT / widestUnits);
+}
+
 function splitTagLines(value: string) {
   const text = value.replace(/\s+/g, ' ').trim();
   if (!text) return [''];
-  const raw = text.split(' ');
-  if (raw.length <= 1) return [text];
-  if (raw.length === 2) return raw;
-  if (raw.length === 3) return raw;
+  const words = text.split(' ');
+  if (words.length === 1) return [text];
 
-  const last = raw[raw.length - 1];
-  if (/^20\d{2}$/.test(last)) {
-    const front = raw.slice(0, -1);
-    if (front.length === 3) return [`${front[0]} ${front[1]}`, front[2], last];
-    if (front.length === 2) return [front[0], front[1], last];
-    const mid = Math.ceil(front.length / 2);
-    return [front.slice(0, mid).join(' '), front.slice(mid).join(' '), last].filter(Boolean);
+  // Two-word names intentionally read as two centered lines on the physical tag.
+  if (words.length === 2) return words;
+
+  const vintage = /^20\d{2}$/.test(words[words.length - 1] || '') ? words[words.length - 1] : '';
+  if (vintage) {
+    const front = words.slice(0, -1);
+    if (front.length === 1) return [front[0], vintage];
+    const twoFront = balancedPartitions(front, 2)
+      .sort((a, b) => Math.max(...a.map(titleWidthUnits)) - Math.max(...b.map(titleWidthUnits)))[0];
+    return [...twoFront, vintage].slice(0, 3);
   }
 
-  const totalLength = raw.reduce((sum, word) => sum + word.length, 0);
-  if (raw.length <= 4 && totalLength <= 26) {
-    const middle = Math.ceil(raw.length / 2);
-    return [raw.slice(0, middle).join(' '), raw.slice(middle).join(' ')].filter(Boolean);
-  }
+  const twoLineOptions = balancedPartitions(words, 2)
+    .sort((a, b) => Math.max(...a.map(titleWidthUnits)) - Math.max(...b.map(titleWidthUnits)));
+  const bestTwo = twoLineOptions[0];
+  if (bestTwo && requiredTitleSize(bestTwo, 26.2) >= 21.5) return bestTwo;
 
-  const target = totalLength / 3;
-  const lines: string[] = [];
-  let current = '';
-  for (let index = 0; index < raw.length; index += 1) {
-    const word = raw[index];
-    const next = current ? `${current} ${word}` : word;
-    const remainingWords = raw.length - index - 1;
-    const remainingLines = 2 - lines.length;
-    if (current && next.length > target + 2 && remainingWords >= remainingLines) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = next;
-    }
-  }
-  if (current) lines.push(current);
-  if (lines.length <= 3) return lines;
-  return [lines[0], lines[1], lines.slice(2).join(' ')].filter(Boolean);
+  const threeLineOptions = balancedPartitions(words, 3)
+    .sort((a, b) => Math.max(...a.map(titleWidthUnits)) - Math.max(...b.map(titleWidthUnits)));
+  return threeLineOptions[0] || bestTwo || words.slice(0, 3);
 }
 
 function defaultDraft(wine: WineRecord, logo = defaultLogo(wine)): ShelfTagDraft {
@@ -128,10 +150,12 @@ function cleanLines(lines: string[]) {
 
 function tagLineConfig(lines: string[]) {
   const cleaned = cleanLines(lines);
+  const baseSize = cleaned.length >= 3 ? 20.7 : cleaned.length === 2 ? 26.2 : 28;
+  const fittedSize = requiredTitleSize(cleaned, baseSize);
   return {
     lines: cleaned,
     lineCount: cleaned.length,
-    titleSize: cleaned.length >= 3 ? 20.7 : 26.2,
+    titleSize: Math.max(15.5, fittedSize),
   };
 }
 
@@ -150,55 +174,57 @@ function chunk<T>(items: T[], size: number) {
   return output;
 }
 
-function nameBaselines(lineCount: number) {
-  if (lineCount >= 3) return [23.5, 46.5, 69.5];
-  if (lineCount === 2) return [33.5, 62.5];
-  return [52];
+function nameBaselines(lineCount: number, fontSize: number) {
+  const lineHeight = fontSize * 1.08;
+  const centerBaseline = 49;
+  const start = centerBaseline - ((lineCount - 1) * lineHeight) / 2;
+  return Array.from({ length: lineCount }, (_, index) => start + (index * lineHeight));
+}
+
+function logoGeometry(logo: ShelfTagLogo) {
+  if (logo === 'farm-fresh') return { x: 12, y: 15, width: 56, height: 60, plate: true, plateFill: '#111', inset: 4 };
+  return { x: 12, y: 15, width: 56, height: 60, plate: false, plateFill: '#fff', inset: 0 };
 }
 
 function tagSvgMarkup(tag: ShelfTagDraft, origin: string) {
   const { lines, lineCount, titleSize } = tagLineConfig(tag.lines);
-  const logoSrc = `${origin}${tag.logo === 'farm-fresh' ? '/farm-fresh-logo-white.png' : '/lwc-logo.png'}`;
-  const logo = tag.logo === 'farm-fresh'
-    ? { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#111', inset: 3.2 }
-    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#fff', inset: 3.4 };
-  const baselines = nameBaselines(lineCount);
+  const logoSrc = `${origin}${tag.logo === 'farm-fresh' ? '/farm-fresh-logo-white.png' : '/lwc-shelf-tag-logo.png'}`;
+  const logo = logoGeometry(tag.logo);
+  const baselines = nameBaselines(lineCount, titleSize);
   const priceRows = [
-    { y: 29.0, value: tag.regularPrice, copy: 'Regular Price' },
-    { y: 51.5, value: tag.clubPrice, copy: 'Wine Club' },
-    { y: 74.0, value: tag.casePrice, copy: 'Case Discount' },
+    { y: 28, value: tag.regularPrice, copy: 'Regular Price' },
+    { y: 50, value: tag.clubPrice, copy: 'Wine Club' },
+    { y: 72, value: tag.casePrice, copy: 'Case Discount' },
   ];
 
   return `<svg class="shelf-tag-svg" xmlns="http://www.w3.org/2000/svg" width="${LABEL_WIDTH_IN}in" height="${LABEL_HEIGHT_IN}in" viewBox="0 0 ${TAG_WIDTH_PT} ${TAG_HEIGHT_PT}" role="img" aria-label="Shelf price tag">
     <rect width="${TAG_WIDTH_PT}" height="${TAG_HEIGHT_PT}" fill="${TAG_BLUE}" />
     ${logo.plate ? `<rect x="${logo.x}" y="${logo.y}" width="${logo.width}" height="${logo.height}" fill="${logo.plateFill}" stroke="#111" stroke-width="1.0"/>` : ''}
     <image href="${logoSrc}" x="${logo.x + logo.inset}" y="${logo.y + logo.inset}" width="${logo.width - (logo.inset * 2)}" height="${logo.height - (logo.inset * 2)}" preserveAspectRatio="xMidYMid meet" />
-    ${lines.map((line, index) => `<text x="${NAME_X_PT}" y="${baselines[index]}" fill="#fff" stroke="#111" stroke-width=".9" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="900" letter-spacing="-.55">${escapeHtml(line)}</text>`).join('')}
-    ${priceRows.map((row) => `<text x="${PRICE_RIGHT_X_PT}" y="${row.y}" text-anchor="end" fill="#fff" stroke="#111" stroke-width=".78" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="17.8" font-weight="900" letter-spacing="-.35">${escapeHtml(money(row.value))}</text><text x="${COPY_X_PT}" y="${row.y - 1.1}" fill="#fff" stroke="#111" stroke-width=".48" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="9.9" font-weight="800">${row.copy}</text>`).join('')}
+    ${lines.map((line, index) => `<text x="${NAME_CENTER_X_PT}" y="${baselines[index]}" text-anchor="middle" fill="#fff" stroke="#111" stroke-width=".72" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="900" letter-spacing="-.45">${escapeHtml(line)}</text>`).join('')}
+    ${priceRows.map((row) => `<text x="${PRICE_RIGHT_X_PT}" y="${row.y}" text-anchor="end" fill="#fff" stroke="#111" stroke-width=".68" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="17.8" font-weight="900" letter-spacing="-.35">${escapeHtml(money(row.value))}</text><text x="${COPY_X_PT}" y="${row.y - 1.1}" fill="#fff" stroke="#111" stroke-width=".38" paint-order="stroke fill" stroke-linejoin="round" font-family="Poppins, Arial, Helvetica, sans-serif" font-size="9.9" font-weight="800">${row.copy}</text>`).join('')}
   </svg>`;
 }
 
 function PreviewTag({ tag }: { tag: ShelfTagDraft }) {
   const { lines, lineCount, titleSize } = tagLineConfig(tag.lines);
-  const baselines = nameBaselines(lineCount);
+  const baselines = nameBaselines(lineCount, titleSize);
   const logoChoice = logoChoices.find((item) => item.value === tag.logo) || logoChoices[0];
-  const logo = tag.logo === 'farm-fresh'
-    ? { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#111', inset: 3.2 }
-    : { x: 10.3, y: 14.2, width: 54.7, height: 59.0, plate: true, plateFill: '#fff', inset: 3.4 };
+  const logo = logoGeometry(tag.logo);
   const priceRows = [
-    { y: 29.0, value: tag.regularPrice, copy: 'Regular Price' },
-    { y: 51.5, value: tag.clubPrice, copy: 'Wine Club' },
-    { y: 74.0, value: tag.casePrice, copy: 'Case Discount' },
+    { y: 28, value: tag.regularPrice, copy: 'Regular Price' },
+    { y: 50, value: tag.clubPrice, copy: 'Wine Club' },
+    { y: 72, value: tag.casePrice, copy: 'Case Discount' },
   ];
 
   return <svg viewBox={`0 0 ${TAG_WIDTH_PT} ${TAG_HEIGHT_PT}`} className="block w-full overflow-hidden border border-black/10 shadow-sm" role="img" aria-label="Shelf tag preview">
     <rect width={TAG_WIDTH_PT} height={TAG_HEIGHT_PT} fill={TAG_BLUE} />
     {logo.plate && <rect x={logo.x} y={logo.y} width={logo.width} height={logo.height} fill={logo.plateFill} stroke="#111" strokeWidth="1.0" />}
     <image href={logoChoice.src} x={logo.x + logo.inset} y={logo.y + logo.inset} width={logo.width - (logo.inset * 2)} height={logo.height - (logo.inset * 2)} preserveAspectRatio="xMidYMid meet" />
-    {lines.map((line, index) => <text key={`${line}-${index}`} x={NAME_X_PT} y={baselines[index]} fill="#fff" stroke="#111" strokeWidth=".9" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize={titleSize} fontWeight="900" letterSpacing="-.55">{line}</text>)}
+    {lines.map((line, index) => <text key={`${line}-${index}`} x={NAME_CENTER_X_PT} y={baselines[index]} textAnchor="middle" fill="#fff" stroke="#111" strokeWidth=".72" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize={titleSize} fontWeight="900" letterSpacing="-.45">{line}</text>)}
     {priceRows.flatMap((row) => [
-      <text key={`${row.copy}-price`} x={PRICE_RIGHT_X_PT} y={row.y} textAnchor="end" fill="#fff" stroke="#111" strokeWidth=".78" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="17.8" fontWeight="900" letterSpacing="-.35">{money(row.value)}</text>,
-      <text key={`${row.copy}-copy`} x={COPY_X_PT} y={row.y - 1.1} fill="#fff" stroke="#111" strokeWidth=".48" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="9.9" fontWeight="800">{row.copy}</text>,
+      <text key={`${row.copy}-price`} x={PRICE_RIGHT_X_PT} y={row.y} textAnchor="end" fill="#fff" stroke="#111" strokeWidth=".68" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="17.8" fontWeight="900" letterSpacing="-.35">{money(row.value)}</text>,
+      <text key={`${row.copy}-copy`} x={COPY_X_PT} y={row.y - 1.1} fill="#fff" stroke="#111" strokeWidth=".38" paintOrder="stroke fill" strokeLinejoin="round" fontFamily="Poppins, Arial, Helvetica, sans-serif" fontSize="9.9" fontWeight="800">{row.copy}</text>,
     ])}
   </svg>;
 }
@@ -437,7 +463,7 @@ export default function ShelfTags({ wines }: { wines: WineRecord[] }) {
 
             <button disabled={!totalQueue} onClick={() => startPrint(queueExpanded)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#326eac] px-4 py-4 text-sm font-semibold text-white transition hover:bg-[#285a8b] disabled:cursor-not-allowed disabled:opacity-30"><PrinterIcon /> PRINT {totalQueue || 0} TAG{totalQueue === 1 ? '' : 'S'}</button>
             {queue.length > 0 && <button onClick={() => setQueue([])} className="mt-2 w-full rounded-lg px-3 py-2 text-[10px] font-bold text-black/40 hover:bg-black/[.03]">Clear queue</button>}
-            <p className="mt-4 text-[11px] leading-5 text-black/60">Tags use the uploaded master SVG geometry, including the original #1f628e blue, fixed columns, logo blocks, and lighter type outlines from the source design. Print at 100% scale with headers and footers off so each tag remains exactly 6&quot; × 1.25&quot;.</p>
+            <p className="mt-4 text-[11px] leading-5 text-black/60">Tags use the uploaded master geometry with vertically centered content, the supplied Leelanau Cellars square logo, protected name/pricing columns, and automatic text fitting so wine names cannot run into prices. Print at 100% scale with headers and footers off so each tag remains exactly 6&quot; × 1.25&quot;.</p>
           </div>
 
           {queue[0] && <div className="mt-5 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
@@ -501,7 +527,7 @@ function ShelfTagEditor({ editor, wines, setEditor, saveToQueue, printTag }: {
 
           <div className="mt-5">
             <p className="text-[10px] font-black uppercase tracking-[.1em] text-black/45">Wine name lines</p>
-            <p className="mt-1 text-xs leading-5 text-black/45">Use two lines for 26.2 pt type or three lines for 20.7 pt type. Blank third line = two-line layout.</p>
+            <p className="mt-1 text-xs leading-5 text-black/45">Central automatically fits each line inside the wine-name column. Use the third line for longer names; type will shrink only when needed to prevent overlap.</p>
             <div className="mt-3 grid gap-2">{[0, 1, 2].map((index) => <input key={index} value={draft.lines[index] || ''} onChange={(event) => updateLine(index, event.target.value)} placeholder={`Line ${index + 1}${index === 2 ? ' (optional)' : ''}`} className="h-11 rounded-xl border border-black/10 px-3 text-sm font-semibold outline-none focus:border-[#326eac]" />)}</div>
           </div>
 
