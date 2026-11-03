@@ -11,13 +11,26 @@ export type StockLine = {
   receiptDate: string;
   stockQty: number | null;
   page: number;
-  reason?: 'No lot number' | 'DEST DOC populated' | 'Invalid STKQTY';
+  reason?: 'No lot number' | 'DEST DOC populated' | 'Invalid STKQTY' | 'Shipper item';
 };
 
 export type StockTotal = { productCode: string; stockQty: number; rows: number };
+export type WineCostCenter = '102' | '104';
+export type InventoryMode = 'wine' | 'merch';
+export type StockOptions = { mode?: InventoryMode; excludeShippers?: boolean };
+export function isShipperCode(code: string) {
+  return /^SHIPPER(?:\b|[A-Z0-9 _-])/i.test(code.trim());
+}
+
 
 export type StockAnalysis = {
   fileName: string;
+  /** Null if the report header does not identify exactly one supported cost center. */
+  costCenter: WineCostCenter | null;
+  /** Distinct cost centers detected in the PDF; used to prevent misrouting. */
+  reportCostCenters: string[];
+  mode: InventoryMode;
+  excludeShippers: boolean;
   generatedAt: string;
   pageCount: number;
   includedRows: StockLine[];
@@ -42,6 +55,22 @@ const HEADER_PATTERN: Record<Field, RegExp> = {
   receiptDate: /\bRECEIPT\s*DATE\b/i,
   stockQty: /\bSTK\s*QTY\b|\bSTKQTY\b|\bSTOCK\s*QTY\b/i,
 };
+
+/** Detect report cost center from the printed header rather than a filename or
+ * a product row. Never guess when multiple centers appear in the same PDF. */
+function getReportCostCenters(lines: PdfWord[][]): string[] {
+  const found: string[] = [];
+  for (const line of lines) {
+    const text = line.map((word) => word.text).join(' ').replace(/\s+/g, ' ').trim();
+    // Typical report header: COST CENTER : 102 - 102
+    const range = text.match(/\bCOST\s*CENTER\s*:\s*(\d{3})\s*-\s*(\d{3})\b/i);
+    if (range) { found.push(range[1], range[2]); continue; }
+    // Some reports also print CostCenter:102 at the start of the table.
+    const one = text.match(/\bCOST\s*CENTER\s*:\s*(\d{3})\b/i);
+    if (one) found.push(one[1]);
+  }
+  return found;
+}
 
 function groupIntoLines(words: PdfWord[]) {
   const sorted = words.filter((word) => word.text.trim()).sort((a, b) => a.y - b.y || a.x - b.x);
@@ -125,15 +154,19 @@ export function aggregateStockLines(includedRows: StockLine[]): StockTotal[] {
   return [...byProduct.values()].sort((a, b) => a.productCode.localeCompare(b.productCode));
 }
 
-export function parseStockStatusPages(pages: PdfStockPage[], fileName: string): StockAnalysis {
+export function parseStockStatusPages(pages: PdfStockPage[], fileName: string, options: StockOptions = {}): StockAnalysis {
+  const mode: InventoryMode = options.mode === 'merch' ? 'merch' : 'wine';
+  const excludeShippers = options.excludeShippers !== false;
   const includedRows: StockLine[] = [];
   const excludedRows: StockLine[] = [];
   const warnings: string[] = [];
   let headerPages = 0;
   let rejectedRows = 0;
+  const reportCenters = new Set<string>();
 
   for (const page of pages) {
     const lines = groupIntoLines(page.words);
+    getReportCostCenters(lines).forEach((center) => reportCenters.add(center));
     let columns: Column[] | null = null;
     let dataStarted = false;
     let parsedOnPage = 0;
@@ -164,9 +197,10 @@ export function parseStockStatusPages(pages: PdfStockPage[], fileName: string): 
         stockQty: qty,
         page: page.page,
       };
-      if (!record.lotNumber) record.reason = 'No lot number';
-      else if (record.destinationDocument) record.reason = 'DEST DOC populated';
+      if (record.destinationDocument) record.reason = 'DEST DOC populated';
       else if (qty === null) record.reason = 'Invalid STKQTY';
+      else if (excludeShippers && isShipperCode(record.productCode)) record.reason = 'Shipper item';
+      else if (mode === 'wine' && !record.lotNumber) record.reason = 'No lot number';
 
       if (record.reason) {
         if (record.reason === 'Invalid STKQTY') rejectedRows += 1;
@@ -177,13 +211,25 @@ export function parseStockStatusPages(pages: PdfStockPage[], fileName: string): 
   }
 
   if (!headerPages) throw new Error('The PDF does not have the expected PRODUCT CODE, LOT NUMBER, DEST DOC and STKQTY table headings. Please upload a Stock Status by CC and LOC report.');
-  if (!includedRows.length) throw new Error('No eligible stock rows were found. Check that the PDF contains selectable text and rows with a lot number and no DEST DOC.');
+  if (!includedRows.length) throw new Error('No eligible stock rows were found. Check the PDF and the selected inventory rules.');
   if (headerPages < pages.length) warnings.push(`Detected stock table headings on ${headerPages} of ${pages.length} pages. Please review for missing pages.`);
   if (rejectedRows) warnings.push(`${rejectedRows} rows had an unreadable STKQTY and were excluded. Please check the audit sheet.`);
+
+  const reportCostCenters = [...reportCenters].sort();
+  const costCenter: WineCostCenter | null = reportCostCenters.length === 1 &&
+    (reportCostCenters[0] === '102' || reportCostCenters[0] === '104')
+    ? (reportCostCenters[0] as WineCostCenter) : null;
+  if (!costCenter && mode === 'wine') warnings.push(reportCostCenters.length > 1
+    ? `Multiple cost centers detected (${reportCostCenters.join(', ')}). Automatic wine workbook filling is disabled to prevent mixing locations.`
+    : `Could not confirm a single 102 or 104 cost center in the PDF. Automatic wine workbook filling is disabled.`);
 
   const totals = aggregateStockLines(includedRows);
   return {
     fileName,
+    costCenter,
+    reportCostCenters,
+    mode,
+    excludeShippers,
     generatedAt: new Date().toISOString(),
     pageCount: pages.length,
     includedRows,

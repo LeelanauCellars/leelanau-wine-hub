@@ -410,3 +410,31 @@ The **Inventory** page appears under **Tasting Room** in the Admin sidebar and i
 The Excel download includes the computed **Stock by Product** totals, the **Included Rows** audit (one row per lot), and the **Excluded Rows** audit with reasons. The totals are backed by SUMIF formulas and cached numeric results. The page does **not** modify Commerce7, and the uploaded PDF is **not stored**: the report and extracted data are retained only in the staff member's current browser session until the page is closed. The API is restricted to Admin and Tasting Room roles when PIN access is enabled. Normal Vercel function upload size limit: 4 MB for this feature.
 
 Dependencies added: `pdfjs-dist` (positioned PDF text) and `exceljs` (Excel workbook export). `pdf-parse/worker` is imported first to initialize server-side canvas polyfills; Vercel output tracing includes PDF.js worker code. Validate the next live report by spot-checking several lots after each format change. A photographed/scanned PDF without a selectable text layer needs OCR and will be rejected rather than guessed.
+
+## v114 — Stock Inventory (Wine + Merch & Apparel)
+
+The Tasting Room/Admin **Inventory** page now supports two parsing modes for Stock Status by CC and LOC PDFs:
+
+- **Wine Inventory Count:** `LOT NUMBER` is required, `DEST DOC` must be blank, and `SHIPPER*` product codes are excluded by default (toggleable).
+- **Merch & Apparel Inventory Count:** includes products whether their lot number is filled or blank, and always excludes `DEST DOC` rows. `SHIPPER*` exclusion is a selectable option. Merch mode does not automatically classify products as wine/merchandise; upload the intended stock report for the relevant cost center.
+
+The standalone Excel stock summary uses numeric formats tailored per quantity so whole numbers do not render with a trailing decimal point. The export retains Included Rows and Excluded Rows audit tabs.
+
+**Fill an existing spreadsheet:** after calculating and reviewing a PDF, upload a `.xlsx` workbook and click **Match spreadsheet**. The app finds Product Code and Stock Status / STK QTY columns and previews the matching row counts. For the Leelanau End of October 2026 workbook, the default sheet is `TR - E21`, with `E21 Product Code` in column A and `E21 Stock Status` in column D. The app fills that input column only, preserves formulas and physical-count columns, and does not overwrite existing values unless the user checks **Replace existing values** (formulas remain protected). Matching does not replace missing product codes with zero. Downloaded workbooks are copies; uploads are not stored.
+
+Application paths: `/inventory`, `/api/tasting-room/inventory`, `/api/tasting-room/inventory/export`, `/api/tasting-room/inventory/template`. Template uploads accept `.xlsx` files up to 3 MB; PDFs up to 4 MB. Run `npm run test:inventory` to check both parser and template-mapping rules.
+
+
+### Inventory PDF → wine workbook routing (v115)
+
+When the Inventory page is in **Wine Inventory Count** mode, the report's printed
+`COST CENTER` controls the destination **and no manual worksheet override is permitted**:
+
+- **102 → `TR - E21`**, Product Code A / E21 Stock Status D.
+- **104 → `ECOMM - E21`**, Product Code A / E21 Stock Status D.
+
+No sheet is updated if the PDF is missing a single, unambiguous 102 or 104 center,
+if the required worksheet isn't present, or if no product codes match. Existing
+status values are replaced by default for the new report, with formulas protected.
+All other sheets remain unchanged. Merch & Apparel produces its own standalone
+stock-status workbook and has no existing-workbook fill workflow.

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "prebuild": "node scripts/check-central-styles.mjs",
-    "test:inventory": "node scripts/test-stock-inventory.mjs"
+    "test:inventory": "node scripts/test-stock-inventory.mjs && node scripts/test-inventory-template.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.9",
