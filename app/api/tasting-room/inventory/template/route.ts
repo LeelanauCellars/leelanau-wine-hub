@@ -17,8 +17,7 @@ export async function POST(request: NextRequest) {
     const file = form.get('template');
     if (!(file instanceof File) || !/\.xlsx$/i.test(file.name)) return NextResponse.json({ error: 'Choose an Excel .xlsx workbook.' }, { status: 415 });
     if (file.size > 3 * 1024 * 1024) return NextResponse.json({ error: 'For now, Excel templates must be 3 MB or smaller.' }, { status: 413 });
-    const mode = form.get('mode') === 'merch' ? 'merch' : 'wine';
-    if (mode === 'merch') throw new Error('Merch & Apparel Inventory creates a separate spreadsheet. Workbook filling is available for Wine Inventory only.');
+    if (form.get('mode') === 'merch') throw new Error('Merch & Apparel Inventory creates a separate spreadsheet. Workbook filling is available for Wine Inventory only.');
     const sourceCostCenter = String(form.get('costCenter') || '');
     if (sourceCostCenter !== '102' && sourceCostCenter !== '104') {
       throw new Error('Could not identify a single cost center 102 or 104 in the uploaded stock-status report. Workbook filling has been stopped to avoid updating the wrong sheet.');
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
     const parsed = JSON.parse(String(form.get('includedRows') || '[]')) as StockLine[];
     if (!Array.isArray(parsed) || !parsed.length || parsed.length > 25000) throw new Error('Upload and calculate a stock-status PDF before filling a workbook.');
     const valid = parsed.filter((row) =>
-      row && typeof row.productCode === 'string' && !!row.productCode.trim() && (mode === 'merch' || !!row.lotNumber) &&
+      row && typeof row.productCode === 'string' && !!row.productCode.trim() && !!row.lotNumber &&
       !row.destinationDocument && (!excludeShippers || !isShipperCode(row.productCode)) &&
       typeof row.stockQty === 'number' && Number.isFinite(row.stockQty) && Math.abs(row.stockQty) < 1e12
     );
