@@ -438,3 +438,7 @@ if the required worksheet isn't present, or if no product codes match. Existing
 status values are replaced by default for the new report, with formulas protected.
 All other sheets remain unchanged. Merch & Apparel produces its own standalone
 stock-status workbook and has no existing-workbook fill workflow.
+
+
+### v116 patch
+- Fixed a Next.js TypeScript build error in `app/api/tasting-room/inventory/template/route.ts` caused by comparing a wine-only branch against the merchandise mode after type narrowing. The template route continues to require lot numbers; merch export remains separate.
